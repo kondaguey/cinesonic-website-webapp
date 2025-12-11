@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Link from "next/link";
 import {
   Loader2,
   Shield,
@@ -11,9 +10,29 @@ import {
   Clapperboard,
   CheckCircle,
   X,
+  Mic,
+  FileSignature,
+  Calendar,
+  Play,
 } from "lucide-react";
+import Link from "next/link";
 
-// 🔴 REPLACE WITH YOUR V15 URL
+// COMPONENT IMPORTS
+import Sidebar from "../components/Sidebar";
+import DashboardStats from "../components/DashboardStats";
+import TalentManager from "../components/TalentManager";
+import ProductionView from "../components/ProductionView";
+import CastingTab from "../components/CastingTab";
+import ContractsTab from "../components/ContractsTab";
+import ProductionHub from "../components/ProductionHub";
+import ScheduleHub from "../components/ScheduleHub";
+import ProjectHeader from "../components/ProductionHeader";
+
+// UTILS
+import { runCreativeMatch } from "../utils/matchmaker";
+import { checkSchedule } from "../utils/scheduler";
+
+// 🔴 REPLACE WITH YOUR V16 URL
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
 
@@ -24,10 +43,41 @@ export default function AdminPortal() {
   const [accessKey, setAccessKey] = useState("");
   const [crewUser, setCrewUser] = useState(null);
 
-  // INTAKE DATA
+  // DATA STATE
+  const [projects, setProjects] = useState([]);
+  const [roster, setRoster] = useState([]);
+  const [allRoles, setAllRoles] = useState([]); // All roles for all projects
+
+  // INTAKE STATE
   const [intakes, setIntakes] = useState([]);
   const [selectedIntake, setSelectedIntake] = useState(null);
   const [processingId, setProcessingId] = useState(null);
+
+  // PROJECT UI STATE
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [activeTab, setActiveTab] = useState("production");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [matchResults, setMatchResults] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const META_STATUSES = [
+    "NEW",
+    "NEGOTIATING",
+    "CASTING",
+    "PRE-PRODUCTION",
+    "IN PRODUCTION",
+    "POST-PRODUCTION",
+    "COMPLETE",
+    "CANCELLED",
+  ];
+
+  const TABS = [
+    { id: "production", label: "Production", icon: LayoutDashboard },
+    { id: "casting", label: "Casting", icon: Mic },
+    { id: "contracts", label: "Contracts", icon: FileSignature },
+    { id: "hub", label: "Workflow", icon: Play },
+    { id: "schedule", label: "Schedule", icon: Calendar },
+  ];
 
   // --- LOGIN ---
   const handleLogin = async (e) => {
@@ -39,7 +89,7 @@ export default function AdminPortal() {
       if (res.data.success) {
         setCrewUser(res.data.user);
         setView("dashboard");
-        fetchIntakes(); // Load data on login
+        fetchAllData(); // 🟢 GET EVERYTHING
       } else {
         setError("Access Denied: Invalid Key");
       }
@@ -49,20 +99,27 @@ export default function AdminPortal() {
     setLoading(false);
   };
 
-  // --- FETCH INTAKES ---
-  const fetchIntakes = async () => {
+  // --- DATA FETCHING ---
+  const fetchAllData = async () => {
     try {
-      const res = await axios.get(`${API_URL}?op=get_intakes`);
-      if (res.data.success) {
-        setIntakes(res.data.intakes);
+      // 1. Get Intakes (Old Method)
+      const resIntake = await axios.get(`${API_URL}?op=get_intakes`);
+      if (resIntake.data.success) setIntakes(resIntake.data.intakes);
+
+      // 2. Get Admin Master Data (V16)
+      const resAdmin = await axios.get(`${API_URL}?op=get_admin_data`);
+      if (resAdmin.data.success) {
+        setProjects(resAdmin.data.projects);
+        setAllRoles(resAdmin.data.roles);
+        setRoster(resAdmin.data.roster);
       }
     } catch (e) {
       console.error("Fetch error", e);
     }
   };
 
-  // --- APPROVE HANDLER ---
-  const handleApprove = async () => {
+  // --- INTAKE APPROVAL ---
+  const handleApproveIntake = async () => {
     if (!selectedIntake) return;
     setProcessingId(selectedIntake.id);
 
@@ -78,9 +135,9 @@ export default function AdminPortal() {
 
       if (res.data.success) {
         alert(`Project Approved! Created ID: ${res.data.projectId}`);
-        // Remove from local list
         setIntakes((prev) => prev.filter((i) => i.id !== selectedIntake.id));
         setSelectedIntake(null);
+        fetchAllData(); // Refresh to see new project in list
       } else {
         alert("Error: " + res.data.error);
       }
@@ -88,6 +145,42 @@ export default function AdminPortal() {
       alert("Connection Failed");
     }
     setProcessingId(null);
+  };
+
+  // --- PROJECT UPDATES ---
+  const updateField = (field, value) => {
+    setSelectedProject((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const saveProject = async () => {
+    if (!selectedProject) return;
+    setSaving(true);
+    try {
+      const res = await axios.post(
+        API_URL,
+        JSON.stringify({
+          op: "update_project",
+          project: selectedProject,
+        }),
+        { headers: { "Content-Type": "text/plain;charset=utf-8" } }
+      );
+
+      if (res.data.success) {
+        // Update local list
+        setProjects((prev) =>
+          prev.map((p) =>
+            p["Project ID"] === selectedProject["Project ID"]
+              ? selectedProject
+              : p
+          )
+        );
+      } else {
+        alert("Save Failed: " + res.data.error);
+      }
+    } catch (err) {
+      alert("Connection Error");
+    }
+    setSaving(false);
   };
 
   // --- VIEW: LOGIN ---
@@ -139,92 +232,147 @@ export default function AdminPortal() {
     );
 
   // --- VIEW: DASHBOARD ---
+  const currentRoles = selectedProject
+    ? allRoles.filter((r) => r["Project ID"] === selectedProject["Project ID"])
+    : [];
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] text-white font-sans">
-      {/* NAVBAR */}
-      <div className="border-b border-gold/20 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <img
-              src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-              className="h-8 object-contain"
+    <div className="flex h-screen bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] text-white font-sans overflow-hidden">
+      <Sidebar
+        user={crewUser}
+        projects={projects}
+        selectedProject={selectedProject}
+        onSelectProject={(p) => {
+          setSelectedProject(p);
+          setView("project");
+        }}
+        onLogout={() => setView("login")}
+        onDashboardClick={() => {
+          setSelectedProject(null);
+          setView("dashboard");
+        }}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        metaStatuses={META_STATUSES}
+      />
+
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
+        {view === "dashboard" ? (
+          <>
+            <div className="mb-8 flex justify-between items-end">
+              <h1 className="text-3xl font-serif text-white flex items-center gap-3">
+                <LayoutDashboard className="text-gold" /> Crew Overview
+              </h1>
+              <button
+                onClick={fetchAllData}
+                className="text-xs text-gold border border-gold/30 px-3 py-1 rounded hover:bg-gold/10"
+              >
+                Refresh Data
+              </button>
+            </div>
+
+            <DashboardStats
+              data={projects}
+              onNavigate={() => setView("roster")}
             />
-            <div className="h-6 w-px bg-gold/30"></div>
-            <span className="font-serif text-gold text-lg tracking-widest">
-              Casting Hub
-            </span>
-          </div>
-          <div className="flex items-center gap-4 text-xs uppercase tracking-widest text-gray-400">
-            <span>
-              {crewUser?.name} ({crewUser?.role})
-            </span>
-            <button
-              onClick={() => setView("login")}
-              className="text-red-400 hover:text-red-300 ml-4 border border-red-900/50 px-3 py-1 rounded bg-red-900/10"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
 
-      <div className="p-8 max-w-7xl mx-auto">
-        <div className="mb-8 flex justify-between items-end">
-          <h1 className="text-3xl font-serif text-white flex items-center gap-3">
-            <LayoutDashboard className="text-gold" /> Crew Overview
-          </h1>
-          <button
-            onClick={fetchIntakes}
-            className="text-xs text-gold border border-gold/30 px-3 py-1 rounded hover:bg-gold/10"
-          >
-            Refresh Data
-          </button>
-        </div>
-
-        {/* INTAKE LIST */}
-        <div className="grid grid-cols-1 gap-6 mb-12">
-          <h3 className="text-gold font-bold uppercase tracking-widest border-b border-white/10 pb-2 mb-4">
-            New Project Requests ({intakes.length})
-          </h3>
-
-          {intakes.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/5">
-              No new requests pending.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {intakes.map((intake) => (
-                <div
-                  key={intake.id}
-                  onClick={() => setSelectedIntake(intake)}
-                  className="bg-white/5 border border-white/10 p-5 rounded-xl hover:border-gold/50 cursor-pointer transition-all hover:bg-white/10 group"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-[10px] bg-gold/20 text-gold px-2 py-1 rounded border border-gold/10">
-                      {intake.clientType}
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(intake.timestamp).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <h4 className="font-serif text-xl text-white group-hover:text-gold mb-1 truncate">
-                    {intake.title}
-                  </h4>
-                  <p className="text-xs text-gray-400">{intake.clientName}</p>
-                  <div className="mt-4 flex gap-2 text-[10px] text-gray-500 uppercase tracking-wider">
-                    <span className="bg-black/30 px-2 py-1 rounded">
-                      {intake.style}
-                    </span>
-                    <span className="bg-black/30 px-2 py-1 rounded">
-                      {intake.wordCount} words
-                    </span>
-                  </div>
+            <div className="mt-12">
+              <h3 className="text-gold font-bold uppercase tracking-widest border-b border-white/10 pb-2 mb-4">
+                New Project Requests ({intakes.length})
+              </h3>
+              {intakes.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/5">
+                  No new requests pending.
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {intakes.map((intake) => (
+                    <div
+                      key={intake.id}
+                      onClick={() => setSelectedIntake(intake)}
+                      className="bg-white/5 border border-white/10 p-5 rounded-xl hover:border-gold/50 cursor-pointer transition-all hover:bg-white/10 group"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="text-[10px] bg-gold/20 text-gold px-2 py-1 rounded border border-gold/10">
+                          {intake.clientType}
+                        </span>
+                        <span className="text-[10px] text-gray-500">
+                          {new Date(intake.timestamp).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <h4 className="font-serif text-xl text-white group-hover:text-gold mb-1 truncate">
+                        {intake.title}
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        {intake.clientName}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </>
+        ) : view === "roster" ? (
+          <TalentManager data={roster} onBack={() => setView("dashboard")} />
+        ) : (
+          <div className="max-w-6xl mx-auto">
+            <ProjectHeader
+              project={selectedProject}
+              saveProject={saveProject}
+              saving={saving}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              updateField={updateField}
+              metaStatuses={META_STATUSES}
+              tabs={TABS}
+            />
+
+            {activeTab === "production" && (
+              <ProductionView
+                project={selectedProject}
+                updateField={updateField}
+                roster={roster}
+              />
+            )}
+
+            {activeTab === "casting" && (
+              <CastingTab
+                project={selectedProject}
+                roles={currentRoles}
+                roster={roster}
+                updateField={updateField}
+                matchResults={matchResults}
+                setMatchResults={setMatchResults}
+                runCreativeMatch={runCreativeMatch}
+              />
+            )}
+
+            {activeTab === "contracts" && (
+              <ContractsTab
+                project={selectedProject}
+                roles={currentRoles}
+                updateField={updateField}
+              />
+            )}
+
+            {activeTab === "hub" && (
+              <ProductionHub
+                project={selectedProject}
+                updateField={updateField}
+              />
+            )}
+
+            {activeTab === "schedule" && (
+              <ScheduleTab
+                project={selectedProject}
+                roles={currentRoles}
+                roster={roster}
+                checkSchedule={checkSchedule}
+              />
+            )}
+          </div>
+        )}
+      </main>
 
       {/* MODAL: INTAKE DETAIL */}
       {selectedIntake && (
@@ -246,7 +394,6 @@ export default function AdminPortal() {
                 <X size={24} />
               </button>
             </div>
-
             <div className="p-8 overflow-y-auto custom-scrollbar space-y-6">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -274,7 +421,6 @@ export default function AdminPortal() {
                   {selectedIntake.genres}
                 </div>
               </div>
-
               <div className="bg-white/5 p-4 rounded border border-white/10">
                 <span className="text-gold block text-xs uppercase mb-2">
                   Character Breakdown
@@ -283,7 +429,6 @@ export default function AdminPortal() {
                   {selectedIntake.characters}
                 </pre>
               </div>
-
               <div className="bg-white/5 p-4 rounded border border-white/10">
                 <span className="text-gold block text-xs uppercase mb-2">
                   Notes
@@ -293,7 +438,6 @@ export default function AdminPortal() {
                 </p>
               </div>
             </div>
-
             <div className="p-6 bg-black/40 border-t border-gold/20 flex justify-end gap-4 shrink-0">
               <button
                 onClick={() => setSelectedIntake(null)}
@@ -302,7 +446,7 @@ export default function AdminPortal() {
                 Close
               </button>
               <button
-                onClick={handleApprove}
+                onClick={handleApproveIntake}
                 disabled={processingId === selectedIntake.id}
                 className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-2 rounded uppercase tracking-widest text-sm flex items-center gap-2 disabled:opacity-50"
               >
@@ -310,7 +454,7 @@ export default function AdminPortal() {
                   <Loader2 className="animate-spin" />
                 ) : (
                   <CheckCircle size={16} />
-                )}
+                )}{" "}
                 Approve & Explode
               </button>
             </div>
