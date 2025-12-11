@@ -11,14 +11,18 @@ import {
 import axios from "axios";
 import Link from "next/link";
 
-// 🔴 REPLACE WITH YOUR V8 URL
+// 🔴 REPLACE WITH YOUR V12/V13 URL
 const API_URL =
   "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
 
 export default function AuthorForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [listOptions, setListOptions] = useState({ genres: [] });
+  const [listOptions, setListOptions] = useState({
+    genres: [],
+    voices: [],
+    ages: [],
+  });
 
   const [formData, setFormData] = useState({
     clientType: "",
@@ -31,17 +35,21 @@ export default function AuthorForm() {
     notes: "",
     date1: "",
     date2: "",
-    date3: "", // 🟢 ADDED 3rd DATE
+    date3: "",
     characters: [],
   });
 
-  // 🟢 FETCH DYNAMIC LISTS ON MOUNT
+  // FETCH LISTS
   useEffect(() => {
     const fetchLists = async () => {
       try {
         const res = await axios.get(`${API_URL}?op=get_lists`);
-        if (res.data.genres) {
-          setListOptions({ genres: res.data.genres });
+        if (res.data) {
+          setListOptions({
+            genres: res.data.genres || [],
+            voices: res.data.voices || [],
+            ages: res.data.ages || [],
+          });
         }
       } catch (err) {
         console.error("Failed to load lists");
@@ -112,6 +120,14 @@ export default function AuthorForm() {
     setLoading(false);
   };
 
+  // 🟢 UNIFIED INPUT STYLES (Exact match to Word Count + Autofill Fix)
+  // This shadow trick forces the background to stay dark even when Chrome tries to turn it white for autofill
+  const inputClass =
+    "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white outline-none focus:border-gold transition-colors placeholder:text-gray-500 [&:-webkit-autofill]:shadow-[0_0_0_30px_#1a1a1a_inset] [&:-webkit-autofill]:-webkit-text-fill-color-white";
+
+  const selectClass =
+    "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight";
+
   if (submitted)
     return (
       <div className="min-h-screen bg-deep-space flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -136,19 +152,19 @@ export default function AuthorForm() {
     );
 
   return (
-    <div className="min-h-screen bg-deep-space text-white p-4 md:p-8 font-sans pb-32">
-      <div className="max-w-3xl mx-auto animate-fade-in-up">
+    <div className="min-h-screen bg-gradient-to-b from-[#1a0f5e] via-[#0c0442] to-black text-white p-4 md:p-8 font-sans pb-32">
+      <div className="max-w-4xl mx-auto animate-fade-in-up">
         {/* BANNER */}
         <div className="mb-2 shadow-glow rounded-xl overflow-hidden border border-gold/30 bg-midnight relative z-0">
           <img
             src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-            className="w-full h-32 md:h-48 object-cover opacity-90"
+            className="w-full h-32 md:h-56 object-cover opacity-90"
             alt="Banner"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-deep-space/90 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
           <Link
             href="/"
-            className="absolute top-4 right-4 text-xs text-gold/50 hover:text-gold uppercase tracking-widest z-20"
+            className="absolute top-4 right-4 text-xs text-gold/50 hover:text-gold uppercase tracking-widest z-20 bg-black/40 px-3 py-1 rounded-full border border-white/10"
           >
             Cancel / Exit
           </Link>
@@ -156,19 +172,19 @@ export default function AuthorForm() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-black/40 backdrop-blur-xl p-6 md:p-10 rounded-xl shadow-2xl border border-gold/20 space-y-8 relative z-10"
+          className="bg-black/40 backdrop-blur-xl p-8 md:p-12 rounded-xl shadow-2xl border border-gold/20 space-y-10 relative z-10"
         >
           {/* CLIENT INFO */}
-          <div className="pb-8 border-b border-gold/20">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
-              <Film className="w-4 h-4" /> Client Information
+          <div className="pb-10 border-b border-gold/20">
+            <h3 className="text-lg font-bold uppercase tracking-widest text-gold mb-8 flex items-center gap-2 font-serif">
+              <Film className="w-5 h-5" /> Client Information
             </h3>
-            <div className="grid gap-6">
+            <div className="grid gap-8">
               <div className="relative">
                 <select
                   name="clientType"
                   onChange={handleChange}
-                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight"
+                  className={selectClass}
                   required
                 >
                   <option value="" disabled selected>
@@ -177,26 +193,27 @@ export default function AuthorForm() {
                   <option value="Publisher">Publisher</option>
                   <option value="Production Company">Production Company</option>
                   <option value="Indie Author">Indie Author</option>
-                  <option value="Talent Agency">Talent Agency</option>{" "}
-                  {/* 🟢 ADDED */}
+                  <option value="Talent Agency">Talent Agency</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-4 w-4 h-4 text-gold/50 pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-5 w-5 h-5 text-gold/50 pointer-events-none" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* 🟢 EXACT SAME CLASS AS WORD COUNT */}
                 <input
                   name="clientName"
                   placeholder="Full Name / Company Name"
                   onChange={handleChange}
-                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
+                  className={inputClass}
                   required
                 />
+                {/* 🟢 EXACT SAME CLASS AS WORD COUNT */}
                 <input
                   name="email"
                   type="email"
                   placeholder="Email Address"
                   onChange={handleChange}
-                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
+                  className={inputClass}
                   required
                 />
               </div>
@@ -204,26 +221,26 @@ export default function AuthorForm() {
           </div>
 
           {/* PROJECT DETAILS */}
-          <div className="pb-8 border-b border-gold/20">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Project Details
+          <div className="pb-10 border-b border-gold/20">
+            <h3 className="text-lg font-bold uppercase tracking-widest text-gold mb-8 flex items-center gap-2 font-serif">
+              <BookOpen className="w-5 h-5" /> Project Details
             </h3>
 
             <input
               name="bookTitle"
               placeholder="Project Title"
               onChange={handleChange}
-              className="w-full text-xl bg-transparent border-b border-gold/30 py-3 px-2 mb-6 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600 text-white"
+              className="w-full text-3xl bg-transparent border-b border-gold/30 py-4 px-2 mb-8 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600 text-white"
               required
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <input
                 name="wordCount"
                 type="number"
                 placeholder="Word Count (Est.)"
                 onChange={handleChange}
-                className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
+                className={inputClass}
                 required
               />
 
@@ -231,7 +248,7 @@ export default function AuthorForm() {
                 <select
                   name="style"
                   onChange={handleStyleChange}
-                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 appearance-none outline-none focus:border-gold transition-colors cursor-pointer text-white [&>option]:bg-midnight"
+                  className={selectClass}
                   required
                 >
                   <option value="" disabled selected>
@@ -242,20 +259,20 @@ export default function AuthorForm() {
                   <option value="Duet Narration">Duet Narration</option>
                   <option value="Full Multicast">Full Multicast</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-4 w-4 h-4 text-gold/50 pointer-events-none" />
+                <ChevronDown className="absolute right-4 top-5 w-5 h-5 text-gold/50 pointer-events-none" />
               </div>
             </div>
 
             {/* DYNAMIC GENRES */}
-            <label className="text-[10px] text-gold uppercase tracking-widest mb-2 block ml-1">
+            <label className="text-xs text-gold uppercase tracking-widest mb-2 block ml-1 font-bold">
               Genre Breakdown
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               {["primary", "secondary", "tertiary"].map((level, idx) => (
                 <div className="relative" key={level}>
                   <select
                     onChange={(e) => handleGenreChange(level, e.target.value)}
-                    className="w-full bg-white/5 border-b border-gold/30 py-2 px-3 text-sm appearance-none outline-none focus:border-gold cursor-pointer text-white [&>option]:bg-midnight"
+                    className={selectClass}
                     required={idx === 0}
                   >
                     <option
@@ -266,83 +283,101 @@ export default function AuthorForm() {
                     >
                       {level.charAt(0).toUpperCase() + level.slice(1)}...
                     </option>
-                    {/* 🟢 DYNAMIC LIST MAPPING */}
                     {listOptions.genres.map((g) => (
                       <option key={g} value={g}>
                         {g}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3 top-3 w-3 h-3 text-gold/50 pointer-events-none" />
+                  <ChevronDown className="absolute right-3 top-5 w-4 h-4 text-gold/50 pointer-events-none" />
                 </div>
               ))}
             </div>
 
             {/* CHARACTERS */}
             {formData.characters.length > 0 && (
-              <div className="bg-white/5 p-6 rounded-lg border border-gold/10 mb-8 animate-fade-in">
-                <h4 className="text-gold text-xs font-bold uppercase mb-4 border-b border-white/5 pb-2">
+              <div className="bg-white/5 p-8 rounded-lg border border-gold/10 mb-8 animate-fade-in">
+                <h4 className="text-gold text-sm font-bold uppercase mb-6 border-b border-white/5 pb-2">
                   Character Breakdown
                 </h4>
                 {formData.characters.map((char, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4 items-end"
+                    className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6 items-end"
                   >
-                    <div className="md:col-span-1 text-gold text-xs font-bold pb-2">
+                    <div className="md:col-span-1 text-gold text-sm font-bold pb-3">
                       #{i + 1}
                     </div>
-                    <div className="md:col-span-4">
+
+                    <div className="md:col-span-3">
                       <input
                         placeholder="Character Name"
                         value={char.name}
                         onChange={(e) =>
                           updateCharacter(i, "name", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold placeholder:text-gray-600 text-white"
                       />
                     </div>
+
                     <div className="md:col-span-2">
                       <select
                         value={char.gender}
                         onChange={(e) =>
                           updateCharacter(i, "gender", e.target.value)
                         }
-                        className="w-full bg-midnight border-b border-white/20 p-2 text-sm outline-none focus:border-gold text-white"
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold text-white [&>option]:bg-midnight cursor-pointer"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>
                     </div>
-                    <div className="md:col-span-2">
-                      <input
-                        placeholder="Age"
+
+                    <div className="md:col-span-3">
+                      <select
                         value={char.age}
                         onChange={(e) =>
                           updateCharacter(i, "age", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
-                      />
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold text-white [&>option]:bg-midnight cursor-pointer"
+                      >
+                        <option value="" disabled>
+                          Select Age...
+                        </option>
+                        {listOptions.ages.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+
                     <div className="md:col-span-3">
-                      <input
-                        placeholder="Vocal (e.g. Raspy)"
+                      <select
                         value={char.vocal}
                         onChange={(e) =>
                           updateCharacter(i, "vocal", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
-                      />
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold text-white [&>option]:bg-midnight cursor-pointer"
+                      >
+                        <option value="" disabled>
+                          Select Vocal Style...
+                        </option>
+                        {listOptions.voices.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* 🟢 POLICY DISCLAIMER */}
-            <div className="bg-gold/10 border-l-2 border-gold p-4 mb-6 rounded-r-lg flex gap-3">
-              <Info className="w-5 h-5 text-gold shrink-0 mt-0.5" />
-              <p className="text-gold/90 text-xs leading-relaxed font-sans">
+            <div className="bg-gold/10 border-l-2 border-gold p-6 mb-8 rounded-r-lg flex gap-4">
+              <Info className="w-6 h-6 text-gold shrink-0 mt-0.5" />
+              <p className="text-gold/90 text-sm leading-relaxed font-sans">
                 <strong>We welcome mature and complex subject matter</strong>{" "}
                 that demonstrates genuine literary merit, authentically
                 exploring the full spectrum of the human experience, including
@@ -357,20 +392,20 @@ export default function AuthorForm() {
               name="notes"
               placeholder="Additional Notes / Vibes..."
               onChange={handleChange}
-              className="w-full bg-white/5 p-4 h-28 rounded border border-transparent focus:border-gold/30 outline-none text-sm placeholder:text-gray-600 resize-none text-white"
+              className="w-full bg-white/5 p-6 h-32 rounded border border-transparent focus:border-gold/30 outline-none text-base placeholder:text-gray-600 resize-none text-white"
             ></textarea>
           </div>
 
           {/* TIMELINE */}
           <div>
-            <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> Timeline Preferences
+            <h3 className="text-lg font-bold uppercase tracking-widest text-gold mb-8 flex items-center gap-2 font-serif">
+              <Calendar className="w-5 h-5" /> Timeline Preferences
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               {/* Option 1 */}
-              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/20 p-3 rounded">
-                <span className="text-[10px] font-bold uppercase text-gold">
+              <div className="flex flex-col gap-2 bg-midnight/40 border border-gold/20 p-4 rounded-lg">
+                <span className="text-xs font-bold uppercase text-gold">
                   Option 1 (Preferred)
                 </span>
                 <input
@@ -378,33 +413,33 @@ export default function AuthorForm() {
                   name="date1"
                   onChange={handleChange}
                   required
-                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
+                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-base cursor-pointer [color-scheme:dark]"
                 />
               </div>
 
               {/* Option 2 */}
-              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/10 p-3 rounded opacity-75 hover:opacity-100 transition">
-                <span className="text-[10px] font-bold uppercase text-gold">
+              <div className="flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg opacity-75 hover:opacity-100 transition">
+                <span className="text-xs font-bold uppercase text-gold">
                   Option 2
                 </span>
                 <input
                   type="date"
                   name="date2"
                   onChange={handleChange}
-                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
+                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-base cursor-pointer [color-scheme:dark]"
                 />
               </div>
 
-              {/* 🟢 Option 3 */}
-              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/10 p-3 rounded opacity-75 hover:opacity-100 transition">
-                <span className="text-[10px] font-bold uppercase text-gold">
+              {/* Option 3 */}
+              <div className="flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg opacity-75 hover:opacity-100 transition">
+                <span className="text-xs font-bold uppercase text-gold">
                   Option 3
                 </span>
                 <input
                   type="date"
                   name="date3"
                   onChange={handleChange}
-                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
+                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-base cursor-pointer [color-scheme:dark]"
                 />
               </div>
             </div>
@@ -412,7 +447,7 @@ export default function AuthorForm() {
             <button
               type="submit"
               disabled={loading}
-              className="group w-full bg-gradient-to-r from-gold via-[#e5c558] to-gold text-midnight font-bold py-5 rounded shadow-glow hover:shadow-lg hover:scale-[1.01] transition-all duration-300 uppercase tracking-[0.2em] relative overflow-hidden"
+              className="group w-full bg-gradient-to-r from-gold via-[#e5c558] to-gold text-midnight font-bold py-6 rounded-lg shadow-glow hover:shadow-lg hover:scale-[1.01] transition-all duration-300 uppercase tracking-[0.2em] relative overflow-hidden text-lg"
             >
               {loading ? (
                 <span className="animate-pulse">Processing...</span>
