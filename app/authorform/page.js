@@ -1,28 +1,29 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Film,
   BookOpen,
   Calendar,
   CheckCircle,
   ChevronDown,
+  Info,
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
 
-// NOTE: Add your GAS URL here or in a .env.local file as NEXT_PUBLIC_API_URL
+// 🔴 REPLACE WITH YOUR V8 URL
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbzTK5u6x0B2iKdKLUqwfyiPwvdt_nlpWvl07wmHnWTMqA44h9vY4oTTHjMOfYlCToZY/exec";
+  "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
 
 export default function AuthorForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listOptions, setListOptions] = useState({ genres: [] });
 
   const [formData, setFormData] = useState({
     clientType: "",
     clientName: "",
     email: "",
-    isReturning: false,
     bookTitle: "",
     wordCount: "",
     style: "",
@@ -30,15 +31,28 @@ export default function AuthorForm() {
     notes: "",
     date1: "",
     date2: "",
+    date3: "", // 🟢 ADDED 3rd DATE
     characters: [],
   });
 
+  // 🟢 FETCH DYNAMIC LISTS ON MOUNT
+  useEffect(() => {
+    const fetchLists = async () => {
+      try {
+        const res = await axios.get(`${API_URL}?op=get_lists`);
+        if (res.data.genres) {
+          setListOptions({ genres: res.data.genres });
+        }
+      } catch (err) {
+        console.error("Failed to load lists");
+      }
+    };
+    fetchLists();
+  }, []);
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleGenreChange = (level, value) => {
@@ -93,7 +107,6 @@ export default function AuthorForm() {
       });
       setSubmitted(true);
     } catch (error) {
-      console.error(error);
       alert("Connection Error. Please try again.");
     }
     setLoading(false);
@@ -101,7 +114,7 @@ export default function AuthorForm() {
 
   if (submitted)
     return (
-      <div className="min-h-screen bg-midnight flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+      <div className="min-h-screen bg-deep-space flex flex-col items-center justify-center p-6 text-center animate-fade-in">
         <div className="bg-black/40 backdrop-blur-md border border-gold/50 p-12 rounded-xl shadow-2xl max-w-lg w-full">
           <div className="w-24 h-24 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-glow">
             <CheckCircle className="w-12 h-12 text-gold" />
@@ -123,15 +136,16 @@ export default function AuthorForm() {
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-midnight via-[#090332] to-deep-space text-white p-4 md:p-8 font-sans pb-32">
+    <div className="min-h-screen bg-deep-space text-white p-4 md:p-8 font-sans pb-32">
       <div className="max-w-3xl mx-auto animate-fade-in-up">
+        {/* BANNER */}
         <div className="mb-2 shadow-glow rounded-xl overflow-hidden border border-gold/30 bg-midnight relative z-0">
           <img
             src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
             className="w-full h-32 md:h-48 object-cover opacity-90"
             alt="Banner"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-midnight/90 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-deep-space/90 to-transparent"></div>
           <Link
             href="/"
             className="absolute top-4 right-4 text-xs text-gold/50 hover:text-gold uppercase tracking-widest z-20"
@@ -142,8 +156,9 @@ export default function AuthorForm() {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-glass backdrop-blur-xl p-6 md:p-10 rounded-xl shadow-2xl border border-gold/20 space-y-8 relative z-10"
+          className="bg-black/40 backdrop-blur-xl p-6 md:p-10 rounded-xl shadow-2xl border border-gold/20 space-y-8 relative z-10"
         >
+          {/* CLIENT INFO */}
           <div className="pb-8 border-b border-gold/20">
             <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
               <Film className="w-4 h-4" /> Client Information
@@ -153,21 +168,17 @@ export default function AuthorForm() {
                 <select
                   name="clientType"
                   onChange={handleChange}
-                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer"
+                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight"
                   required
                 >
                   <option value="" disabled selected>
                     I'm a...
                   </option>
-                  <option className="text-midnight" value="Publisher">
-                    Publisher
-                  </option>
-                  <option className="text-midnight" value="Production Company">
-                    Production Company
-                  </option>
-                  <option className="text-midnight" value="Indie Author">
-                    Indie Author
-                  </option>
+                  <option value="Publisher">Publisher</option>
+                  <option value="Production Company">Production Company</option>
+                  <option value="Indie Author">Indie Author</option>
+                  <option value="Talent Agency">Talent Agency</option>{" "}
+                  {/* 🟢 ADDED */}
                 </select>
                 <ChevronDown className="absolute right-4 top-4 w-4 h-4 text-gold/50 pointer-events-none" />
               </div>
@@ -177,7 +188,7 @@ export default function AuthorForm() {
                   name="clientName"
                   placeholder="Full Name / Company Name"
                   onChange={handleChange}
-                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500"
+                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
                   required
                 />
                 <input
@@ -185,13 +196,14 @@ export default function AuthorForm() {
                   type="email"
                   placeholder="Email Address"
                   onChange={handleChange}
-                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500"
+                  className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
                   required
                 />
               </div>
             </div>
           </div>
 
+          {/* PROJECT DETAILS */}
           <div className="pb-8 border-b border-gold/20">
             <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
               <BookOpen className="w-4 h-4" /> Project Details
@@ -201,7 +213,7 @@ export default function AuthorForm() {
               name="bookTitle"
               placeholder="Project Title"
               onChange={handleChange}
-              className="w-full text-xl bg-transparent border-b border-gold/30 py-3 px-2 mb-6 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600"
+              className="w-full text-xl bg-transparent border-b border-gold/30 py-3 px-2 mb-6 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600 text-white"
               required
             />
 
@@ -211,7 +223,7 @@ export default function AuthorForm() {
                 type="number"
                 placeholder="Word Count (Est.)"
                 onChange={handleChange}
-                className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500"
+                className="bg-white/5 border-b border-gold/30 py-3 px-4 outline-none focus:border-gold transition-colors placeholder:text-gray-500 text-white"
                 required
               />
 
@@ -219,29 +231,22 @@ export default function AuthorForm() {
                 <select
                   name="style"
                   onChange={handleStyleChange}
-                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 appearance-none outline-none focus:border-gold transition-colors cursor-pointer text-white"
+                  className="w-full bg-white/5 border-b border-gold/30 py-3 px-4 appearance-none outline-none focus:border-gold transition-colors cursor-pointer text-white [&>option]:bg-midnight"
                   required
                 >
                   <option value="" disabled selected>
                     Production Style...
                   </option>
-                  <option className="text-midnight" value="Solo Narration">
-                    Solo Narration
-                  </option>
-                  <option className="text-midnight" value="Dual Narration">
-                    Dual Narration
-                  </option>
-                  <option className="text-midnight" value="Duet Narration">
-                    Duet Narration
-                  </option>
-                  <option className="text-midnight" value="Full Multicast">
-                    Full Multicast
-                  </option>
+                  <option value="Solo Narration">Solo Narration</option>
+                  <option value="Dual Narration">Dual Narration</option>
+                  <option value="Duet Narration">Duet Narration</option>
+                  <option value="Full Multicast">Full Multicast</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-4 w-4 h-4 text-gold/50 pointer-events-none" />
               </div>
             </div>
 
+            {/* DYNAMIC GENRES */}
             <label className="text-[10px] text-gold uppercase tracking-widest mb-2 block ml-1">
               Genre Breakdown
             </label>
@@ -250,7 +255,7 @@ export default function AuthorForm() {
                 <div className="relative" key={level}>
                   <select
                     onChange={(e) => handleGenreChange(level, e.target.value)}
-                    className="w-full bg-white/5 border-b border-gold/30 py-2 px-3 text-sm appearance-none outline-none focus:border-gold cursor-pointer"
+                    className="w-full bg-white/5 border-b border-gold/30 py-2 px-3 text-sm appearance-none outline-none focus:border-gold cursor-pointer text-white [&>option]:bg-midnight"
                     required={idx === 0}
                   >
                     <option
@@ -261,17 +266,9 @@ export default function AuthorForm() {
                     >
                       {level.charAt(0).toUpperCase() + level.slice(1)}...
                     </option>
-                    {[
-                      "Romance",
-                      "Thriller",
-                      "Sci-Fi",
-                      "Fantasy",
-                      "Non-Fiction",
-                      "Mystery",
-                      "Horror",
-                      "LitRPG",
-                    ].map((g) => (
-                      <option key={g} value={g} className="text-midnight">
+                    {/* 🟢 DYNAMIC LIST MAPPING */}
+                    {listOptions.genres.map((g) => (
+                      <option key={g} value={g}>
                         {g}
                       </option>
                     ))}
@@ -281,6 +278,7 @@ export default function AuthorForm() {
               ))}
             </div>
 
+            {/* CHARACTERS */}
             {formData.characters.length > 0 && (
               <div className="bg-white/5 p-6 rounded-lg border border-gold/10 mb-8 animate-fade-in">
                 <h4 className="text-gold text-xs font-bold uppercase mb-4 border-b border-white/5 pb-2">
@@ -301,7 +299,7 @@ export default function AuthorForm() {
                         onChange={(e) =>
                           updateCharacter(i, "name", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600"
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -310,7 +308,7 @@ export default function AuthorForm() {
                         onChange={(e) =>
                           updateCharacter(i, "gender", e.target.value)
                         }
-                        className="w-full bg-midnight border-b border-white/20 p-2 text-sm outline-none focus:border-gold"
+                        className="w-full bg-midnight border-b border-white/20 p-2 text-sm outline-none focus:border-gold text-white"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -323,7 +321,7 @@ export default function AuthorForm() {
                         onChange={(e) =>
                           updateCharacter(i, "age", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600"
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
                       />
                     </div>
                     <div className="md:col-span-3">
@@ -333,29 +331,47 @@ export default function AuthorForm() {
                         onChange={(e) =>
                           updateCharacter(i, "vocal", e.target.value)
                         }
-                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600"
+                        className="w-full bg-transparent border-b border-white/20 p-2 text-sm outline-none focus:border-gold placeholder:text-gray-600 text-white"
                       />
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
+            {/* 🟢 POLICY DISCLAIMER */}
+            <div className="bg-gold/10 border-l-2 border-gold p-4 mb-6 rounded-r-lg flex gap-3">
+              <Info className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+              <p className="text-gold/90 text-xs leading-relaxed font-sans">
+                <strong>We welcome mature and complex subject matter</strong>{" "}
+                that demonstrates genuine literary merit, authentically
+                exploring the full spectrum of the human experience, including
+                crime, violent acts, and sometimes deeply disturbing themes.
+                That said, we prohibit material that promotes, instructs, or
+                praises real-world illegal activity, as well as Age Gap themes
+                involving minors.
+              </p>
+            </div>
+
             <textarea
               name="notes"
               placeholder="Additional Notes / Vibes..."
               onChange={handleChange}
-              className="w-full bg-white/5 p-4 h-28 rounded border border-transparent focus:border-gold/30 outline-none text-sm placeholder:text-gray-600 resize-none"
+              className="w-full bg-white/5 p-4 h-28 rounded border border-transparent focus:border-gold/30 outline-none text-sm placeholder:text-gray-600 resize-none text-white"
             ></textarea>
           </div>
 
+          {/* TIMELINE */}
           <div>
             <h3 className="text-sm font-bold uppercase tracking-widest text-gold mb-6 flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Timeline Preferences
             </h3>
-            <div className="grid grid-cols-1 gap-4 mb-8">
-              <div className="flex items-center gap-4 bg-midnight/40 border border-gold/20 p-3 rounded">
-                <span className="text-xs font-bold uppercase text-gold w-20">
-                  Option 1
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {/* Option 1 */}
+              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/20 p-3 rounded">
+                <span className="text-[10px] font-bold uppercase text-gold">
+                  Option 1 (Preferred)
                 </span>
                 <input
                   type="date"
@@ -365,13 +381,28 @@ export default function AuthorForm() {
                   className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
                 />
               </div>
-              <div className="flex items-center gap-4 bg-midnight/40 border border-gold/10 p-3 rounded opacity-75 hover:opacity-100 transition">
-                <span className="text-xs font-bold uppercase text-gold w-20">
+
+              {/* Option 2 */}
+              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/10 p-3 rounded opacity-75 hover:opacity-100 transition">
+                <span className="text-[10px] font-bold uppercase text-gold">
                   Option 2
                 </span>
                 <input
                   type="date"
                   name="date2"
+                  onChange={handleChange}
+                  className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
+                />
+              </div>
+
+              {/* 🟢 Option 3 */}
+              <div className="flex flex-col gap-1 bg-midnight/40 border border-gold/10 p-3 rounded opacity-75 hover:opacity-100 transition">
+                <span className="text-[10px] font-bold uppercase text-gold">
+                  Option 3
+                </span>
+                <input
+                  type="date"
+                  name="date3"
                   onChange={handleChange}
                   className="bg-transparent text-white outline-none w-full uppercase font-bold text-sm cursor-pointer"
                 />
