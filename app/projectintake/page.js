@@ -7,18 +7,21 @@ import {
   CheckCircle,
   ChevronDown,
   Info,
-  Clock, // Added Clock icon for the disclaimer
+  Clock,
 } from "lucide-react";
-import axios from "axios";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-// 🔴 ENSURE THIS MATCHES YOUR V20 DEPLOYMENT URL
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
+// 🟢 INITIALIZE SUPABASE
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function AuthorForm() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 🟢 DYNAMIC LISTS STATE
   const [listOptions, setListOptions] = useState({
     genres: [],
     voices: [],
@@ -40,36 +43,40 @@ export default function AuthorForm() {
     characters: [],
   });
 
-  // FETCH LISTS
+  // 🟢 FETCH LISTS FROM SUPABASE ('lists_db')
   useEffect(() => {
     const fetchLists = async () => {
       try {
-        const res = await axios.get(`${API_URL}?op=get_lists`);
-        if (res.data) {
-          setListOptions({
-            genres: res.data.genres || [],
-            voices: res.data.voices || [],
-            ages: res.data.ages || [],
-          });
+        const { data, error } = await supabase.from("lists_db").select("*");
+
+        if (data) {
+          // Extract unique lists from the rows
+          const genres = [...new Set(data.map((d) => d.genre).filter(Boolean))];
+          const voices = [
+            ...new Set(data.map((d) => d.voice_type).filter(Boolean)),
+          ];
+          const ages = [
+            ...new Set(data.map((d) => d.age_range).filter(Boolean)),
+          ];
+
+          setListOptions({ genres, voices, ages });
         }
       } catch (err) {
-        console.error("Failed to load lists");
+        console.error("Failed to load lists:", err);
       }
     };
     fetchLists();
   }, []);
 
-  // 🟢 NEW: DATE CALCULATOR FOR 30 DAY GAPS
+  // DATE CALCULATOR
   const getMinDate = (baseDate) => {
     if (!baseDate) return undefined;
     const date = new Date(baseDate);
-    // Add 30 days to the selected date
     date.setDate(date.getDate() + 30);
-    // Return in YYYY-MM-DD format for the HTML input
     return date.toISOString().split("T")[0];
   };
 
-  // 🟢 HANDLER: Adds commas to Word Count (e.g. 100,000)
+  // WORD COUNT FORMATTER (Visual only)
   const handleWordCountChange = (e) => {
     const rawValue = e.target.value.replace(/,/g, "");
     if (isNaN(rawValue)) return;
@@ -108,13 +115,14 @@ export default function AuthorForm() {
     setFormData((prev) => ({ ...prev, characters: updatedChars }));
   };
 
+  // 🟢 SUBMIT TO SUPABASE ('project_intake_db')
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
+    // 1. Format Characters String (Same logic as Google Script)
     let mCount = 0;
     let fCount = 0;
-
     const charStringBlock = formData.characters
       .map((c) => {
         let prefix = "O";
@@ -129,6 +137,7 @@ export default function AuthorForm() {
       })
       .join("\n");
 
+    // 2. Format Genres String
     const genreString = [
       formData.genres.primary,
       formData.genres.secondary,
@@ -137,33 +146,42 @@ export default function AuthorForm() {
       .filter(Boolean)
       .join(", ");
 
+    // 3. Format Timeline String
     const timelineBlock = `${formData.date1}|${formData.date2}|${formData.date3}`;
 
-    const payload = {
-      op: "client_intake",
-      clientType: formData.clientType,
-      name: formData.clientName,
-      email: formData.email,
-      title: formData.bookTitle,
-      wordCount: formData.wordCount,
-      style: formData.style,
-      genres: genreString,
-      characters: charStringBlock,
-      timeline: timelineBlock,
-      notes: formData.notes,
-    };
+    // 4. Generate a Short "Intake ID" (Like the old system)
+    const intakeId = "INT-" + Math.floor(1000 + Math.random() * 9000);
 
     try {
-      await axios.post(API_URL, JSON.stringify(payload), {
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-      });
+      // 5. INSERT
+      const { error } = await supabase.from("project_intake_db").insert([
+        {
+          intake_id: intakeId,
+          client_type: formData.clientType,
+          client_name: formData.clientName,
+          email: formData.email,
+          project_title: formData.bookTitle,
+          // ⚠️ Remove commas so numeric column accepts it
+          word_count: Number(formData.wordCount.replace(/,/g, "")),
+          style: formData.style,
+          genres: genreString,
+          character_details: charStringBlock,
+          timeline_prefs: timelineBlock,
+          notes: formData.notes,
+          status: "NEW", // Default status
+        },
+      ]);
+
+      if (error) throw error;
       setSubmitted(true);
     } catch (error) {
-      alert("Connection Error. Please try again.");
+      console.error("Submission Error:", error);
+      alert("System Error: Could not save request.");
     }
     setLoading(false);
   };
 
+  // --- STYLES ---
   const inputClass =
     "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white outline-none focus:border-gold transition-colors placeholder:text-gray-500 " +
     "[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0c0442_inset] " +
@@ -173,6 +191,7 @@ export default function AuthorForm() {
   const selectClass =
     "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight";
 
+  // --- RENDER ---
   if (submitted)
     return (
       <div className="min-h-screen bg-deep-space flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -448,7 +467,7 @@ export default function AuthorForm() {
               <Calendar className="w-5 h-5" /> Timeline Preferences
             </h3>
 
-            {/* 🟢 DISCLAIMER BLOCK */}
+            {/* DISCLAIMER BLOCK */}
             <div className="mb-8 flex items-start gap-3 bg-white/5 p-4 rounded-lg border border-gold/10">
               <Clock className="w-5 h-5 text-gold/70 mt-0.5 shrink-0" />
               <p className="text-xs text-gray-300 leading-relaxed">
@@ -488,7 +507,6 @@ export default function AuthorForm() {
                 <input
                   type="date"
                   name="date2"
-                  // 🟢 LOGIC: Must be 30 days after Date 1
                   min={getMinDate(formData.date1)}
                   disabled={!formData.date1}
                   onChange={handleChange}
@@ -508,7 +526,6 @@ export default function AuthorForm() {
                 <input
                   type="date"
                   name="date3"
-                  // 🟢 LOGIC: Must be 30 days after Date 2
                   min={getMinDate(formData.date2)}
                   disabled={!formData.date2}
                   onChange={handleChange}

@@ -1,6 +1,5 @@
 "use client";
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -17,8 +16,8 @@ import {
   Image as ImageIcon,
   ArrowLeft,
   Check,
-  UploadCloud,
-  Mic, // Icon for Demo
+  Mic,
+  Info,
 } from "lucide-react";
 
 // 🟢 INITIALIZE SUPABASE
@@ -26,9 +25,30 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// 🔴 YOUR V12/V13 URL
-const API_URL =
-  "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
+// 🟢 CONSTANTS
+const GENRE_OPTIONS = [
+  "Fiction",
+  "Sci-Fi",
+  "Romance",
+  "Thriller",
+  "Non-Fiction",
+  "Fantasy",
+  "YA",
+  "Horror",
+  "Erotica",
+  "Kids",
+];
+const VOICE_OPTIONS = [
+  "Warm",
+  "Raspy",
+  "Authoritative",
+  "Bright",
+  "Textured",
+  "Deep",
+  "Youthful",
+  "Character",
+];
+const AGE_OPTIONS = ["Teen", "20s", "30s", "40s", "50s", "60s", "70s", "80+"];
 
 // COMPONENT: CHECKBOX GROUP
 const CheckboxGroup = ({ label, items, field, max, formData, setFormData }) => {
@@ -97,7 +117,6 @@ export default function TalentPortal() {
 
   const [formData, setFormData] = useState(null);
 
-  // 🟢 UPLOAD STATES
   const [uploading, setUploading] = useState({
     headshot: false,
     resume: false,
@@ -105,10 +124,11 @@ export default function TalentPortal() {
   });
 
   const [dynamicLists, setDynamicLists] = useState({
-    genres: [],
-    voices: [],
-    ages: [],
+    genres: GENRE_OPTIONS,
+    voices: VOICE_OPTIONS,
+    ages: AGE_OPTIONS,
   });
+
   const [bookoutRanges, setBookoutRanges] = useState([]);
   const [newBookout, setNewBookout] = useState({ start: "", end: "" });
 
@@ -122,6 +142,22 @@ export default function TalentPortal() {
     token: false,
   });
 
+  // 🟢 FETCH LISTS FROM DB ON LOAD
+  useEffect(() => {
+    const fetchLists = async () => {
+      const { data } = await supabase.from("lists_db").select("*");
+      if (data && data.length > 0) {
+        const genres = [...new Set(data.map((d) => d.genre).filter(Boolean))];
+        const voices = [
+          ...new Set(data.map((d) => d.voice_type).filter(Boolean)),
+        ];
+        const ages = [...new Set(data.map((d) => d.age_range).filter(Boolean))];
+        if (genres.length) setDynamicLists({ genres, voices, ages });
+      }
+    };
+    fetchLists();
+  }, []);
+
   // 🟢 FILE UPLOAD HANDLER
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0];
@@ -131,7 +167,6 @@ export default function TalentPortal() {
 
     try {
       const fileExt = file.name.split(".").pop();
-      // Naming convention: type-timestamp-id
       const fileName = `${type}s/${Date.now()}-${
         formData.id || "unknown"
       }.${fileExt}`;
@@ -155,20 +190,60 @@ export default function TalentPortal() {
     }
   };
 
-  // --- LOGIN ---
+  // --- LOGIN (SUPABASE) ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      const res = await axios.get(`${API_URL}?op=login_key&key=${accessKey}`);
-      if (res.data.success) {
-        const data = res.data.actor;
-        setDynamicLists(res.data.lists || { genres: [], voices: [], ages: [] });
+      const { data, error } = await supabase
+        .from("actor_db")
+        .select("*")
+        .eq("actor_id", accessKey.trim())
+        .single();
 
+      if (error || !data) {
+        setError("Invalid Access Key");
+      } else {
+        const parseList = (str) =>
+          str ? str.split(",").map((s) => s.trim()) : [];
+
+        setFormData({
+          id: data.id,
+          name: data.name,
+          email: data.email || "",
+          pseudonym: data.pseudonym || "",
+          gender: data.gender || "",
+
+          ages: parseList(data.age_range),
+          voice: parseList(data.voice_type),
+          genres: parseList(data.genres),
+
+          status: data.status || "Active",
+          nextAvailable: data.next_available || "",
+          rate: data.pfh_rate || "",
+          sag: data.union_status || "",
+          website: data.website_link || "",
+          triggers: data.triggers || "",
+          training: data.training_notes || "",
+
+          // 🟢 MAPPED TO NEW COLUMN
+          audiobooks: data.audiobooks_narrated || "",
+
+          headshot: data.headshot_url || "",
+          resume: data.resume_url || "",
+          demo: data.demo_url || "",
+        });
+
+        // Parse Bookouts
         const parsedBookouts = [];
         if (data.bookouts) {
+          if (Array.isArray(data.bookouts)) {
+            // If it is already JSON array
+            setBookoutRanges(data.bookouts);
+            return;
+          }
           String(data.bookouts)
             .split(",")
             .forEach((range) => {
@@ -179,38 +254,16 @@ export default function TalentPortal() {
         }
         setBookoutRanges(parsedBookouts);
 
-        setFormData({
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          pseudonym: data.pseudonym,
-          gender: data.gender,
-          ages: data.ages ? String(data.ages).split(", ") : [],
-          voice: data.voice ? String(data.voice).split(", ") : [],
-          genres: data.genres ? String(data.genres).split(", ") : [],
-          status: data.status || "Active",
-          nextAvailable: data.nextAvailable,
-          rate: data.rate,
-          sag: data.sag,
-          website: data.website,
-          triggers: data.triggers,
-          training: data.training,
-          audiobooks: data.audiobooks,
-          // 🟢 MAP GOOGLE SHEET COLUMNS TO STATE
-          headshot: data.headshot || "",
-          resume: data.resume || "",
-          demo: data.demo || "",
-        });
         setView("profile");
-      } else {
-        setError("Invalid Access Key");
       }
     } catch (err) {
+      console.error(err);
       setError("Connection Error");
     }
     setLoading(false);
   };
 
+  // --- HELPER FUNCTIONS ---
   const addBookout = () => {
     if (!newBookout.start || !newBookout.end) return;
     setBookoutRanges((prev) =>
@@ -232,6 +285,7 @@ export default function TalentPortal() {
     setChecks({ truth: true, roster: true, data: true, token: true });
   };
 
+  // --- SAVE PROFILE (SUPABASE) ---
   const submitFinal = async () => {
     setLoading(true);
     try {
@@ -240,26 +294,42 @@ export default function TalentPortal() {
         .join(", ");
 
       const payload = {
-        op: "talent_update",
-        ...formData,
-        ages: formData.ages.join(", "),
-        voice: formData.voice.join(", "),
+        name: formData.name,
+        email: formData.email,
+        pseudonym: formData.pseudonym,
+        gender: formData.gender,
+        age_range: formData.ages.join(", "),
+        voice_type: formData.voice.join(", "),
         genres: formData.genres.join(", "),
-        bookouts: bookoutsString,
+        status: formData.status,
+        next_available: formData.nextAvailable || null,
+        pfh_rate: formData.rate || null,
+        union_status: formData.sag,
+        website_link: formData.website,
         triggers: formData.triggers,
-        // 🟢 SEND URLs TO GOOGLE SHEET
-        headshot: formData.headshot,
-        resume: formData.resume,
-        demo: formData.demo,
+        training_notes: formData.training,
+        bookouts: bookoutsString,
+
+        // 🟢 SAVE TO NEW COLUMN
+        audiobooks_narrated: formData.audiobooks,
+
+        headshot_url: formData.headshot,
+        resume_url: formData.resume,
+        demo_url: formData.demo,
       };
 
-      await axios.post(API_URL, JSON.stringify(payload), {
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-      });
+      const { error } = await supabase
+        .from("actor_db")
+        .update(payload)
+        .eq("id", formData.id);
+
+      if (error) throw error;
+
       setShowModal(false);
       setView("success");
     } catch (err) {
-      alert("Save Failed");
+      console.error(err);
+      alert("Save Failed: " + err.message);
     }
     setLoading(false);
   };
@@ -497,8 +567,31 @@ export default function TalentPortal() {
           <h3 className="text-gold font-serif text-lg md:text-xl border-l-4 border-gold pl-4 mb-8 uppercase tracking-widest">
             Professional Assets
           </h3>
-
-          {/* 🟢 ASSET UPLOADER GRID */}
+          {/* 🟢 FILE NAMING INSTRUCTIONS */}
+          <div className="bg-blue-900/10 border border-blue-500/20 p-4 rounded-lg mb-6 flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
+            <div className="text-sm text-gray-300">
+              <strong className="text-blue-300 block mb-1 uppercase tracking-wider text-xs">
+                File Naming Requirements
+              </strong>
+              <p className="mb-2 text-xs">
+                To ensure your assets are processed correctly, please rename
+                your files before uploading:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10px] font-mono text-blue-200/80">
+                <span className="bg-blue-500/10 px-2 py-1 rounded border border-blue-500/10">
+                  FirstLast_Headshot.jpg
+                </span>
+                <span className="bg-blue-500/10 px-2 py-1 rounded border border-blue-500/10">
+                  FirstLast_Resume.pdf
+                </span>
+                <span className="bg-blue-500/10 px-2 py-1 rounded border border-blue-500/10">
+                  FirstLast_Demo.mp3
+                </span>
+              </div>
+            </div>
+          </div>
+          {/* ASSET UPLOADER GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             {/* 1. HEADSHOT */}
             <div
@@ -635,7 +728,8 @@ export default function TalentPortal() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* 🟢 GRID OF 3 (Union, Rate, Books) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
                 Union Status
@@ -669,6 +763,34 @@ export default function TalentPortal() {
                 className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
               />
             </div>
+            {/* 🟢 NEW FIELD: AUDIOBOOKS NARRATED */}
+            <div>
+              <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
+                Audiobooks Narrated
+              </label>
+              <input
+                type="text"
+                value={formData.audiobooks || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, audiobooks: e.target.value })
+                }
+                className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
+                placeholder="e.g. 10+"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
+              Training / Notes
+            </label>
+            <textarea
+              rows={2}
+              value={formData.training || ""}
+              onChange={(e) =>
+                setFormData({ ...formData, training: e.target.value })
+              }
+              className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
+            />
           </div>
         </div>
 
