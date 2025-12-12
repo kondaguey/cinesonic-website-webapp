@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   Upload,
@@ -8,8 +8,15 @@ import {
   Save,
   CheckCircle,
   Loader2,
-  X,
+  Move,
+  ZoomIn,
+  ZoomOut,
+  AlertCircle,
 } from "lucide-react";
+
+// 🟢 CONFIGURATION
+const MIN_BIO = 200;
+const MAX_BIO = 350;
 
 // 🟢 INITIALIZE SUPABASE
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -20,19 +27,36 @@ export default function AdminUpload() {
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // FORM STATE
   const [formData, setFormData] = useState({
     name: "",
     bio: "",
-    tags: "", // We'll parse this comma-separated string into an array
+    tags: "",
   });
 
   // FILE STATE
   const [headshot, setHeadshot] = useState(null);
   const [demo, setDemo] = useState(null);
-
-  // PREVIEW URLS (For local preview before upload)
   const [previewImage, setPreviewImage] = useState(null);
+
+  // DRAG STATE
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const imageRef = useRef(null);
+
+  // Event Listeners for Drag
+  useEffect(() => {
+    const handleMouseUp = () => setIsDragging(false);
+    if (isDragging) {
+      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("mouseleave", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mouseleave", handleMouseUp);
+    };
+  }, [isDragging]);
 
   // --- HANDLERS ---
   const handleImageChange = (e) => {
@@ -40,6 +64,8 @@ export default function AdminUpload() {
     if (file) {
       setHeadshot(file);
       setPreviewImage(URL.createObjectURL(file));
+      setPosition({ x: 0, y: 0 });
+      setScale(1);
     }
   };
 
@@ -48,51 +74,108 @@ export default function AdminUpload() {
     if (file) setDemo(file);
   };
 
-  // --- UPLOAD LOGIC ---
+  const onMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
+
+  const onMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    setPosition({
+      x: e.clientX - dragStart.current.x,
+      y: e.clientY - dragStart.current.y,
+    });
+  };
+
+  const generateCroppedImage = async () => {
+    if (!imageRef.current) return null;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // High Res Output (3:4 Ratio)
+    canvas.width = 600;
+    canvas.height = 800;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const img = imageRef.current;
+    const renderRatio = canvas.width / 320;
+
+    ctx.drawImage(
+      img,
+      position.x * renderRatio,
+      position.y * renderRatio,
+      img.width * scale * renderRatio,
+      img.height * scale * renderRatio
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob(
+        (blob) => {
+          resolve(new File([blob], headshot.name, { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        0.95
+      );
+    });
+  };
+
   const handleUpload = async (e) => {
     e.preventDefault();
+
+    // 🟢 VALIDATION: Check Bio Length
+    if (formData.bio.length < MIN_BIO) {
+      return alert(
+        `Bio is too short! Please write at least ${MIN_BIO} characters.`
+      );
+    }
+
     if (!formData.name || !headshot)
       return alert("Name and Headshot are required.");
 
     setUploading(true);
 
     try {
-      // 1. UPLOAD IMAGE
-      const imageFileName = `headshots/${Date.now()}-${headshot.name}`;
-      const { data: imgData, error: imgError } = await supabase.storage
+      const finalImageFile = await generateCroppedImage();
+
+      // 1. Upload Image
+      const imageFileName = `headshots/${Date.now()}-${finalImageFile.name}`;
+      const { error: imgError } = await supabase.storage
         .from("roster-assets")
-        .upload(imageFileName, headshot);
-
+        .upload(imageFileName, finalImageFile);
       if (imgError) throw imgError;
-
-      // 2. GET IMAGE PUBLIC URL
       const {
         data: { publicUrl: publicImgUrl },
       } = supabase.storage.from("roster-assets").getPublicUrl(imageFileName);
 
-      // 3. UPLOAD DEMO (Optional)
+      // 2. Upload Demo
       let publicDemoUrl = null;
       if (demo) {
         const demoFileName = `demos/${Date.now()}-${demo.name}`;
         const { error: demoError } = await supabase.storage
           .from("roster-assets")
           .upload(demoFileName, demo);
-
         if (demoError) throw demoError;
-
         const {
           data: { publicUrl },
         } = supabase.storage.from("roster-assets").getPublicUrl(demoFileName);
-
         publicDemoUrl = publicUrl;
       }
 
-      // 4. INSERT INTO DATABASE
+      // 3. Save to DB
       const { error: dbError } = await supabase.from("actors").insert([
         {
           name: formData.name,
           bio: formData.bio,
-          tags: formData.tags.split(",").map((t) => t.trim()), // "Warm, Deep" -> ["Warm", "Deep"]
+          tags: formData.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter((t) => t),
           image_url: publicImgUrl,
           demo_url: publicDemoUrl,
         },
@@ -101,13 +184,14 @@ export default function AdminUpload() {
       if (dbError) throw dbError;
 
       setSuccess(true);
-      // Reset form after 2 seconds
       setTimeout(() => {
         setSuccess(false);
         setFormData({ name: "", bio: "", tags: "" });
         setHeadshot(null);
         setDemo(null);
         setPreviewImage(null);
+        setPosition({ x: 0, y: 0 });
+        setScale(1);
         setUploading(false);
       }, 2000);
     } catch (error) {
@@ -120,62 +204,79 @@ export default function AdminUpload() {
   return (
     <div className="min-h-screen bg-[#050510] text-white p-8 flex items-center justify-center font-sans">
       <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* LEFT: UPLOAD FORM */}
-        <div className="bg-white/5 border border-white/10 p-8 rounded-2xl shadow-xl">
+        {/* LEFT: FORM */}
+        <div className="bg-white/5 border border-white/10 p-8 rounded-2xl shadow-xl order-2 lg:order-1">
           <h2 className="text-2xl font-serif font-bold text-gold mb-6 flex items-center gap-2">
             <Upload className="w-6 h-6" /> Add New Talent
           </h2>
 
           <form onSubmit={handleUpload} className="space-y-6">
-            {/* NAME */}
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">
                 Name
               </label>
               <input
-                value={formData.name}
+                value={formData.name || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
                 }
-                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-gold outline-none transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-gold outline-none"
                 placeholder="e.g. Elena Vance"
                 required
               />
             </div>
 
-            {/* TAGS */}
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">
-                Tags (Comma Separated)
+                Tags
               </label>
               <input
-                value={formData.tags}
+                value={formData.tags || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, tags: e.target.value })
                 }
-                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-gold outline-none transition-colors"
+                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-gold outline-none"
                 placeholder="e.g. Warm, Fiction, British"
               />
             </div>
 
-            {/* BIO */}
+            {/* 🟢 BIO WITH CHARACTER LIMIT */}
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">
-                Bio
-              </label>
+              <div className="flex justify-between items-end mb-2">
+                <label className="text-xs font-bold uppercase tracking-widest text-gray-500 block">
+                  Bio
+                </label>
+                <span
+                  className={`text-[10px] font-mono ${
+                    formData.bio.length < MIN_BIO
+                      ? "text-red-400 animate-pulse"
+                      : "text-green-400"
+                  }`}
+                >
+                  {formData.bio.length} / {MAX_BIO} chars
+                </span>
+              </div>
               <textarea
-                value={formData.bio}
+                value={formData.bio || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, bio: e.target.value })
                 }
-                className="w-full h-32 bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-gold outline-none transition-colors resize-none"
-                placeholder="A short description of their voice and style..."
+                maxLength={MAX_BIO}
+                className={`w-full h-32 bg-black/40 border rounded-lg p-3 text-white focus:border-gold outline-none resize-none transition-colors ${
+                  formData.bio.length > 0 && formData.bio.length < MIN_BIO
+                    ? "border-red-500/50 focus:border-red-500"
+                    : "border-white/10"
+                }`}
+                placeholder={`Brief description (Min ${MIN_BIO} chars)...`}
               />
+              {formData.bio.length > 0 && formData.bio.length < MIN_BIO && (
+                <div className="text-[10px] text-red-400 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> Bio too short
+                </div>
+              )}
             </div>
 
-            {/* FILE UPLOADS */}
             <div className="grid grid-cols-2 gap-4">
-              {/* IMAGE UPLOAD */}
               <div className="relative group">
                 <input
                   type="file"
@@ -184,31 +285,19 @@ export default function AdminUpload() {
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
                 <div
-                  className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center h-32 transition-colors ${
+                  className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center h-32 ${
                     headshot
                       ? "border-green-500 bg-green-500/10"
-                      : "border-white/20 hover:border-gold/50 hover:bg-white/5"
+                      : "border-white/20 hover:border-gold/50"
                   }`}
                 >
-                  {headshot ? (
-                    <>
-                      <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
-                      <span className="text-xs text-green-400 font-bold truncate max-w-full px-2">
-                        {headshot.name}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <ImageIcon className="w-8 h-8 text-gray-500 mb-2 group-hover:text-gold" />
-                      <span className="text-xs text-gray-500 font-bold uppercase">
-                        Upload Headshot
-                      </span>
-                    </>
-                  )}
+                  <ImageIcon className="w-8 h-8 text-gray-500 mb-2" />
+                  <span className="text-xs text-gray-500 font-bold uppercase">
+                    {headshot ? "Replace Image" : "Select Image"}
+                  </span>
                 </div>
               </div>
 
-              {/* DEMO UPLOAD */}
               <div className="relative group">
                 <input
                   type="file"
@@ -217,49 +306,35 @@ export default function AdminUpload() {
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
                 <div
-                  className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center h-32 transition-colors ${
+                  className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center h-32 ${
                     demo
                       ? "border-green-500 bg-green-500/10"
-                      : "border-white/20 hover:border-gold/50 hover:bg-white/5"
+                      : "border-white/20 hover:border-gold/50"
                   }`}
                 >
-                  {demo ? (
-                    <>
-                      <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
-                      <span className="text-xs text-green-400 font-bold truncate max-w-full px-2">
-                        {demo.name}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-8 h-8 text-gray-500 mb-2 group-hover:text-gold" />
-                      <span className="text-xs text-gray-500 font-bold uppercase">
-                        Upload MP3 Demo
-                      </span>
-                    </>
-                  )}
+                  <Mic className="w-8 h-8 text-gray-500 mb-2" />
+                  <span className="text-xs text-gray-500 font-bold uppercase">
+                    {demo ? "Replace Audio" : "Select Audio"}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* SUBMIT BUTTON */}
             <button
-              disabled={uploading || success}
-              className={`w-full py-4 rounded-lg font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all ${
+              disabled={uploading || success || formData.bio.length < MIN_BIO}
+              className={`w-full py-4 rounded-lg font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                 success
                   ? "bg-green-500 text-midnight"
-                  : "bg-gold hover:bg-white text-midnight hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                  : "bg-gold hover:bg-white text-midnight"
               }`}
             >
               {uploading ? (
                 <>
-                  <Loader2 className="animate-spin w-4 h-4" /> Uploading to
-                  Cloud...
+                  <Loader2 className="animate-spin w-4 h-4" /> Cropping &
+                  Uploading...
                 </>
               ) : success ? (
-                <>
-                  <CheckCircle className="w-4 h-4" /> Upload Complete!
-                </>
+                "Done!"
               ) : (
                 <>
                   <Save className="w-4 h-4" /> Publish to Roster
@@ -269,50 +344,66 @@ export default function AdminUpload() {
           </form>
         </div>
 
-        {/* RIGHT: LIVE PREVIEW CARD */}
-        <div className="flex flex-col items-center justify-center">
-          <div className="text-gray-500 text-xs uppercase tracking-widest mb-4">
-            Live Card Preview
+        {/* RIGHT: PREVIEW */}
+        <div className="flex flex-col items-center justify-start order-1 lg:order-2 pt-10">
+          <div className="text-gold text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Move className="w-4 h-4" /> Drag to Reposition
           </div>
 
-          <div className="w-80 group relative">
-            {/* IMAGE CONTAINER */}
-            <div className="aspect-[3/4] overflow-hidden rounded-xl border border-white/10 relative shadow-2xl bg-black">
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 z-10" />
-
+          <div className="w-80 relative group select-none">
+            <div
+              className="aspect-[3/4] overflow-hidden rounded-xl border-2 border-gold/50 relative shadow-2xl bg-black cursor-move"
+              onMouseDown={onMouseDown}
+              onMouseMove={onMouseMove}
+              style={{ cursor: isDragging ? "grabbing" : "grab" }}
+            >
               {previewImage ? (
                 <img
+                  ref={imageRef}
                   src={previewImage}
                   alt="Preview"
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                  draggable="false"
+                  className="max-w-none absolute origin-top-left"
+                  style={{
+                    transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                    width: "100%",
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-700 bg-white/5">
-                  <ImageIcon className="w-12 h-12 opacity-20" />
+                  <div className="text-center">
+                    <ImageIcon className="w-12 h-12 opacity-20 mx-auto mb-2" />
+                    <div className="text-[10px] uppercase opacity-40">
+                      No Image Selected
+                    </div>
+                  </div>
                 </div>
               )}
-
-              {/* OVERLAY INFO */}
-              <div className="absolute bottom-0 left-0 w-full p-4 z-20">
+              {/* OVERLAY */}
+              <div className="absolute inset-0 border-[10px] border-black/10 pointer-events-none z-20"></div>
+              <div className="absolute bottom-0 left-0 w-full p-4 z-20 pointer-events-none bg-gradient-to-t from-black/80 to-transparent">
                 <h3 className="text-2xl font-serif font-bold text-white mb-1">
                   {formData.name || "Actor Name"}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-1 flex-wrap">
                   {formData.tags ? (
                     formData.tags
                       .split(",")
-                      .slice(0, 2)
-                      .map((tag, i) => (
-                        <span
-                          key={i}
-                          className="text-[9px] uppercase tracking-widest bg-gold/20 text-gold px-2 py-1 rounded border border-gold/10"
-                        >
-                          {tag.trim()}
-                        </span>
-                      ))
+                      .slice(0, 3)
+                      .map(
+                        (t, i) =>
+                          t.trim() && (
+                            <span
+                              key={i}
+                              className="text-[9px] uppercase tracking-widest bg-gold/20 text-gold px-2 py-1 rounded border border-gold/10"
+                            >
+                              {t.trim()}
+                            </span>
+                          )
+                      )
                   ) : (
                     <span className="text-[9px] uppercase tracking-widest bg-white/5 text-gray-500 px-2 py-1 rounded border border-white/5">
-                      Tag 1
+                      Tag
                     </span>
                   )}
                 </div>
@@ -320,11 +411,26 @@ export default function AdminUpload() {
             </div>
           </div>
 
-          <div className="mt-8 p-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs rounded max-w-sm text-center">
-            <strong>Note:</strong> Files are uploaded to the{" "}
-            <code>roster-assets</code> bucket. Make sure your Supabase Storage
-            policies are set to Public.
-          </div>
+          {/* ZOOM CONTROLS */}
+          {previewImage && (
+            <div className="mt-6 flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10">
+              <button
+                onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
+                className="p-2 hover:text-gold"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-mono w-12 text-center text-gray-400">
+                {(scale * 100).toFixed(0)}%
+              </span>
+              <button
+                onClick={() => setScale((s) => Math.min(3, s + 0.1))}
+                className="p-2 hover:text-gold"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,13 +2,13 @@
 import React, { useState } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 import {
   LogOut,
   Loader2,
   Plus,
   Trash2,
   CheckSquare,
-  Square,
   Key,
   AlertTriangle,
   CheckCircle,
@@ -17,15 +17,20 @@ import {
   Image as ImageIcon,
   ArrowLeft,
   Check,
+  UploadCloud,
+  Mic, // Icon for Demo
 } from "lucide-react";
 
-// 🔴 YOUR V12/V13 URL (Official Mapping)
+// 🟢 INITIALIZE SUPABASE
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// 🔴 YOUR V12/V13 URL
 const API_URL =
   "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
 
-const AGE_RANGES = ["Teen", "20s", "30s", "40s", "50s", "60s", "70s", "80+"];
-
-// COMPONENT: JUMP-PROOF CHECKBOXES
+// COMPONENT: CHECKBOX GROUP
 const CheckboxGroup = ({ label, items, field, max, formData, setFormData }) => {
   const handleCheckbox = (val) => {
     setFormData((prev) => {
@@ -91,6 +96,14 @@ export default function TalentPortal() {
   const [accessKey, setAccessKey] = useState("");
 
   const [formData, setFormData] = useState(null);
+
+  // 🟢 UPLOAD STATES
+  const [uploading, setUploading] = useState({
+    headshot: false,
+    resume: false,
+    demo: false,
+  });
+
   const [dynamicLists, setDynamicLists] = useState({
     genres: [],
     voices: [],
@@ -108,6 +121,39 @@ export default function TalentPortal() {
     data: false,
     token: false,
   });
+
+  // 🟢 FILE UPLOAD HANDLER
+  const handleFileUpload = async (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading((prev) => ({ ...prev, [type]: true }));
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      // Naming convention: type-timestamp-id
+      const fileName = `${type}s/${Date.now()}-${
+        formData.id || "unknown"
+      }.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("roster-assets")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("roster-assets").getPublicUrl(fileName);
+
+      setFormData((prev) => ({ ...prev, [type]: publicUrl }));
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading((prev) => ({ ...prev, [type]: false }));
+    }
+  };
 
   // --- LOGIN ---
   const handleLogin = async (e) => {
@@ -150,6 +196,10 @@ export default function TalentPortal() {
           triggers: data.triggers,
           training: data.training,
           audiobooks: data.audiobooks,
+          // 🟢 MAP GOOGLE SHEET COLUMNS TO STATE
+          headshot: data.headshot || "",
+          resume: data.resume || "",
+          demo: data.demo || "",
         });
         setView("profile");
       } else {
@@ -197,6 +247,10 @@ export default function TalentPortal() {
         genres: formData.genres.join(", "),
         bookouts: bookoutsString,
         triggers: formData.triggers,
+        // 🟢 SEND URLs TO GOOGLE SHEET
+        headshot: formData.headshot,
+        resume: formData.resume,
+        demo: formData.demo,
       };
 
       await axios.post(API_URL, JSON.stringify(payload), {
@@ -300,7 +354,7 @@ export default function TalentPortal() {
       </div>
 
       <div className="w-full max-w-4xl bg-black/40 border border-gold/30 rounded-b-2xl backdrop-blur-xl shadow-2xl p-6 md:p-12 animate-fade-in">
-        {/* HEADER */}
+        {/* HEADER AREA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-white/10 pb-6 gap-6 md:gap-4">
           <div className="w-full">
             <div className="flex items-center gap-3 mb-2">
@@ -351,9 +405,6 @@ export default function TalentPortal() {
               >
                 <Pencil size={12} />
               </button>
-              <span className="text-gray-500 text-xs uppercase tracking-widest border-l border-gray-600 pl-2 ml-2 shrink-0">
-                {formData.id}
-              </span>
             </div>
           </div>
           <button
@@ -444,32 +495,132 @@ export default function TalentPortal() {
         {/* PROFESSIONAL */}
         <div className="mb-10 border-b border-white/10 pb-10">
           <h3 className="text-gold font-serif text-lg md:text-xl border-l-4 border-gold pl-4 mb-8 uppercase tracking-widest">
-            Professional
+            Professional Assets
           </h3>
 
-          {/* UPLOAD PLACEHOLDERS (VISUAL ONLY) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
-            <div className="bg-white/5 border border-white/10 border-dashed rounded-xl p-6 text-center group hover:border-gold/50 transition-colors">
-              <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-gold/20 transition-colors">
-                <ImageIcon className="text-gray-400 group-hover:text-gold" />
+          {/* 🟢 ASSET UPLOADER GRID */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            {/* 1. HEADSHOT */}
+            <div
+              className={`relative bg-white/5 border border-dashed rounded-xl p-6 text-center group transition-colors overflow-hidden ${
+                formData.headshot
+                  ? "border-green-500/50 bg-green-500/5"
+                  : "border-white/10 hover:border-gold/50"
+              }`}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleFileUpload(e, "headshot")}
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                disabled={uploading.headshot}
+              />
+              <div className="relative z-10">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 transition-colors ${
+                    formData.headshot
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-black/20 text-gray-400 group-hover:text-gold"
+                  }`}
+                >
+                  {uploading.headshot ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <ImageIcon />
+                  )}
+                </div>
+                <label className="text-gold font-bold text-sm uppercase mb-1 block">
+                  Headshot
+                </label>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  {formData.headshot ? "File on File" : "Click to Upload"}
+                </p>
+                {formData.headshot && (
+                  <div className="mt-2 text-[10px] text-green-400 font-mono truncate px-2">
+                    {formData.headshot.split("/").pop()}
+                  </div>
+                )}
               </div>
-              <label className="text-gold font-bold text-sm uppercase mb-1 block">
-                Headshot / Website
-              </label>
-              <p className="text-sm text-gray-500">Cloud upload coming soon</p>
             </div>
-            <div className="bg-white/5 border border-white/10 border-dashed rounded-xl p-6 text-center group hover:border-gold/50 transition-colors">
-              <div className="w-12 h-12 bg-black/20 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-gold/20 transition-colors">
-                <FileText className="text-gray-400 group-hover:text-gold" />
+
+            {/* 2. RESUME */}
+            <div
+              className={`relative bg-white/5 border border-dashed rounded-xl p-6 text-center group transition-colors overflow-hidden ${
+                formData.resume
+                  ? "border-green-500/50 bg-green-500/5"
+                  : "border-white/10 hover:border-gold/50"
+              }`}
+            >
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={(e) => handleFileUpload(e, "resume")}
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                disabled={uploading.resume}
+              />
+              <div className="relative z-10">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 transition-colors ${
+                    formData.resume
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-black/20 text-gray-400 group-hover:text-gold"
+                  }`}
+                >
+                  {uploading.resume ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <FileText />
+                  )}
+                </div>
+                <label className="text-gold font-bold text-sm uppercase mb-1 block">
+                  Resume / CV
+                </label>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  {formData.resume ? "File on File" : "Click to Upload"}
+                </p>
               </div>
-              <label className="text-gold font-bold text-sm uppercase mb-1 block">
-                Resume / CV
-              </label>
-              <p className="text-sm text-gray-500">Cloud upload coming soon</p>
+            </div>
+
+            {/* 3. DEMO */}
+            <div
+              className={`relative bg-white/5 border border-dashed rounded-xl p-6 text-center group transition-colors overflow-hidden ${
+                formData.demo
+                  ? "border-green-500/50 bg-green-500/5"
+                  : "border-white/10 hover:border-gold/50"
+              }`}
+            >
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={(e) => handleFileUpload(e, "demo")}
+                className="absolute inset-0 opacity-0 cursor-pointer z-20"
+                disabled={uploading.demo}
+              />
+              <div className="relative z-10">
+                <div
+                  className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 transition-colors ${
+                    formData.demo
+                      ? "bg-green-500/20 text-green-400"
+                      : "bg-black/20 text-gray-400 group-hover:text-gold"
+                  }`}
+                >
+                  {uploading.demo ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Mic />
+                  )}
+                </div>
+                <label className="text-gold font-bold text-sm uppercase mb-1 block">
+                  Primary Demo
+                </label>
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                  {formData.demo ? "File on File" : "Your Strongest Reel"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* 🟢 WEBSITE LINK - FULL WIDTH */}
+          {/* WEBSITE LINK */}
           <div className="mb-8">
             <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
               Website / Portfolio Link
@@ -518,35 +669,10 @@ export default function TalentPortal() {
                 className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
               />
             </div>
-            <div>
-              <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
-                Audiobooks Produced
-              </label>
-              <input
-                type="number"
-                value={formData.audiobooks || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, audiobooks: e.target.value })
-                }
-                className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="text-gold text-xs uppercase mb-2 block font-bold tracking-wider">
-              Training / Notes
-            </label>
-            <textarea
-              rows={2}
-              value={formData.training || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, training: e.target.value })
-              }
-              className="w-full bg-white/5 border border-gold/30 focus:border-gold p-4 rounded-lg text-white outline-none"
-            />
           </div>
         </div>
 
+        {/* AVAILABILITY */}
         <div className="mb-8">
           <h3 className="text-gold font-serif text-lg md:text-xl border-l-4 border-gold pl-4 mb-8 uppercase tracking-widest">
             Availability
@@ -586,31 +712,7 @@ export default function TalentPortal() {
               />
             </div>
           </div>
-          <div className="bg-gold/10 border-l-2 border-gold p-4 mb-4 rounded-r-lg">
-            <p className="text-gold/90 text-xs leading-relaxed font-sans">
-              <strong>We welcome mature and complex subject matter</strong> that
-              demonstrates genuine literary merit, authentically exploring the
-              full spectrum of the human experience, including crime, violent
-              acts, and sometimes deeply disturbing themes. That said, we
-              prohibit material that promotes, instructs, or praises real-world
-              illegal activity, as well as Age Gap themes involving minors.
-            </p>
-          </div>
-          <div className="mb-8">
-            <label className="text-red-400 text-xs uppercase mb-2 block font-bold tracking-wider">
-              Triggers / Off Limits
-            </label>
-            <textarea
-              rows={2}
-              maxLength={150}
-              value={formData.triggers || ""}
-              onChange={(e) =>
-                setFormData({ ...formData, triggers: e.target.value })
-              }
-              className="w-full bg-red-900/10 border border-red-500/30 focus:border-red-500 p-4 rounded-lg text-white outline-none"
-              placeholder="Topics you cannot record..."
-            />
-          </div>
+
           <div className="bg-white/5 border border-gold/10 rounded-xl p-6">
             <label className="text-gold text-xs uppercase mb-4 block font-bold tracking-wider">
               Future Bookouts
