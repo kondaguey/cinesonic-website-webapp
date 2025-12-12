@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import {
   Loader2,
@@ -14,6 +14,7 @@ import {
   FileSignature,
   Calendar,
   Play,
+  Trash2, // Ensure Trash2 is imported
 } from "lucide-react";
 import Link from "next/link";
 
@@ -32,13 +33,14 @@ import ProjectHeader from "../components/ProductionHeader";
 import { runCreativeMatch } from "../utils/matchmaker";
 import { checkSchedule } from "../utils/scheduler";
 
-// 🔴 REPLACE WITH YOUR V16 URL
+// 🔴 THE V21 MASTER URL
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
+  "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
 
 export default function AdminPortal() {
   const [view, setView] = useState("login");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Login loader
+  const [isLoadingData, setIsLoadingData] = useState(false); // 🟢 NEW: Dashboard loader
   const [error, setError] = useState("");
   const [accessKey, setAccessKey] = useState("");
   const [crewUser, setCrewUser] = useState(null);
@@ -46,7 +48,7 @@ export default function AdminPortal() {
   // DATA STATE
   const [projects, setProjects] = useState([]);
   const [roster, setRoster] = useState([]);
-  const [allRoles, setAllRoles] = useState([]); // All roles for all projects
+  const [allRoles, setAllRoles] = useState([]);
 
   // INTAKE STATE
   const [intakes, setIntakes] = useState([]);
@@ -59,6 +61,9 @@ export default function AdminPortal() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [matchResults, setMatchResults] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // 🟢 STATE: Hold Casting Selections across tabs
+  const [castingSelections, setCastingSelections] = useState({});
 
   const META_STATUSES = [
     "NEW",
@@ -74,9 +79,9 @@ export default function AdminPortal() {
   const TABS = [
     { id: "production", label: "Production", icon: LayoutDashboard },
     { id: "casting", label: "Casting", icon: Mic },
+    { id: "schedule", label: "Schedule", icon: Calendar },
     { id: "contracts", label: "Contracts", icon: FileSignature },
     { id: "hub", label: "Workflow", icon: Play },
-    { id: "schedule", label: "Schedule", icon: Calendar },
   ];
 
   // --- LOGIN ---
@@ -89,9 +94,9 @@ export default function AdminPortal() {
       if (res.data.success) {
         setCrewUser(res.data.user);
         setView("dashboard");
-        fetchAllData(); // 🟢 GET EVERYTHING
+        fetchAllData();
       } else {
-        setError("Access Denied: Invalid Key");
+        setError(res.data.error || "Access Denied");
       }
     } catch (err) {
       setError("Connection Error");
@@ -99,14 +104,15 @@ export default function AdminPortal() {
     setLoading(false);
   };
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING (Now with Loader) ---
   const fetchAllData = async () => {
+    setIsLoadingData(true); // 🟢 Start Wheel
     try {
-      // 1. Get Intakes (Old Method)
+      // 1. Get Intakes
       const resIntake = await axios.get(`${API_URL}?op=get_intakes`);
       if (resIntake.data.success) setIntakes(resIntake.data.intakes);
 
-      // 2. Get Admin Master Data (V16)
+      // 2. Get Admin Master Data
       const resAdmin = await axios.get(`${API_URL}?op=get_admin_data`);
       if (resAdmin.data.success) {
         setProjects(resAdmin.data.projects);
@@ -116,6 +122,7 @@ export default function AdminPortal() {
     } catch (e) {
       console.error("Fetch error", e);
     }
+    setIsLoadingData(false); // 🟢 Stop Wheel
   };
 
   // --- INTAKE APPROVAL ---
@@ -126,10 +133,7 @@ export default function AdminPortal() {
     try {
       const res = await axios.post(
         API_URL,
-        JSON.stringify({
-          op: "approve_intake",
-          intakeId: selectedIntake.id,
-        }),
+        JSON.stringify({ op: "approve_intake", intakeId: selectedIntake.id }),
         { headers: { "Content-Type": "text/plain;charset=utf-8" } }
       );
 
@@ -137,7 +141,34 @@ export default function AdminPortal() {
         alert(`Project Approved! Created ID: ${res.data.projectId}`);
         setIntakes((prev) => prev.filter((i) => i.id !== selectedIntake.id));
         setSelectedIntake(null);
-        fetchAllData(); // Refresh to see new project in list
+        fetchAllData();
+      } else {
+        alert("Error: " + res.data.error);
+      }
+    } catch (err) {
+      alert("Connection Failed");
+    }
+    setProcessingId(null);
+  };
+
+  // --- INTAKE DELETION ---
+  const handleDeleteIntake = async () => {
+    if (!selectedIntake) return;
+    if (!confirm("Are you sure you want to REJECT and DELETE this request?"))
+      return;
+
+    setProcessingId(selectedIntake.id);
+
+    try {
+      const res = await axios.post(
+        API_URL,
+        JSON.stringify({ op: "delete_intake", intakeId: selectedIntake.id }),
+        { headers: { "Content-Type": "text/plain;charset=utf-8" } }
+      );
+
+      if (res.data.success) {
+        setIntakes((prev) => prev.filter((i) => i.id !== selectedIntake.id));
+        setSelectedIntake(null);
       } else {
         alert("Error: " + res.data.error);
       }
@@ -158,15 +189,11 @@ export default function AdminPortal() {
     try {
       const res = await axios.post(
         API_URL,
-        JSON.stringify({
-          op: "update_project",
-          project: selectedProject,
-        }),
+        JSON.stringify({ op: "update_project", project: selectedProject }),
         { headers: { "Content-Type": "text/plain;charset=utf-8" } }
       );
 
       if (res.data.success) {
-        // Update local list
         setProjects((prev) =>
           prev.map((p) =>
             p["Project ID"] === selectedProject["Project ID"]
@@ -181,6 +208,12 @@ export default function AdminPortal() {
       alert("Connection Error");
     }
     setSaving(false);
+  };
+
+  // 🟢 Handler to save selections and switch to Schedule tab
+  const handleCastingConfirm = (selections) => {
+    setCastingSelections(selections);
+    setActiveTab("schedule");
   };
 
   // --- VIEW: LOGIN ---
@@ -231,7 +264,27 @@ export default function AdminPortal() {
       </div>
     );
 
-  // --- VIEW: DASHBOARD ---
+  // 🟢 1. THE LOADING SCREEN (Overrides Dashboard if loading)
+  if (isLoadingData) {
+    return (
+      <div className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] flex flex-col items-center justify-center text-white z-50">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-white/10 border-t-gold rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 bg-gold/20 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+        <h2 className="mt-6 text-xl font-serif text-gold tracking-widest animate-pulse">
+          Accessing Database...
+        </h2>
+        <p className="text-xs text-gray-500 mt-2 uppercase tracking-wider">
+          Syncing Projects & Roster
+        </p>
+      </div>
+    );
+  }
+
+  // --- VIEW: DASHBOARD (Main) ---
   const currentRoles = selectedProject
     ? allRoles.filter((r) => r["Project ID"] === selectedProject["Project ID"])
     : [];
@@ -265,9 +318,9 @@ export default function AdminPortal() {
               </h1>
               <button
                 onClick={fetchAllData}
-                className="text-xs text-gold border border-gold/30 px-3 py-1 rounded hover:bg-gold/10"
+                className="text-xs text-gold border border-gold/30 px-3 py-1 rounded hover:bg-gold/10 flex items-center gap-2"
               >
-                Refresh Data
+                <Loader2 size={12} /> Refresh Data
               </button>
             </div>
 
@@ -344,6 +397,18 @@ export default function AdminPortal() {
                 matchResults={matchResults}
                 setMatchResults={setMatchResults}
                 runCreativeMatch={runCreativeMatch}
+                onConfirmSelections={handleCastingConfirm}
+                initialSelections={castingSelections}
+              />
+            )}
+
+            {activeTab === "schedule" && (
+              <ScheduleHub
+                project={selectedProject}
+                roles={currentRoles}
+                roster={roster}
+                checkSchedule={checkSchedule}
+                castingSelections={castingSelections}
               />
             )}
 
@@ -359,15 +424,6 @@ export default function AdminPortal() {
               <ProductionHub
                 project={selectedProject}
                 updateField={updateField}
-              />
-            )}
-
-            {activeTab === "schedule" && (
-              <ScheduleTab
-                project={selectedProject}
-                roles={currentRoles}
-                roster={roster}
-                checkSchedule={checkSchedule}
               />
             )}
           </div>
@@ -438,25 +494,36 @@ export default function AdminPortal() {
                 </p>
               </div>
             </div>
-            <div className="p-6 bg-black/40 border-t border-gold/20 flex justify-end gap-4 shrink-0">
+            <div className="p-6 bg-black/40 border-t border-gold/20 flex justify-between items-center shrink-0">
+              {/* 🟢 DELETE BUTTON */}
               <button
-                onClick={() => setSelectedIntake(null)}
-                className="px-4 py-2 text-gray-400 hover:text-white text-sm uppercase"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleApproveIntake}
+                onClick={handleDeleteIntake}
                 disabled={processingId === selectedIntake.id}
-                className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-2 rounded uppercase tracking-widest text-sm flex items-center gap-2 disabled:opacity-50"
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-2 rounded text-xs uppercase tracking-widest transition-colors flex items-center gap-2 border border-transparent hover:border-red-500/30"
               >
-                {processingId === selectedIntake.id ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <CheckCircle size={16} />
-                )}{" "}
-                Approve & Explode
+                <Trash2 size={14} /> Reject
               </button>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setSelectedIntake(null)}
+                  className="px-4 py-2 text-gray-400 hover:text-white text-sm uppercase transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleApproveIntake}
+                  disabled={processingId === selectedIntake.id}
+                  className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-2 rounded uppercase tracking-widest text-sm flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-gold/10 transition-all"
+                >
+                  {processingId === selectedIntake.id ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <CheckCircle size={16} />
+                  )}{" "}
+                  Approve & Explode
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -1,204 +1,220 @@
-import React from "react";
-import { Calendar, CheckCircle, XCircle } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Calendar,
+  User,
+  AlertCircle,
+  CheckCircle,
+  RefreshCcw,
+  PlayCircle,
+  Clock,
+} from "lucide-react";
+import { checkSchedule } from "../utils/scheduler";
 
-const ScheduleTab = ({ project, roles = [], roster = [], checkSchedule }) => {
-  if (!project)
-    return (
-      <div className="p-8 text-gray-500 italic">
-        Loading Project Schedule...
-      </div>
-    );
-  const safeCheckSchedule = (name, start, end, rosterData) => {
-    return checkSchedule
-      ? checkSchedule(name, start, end, rosterData)
-      : { status: "UNKNOWN", message: "Scheduler utility missing" };
+export default function ScheduleHub({
+  project,
+  roles,
+  roster,
+  castingSelections,
+}) {
+  const [analysisRun, setAnalysisRun] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const projectDate = project["Start Date"];
+
+  const runAnalysis = () => {
+    setIsChecking(true);
+    // Fake delay to make it feel like it's calculating complex logic
+    setTimeout(() => {
+      setAnalysisRun(true);
+      setIsChecking(false);
+    }, 800);
   };
-  const PROJECT_DURATION_DAYS = 5;
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "TBD";
-    const d = new Date(dateStr);
-    return isNaN(d) ? dateStr : d.toLocaleDateString();
-  };
-  const dateOptions = [
-    { label: "Option 1", date: project["Start Date"] },
-    { label: "Option 2", date: project["Start Date 2"] },
-    { label: "Option 3", date: project["Start Date 3"] },
-  ].filter((opt) => opt.date);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
-      <header className="flex justify-between items-center mb-6">
+    <div className="space-y-6 animate-fade-in">
+      {/* HEADER */}
+      <div className="bg-white/5 p-6 rounded-xl border border-white/10 flex justify-between items-center">
         <div>
-          <h3 className="text-white font-bold text-lg flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gold" /> Schedule Matrix
-          </h3>
-          <p className="text-gray-400 text-xs mt-1">
-            Analyzing availability for Primary & Backup choices across all
-            dates.
+          <h2 className="text-xl font-serif text-gold flex items-center gap-2">
+            <Calendar className="w-5 h-5" /> Scheduling Matrix
+          </h2>
+          <p className="text-xs text-gray-400 mt-1">
+            Target Start Date:{" "}
+            <span className="text-white font-bold">{projectDate || "TBD"}</span>
           </p>
         </div>
-      </header>
-      {dateOptions.length === 0 && (
-        <div className="bg-white/5 border border-white/10 p-8 rounded text-center text-gray-500 italic">
-          No start dates have been set for this project yet.
+
+        <div className="flex items-center gap-4">
+          {/* LEGEND */}
+          {analysisRun && (
+            <div className="flex gap-2 animate-fade-in">
+              <div className="flex items-center gap-1 text-[10px] text-gray-400 px-3 py-1 bg-black/20 rounded">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>{" "}
+                Available
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-gray-400 px-3 py-1 bg-black/20 rounded">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div> Busy
+              </div>
+            </div>
+          )}
+
+          {/* ACTION BUTTON */}
+          <button
+            onClick={runAnalysis}
+            disabled={isChecking}
+            className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-gold/10 transition-all disabled:opacity-50"
+          >
+            {isChecking ? (
+              <RefreshCcw className="w-4 h-4 animate-spin" />
+            ) : (
+              <PlayCircle className="w-4 h-4" />
+            )}
+            {analysisRun ? "Refresh Analysis" : "Run Schedule Check"}
+          </button>
         </div>
-      )}
-      <div className="space-y-6">
-        {dateOptions.map((opt, optIdx) => {
-          const startDate = opt.date;
-          const endDate = new Date(
-            new Date(startDate).getTime() + PROJECT_DURATION_DAYS * 86400000
-          ).toISOString();
+      </div>
+
+      {/* MATRIX */}
+      <div className="grid gap-4">
+        {roles.map((role) => {
+          const selection = castingSelections[role["Role ID"]] || {
+            primary: null,
+            backup: null,
+          };
+
           return (
             <div
-              key={optIdx}
-              className="bg-[#0A0A1F] border border-white/10 rounded-xl overflow-hidden shadow-lg"
+              key={role["Role ID"]}
+              className="bg-black/40 border border-gold/10 rounded-lg p-4 flex flex-col md:flex-row gap-6 items-start md:items-center"
             >
-              <div className="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold text-sm">
-                    {optIdx + 1}
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">
-                      {opt.label}
-                    </div>
-                    <div className="text-xl font-serif font-bold text-white">
-                      {formatDate(opt.date)}
-                    </div>
-                  </div>
+              {/* ROLE INFO */}
+              <div className="w-full md:w-1/4">
+                <h3 className="font-bold text-white text-sm">
+                  {role["Character Name"]}
+                </h3>
+                <div className="text-[10px] text-gray-400 uppercase tracking-wider">
+                  {role["Gender"]} • {role["Age Range"]}
                 </div>
               </div>
-              <div className="divide-y divide-white/5">
-                <div className="grid grid-cols-12 gap-4 p-3 bg-black/20 text-[9px] text-gray-500 uppercase tracking-widest font-bold">
-                  <div className="col-span-3">Role</div>
-                  <div className="col-span-4">Primary Selection</div>
-                  <div className="col-span-1"></div>
-                  <div className="col-span-4">Backup Selection</div>
-                </div>
-                {roles.map((role, rIdx) => {
-                  const pKeys = [
-                    "Talent A",
-                    "Talent B",
-                    "Talent C",
-                    "Talent D",
-                  ];
-                  const bKeys = [
-                    "Backup A",
-                    "Backup B",
-                    "Backup C",
-                    "Backup D",
-                  ];
-                  if (rIdx >= pKeys.length) return null;
-                  const primaryName = project[pKeys[rIdx]];
-                  const backupName = project[bKeys[rIdx]];
-                  const pSched = safeCheckSchedule(
-                    primaryName,
-                    startDate,
-                    endDate,
-                    roster
-                  );
-                  const bSched = safeCheckSchedule(
-                    backupName,
-                    startDate,
-                    endDate,
-                    roster
-                  );
-                  return (
-                    <div
-                      key={rIdx}
-                      className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition"
-                    >
-                      <div className="col-span-3">
-                        <div className="font-bold text-white text-sm">
-                          {role["Character Name"]}
-                        </div>
-                        <div className="text-[10px] text-gray-500">
-                          {role["Gender"]} • {role["Age Range"]}
-                        </div>
-                      </div>
-                      <div className="col-span-4">
-                        {primaryName ? (
-                          <div
-                            className={`p-2 rounded border flex items-start gap-2 ${
-                              pSched.status === "CONFLICT"
-                                ? "bg-red-500/10 border-red-500/30"
-                                : "bg-green-500/10 border-green-500/30"
-                            }`}
-                          >
-                            {pSched.status === "CONFLICT" ? (
-                              <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
-                            )}
-                            <div>
-                              <div className="text-xs font-bold text-white">
-                                {primaryName}
-                              </div>
-                              <div
-                                className={`text-[10px] font-bold ${
-                                  pSched.status === "CONFLICT"
-                                    ? "text-red-300"
-                                    : "text-green-300"
-                                }`}
-                              >
-                                {pSched.message}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-gray-600 italic py-2">
-                            No Primary Selected
-                          </div>
-                        )}
-                      </div>
-                      <div className="col-span-1 flex justify-center opacity-20">
-                        →
-                      </div>
-                      <div className="col-span-4">
-                        {backupName ? (
-                          <div
-                            className={`p-2 rounded border flex items-start gap-2 ${
-                              bSched.status === "CONFLICT"
-                                ? "bg-red-500/10 border-red-500/30"
-                                : "bg-blue-500/10 border-blue-500/30"
-                            }`}
-                          >
-                            {bSched.status === "CONFLICT" ? (
-                              <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                            )}
-                            <div>
-                              <div className="text-xs font-bold text-white">
-                                {backupName}
-                              </div>
-                              <div
-                                className={`text-[10px] font-bold ${
-                                  bSched.status === "CONFLICT"
-                                    ? "text-red-300"
-                                    : "text-blue-300"
-                                }`}
-                              >
-                                {bSched.message}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-gray-600 italic py-2">
-                            No Backup Selected
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+
+              {/* SELECTION SLOTS */}
+              <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* PRIMARY SLOT */}
+                <ActorSlot
+                  type="Primary"
+                  actor={selection.primary}
+                  date={projectDate}
+                  showResult={analysisRun}
+                />
+
+                {/* BACKUP SLOT */}
+                <ActorSlot
+                  type="Backup"
+                  actor={selection.backup}
+                  date={projectDate}
+                  showResult={analysisRun}
+                />
               </div>
             </div>
           );
         })}
+
+        {roles.length === 0 && (
+          <div className="text-center py-12 text-gray-500">No roles found.</div>
+        )}
       </div>
     </div>
   );
-};
-export default ScheduleTab;
+}
+
+// Sub-component for individual cards
+function ActorSlot({ type, actor, date, showResult }) {
+  if (!actor) {
+    return (
+      <div className="bg-white/5 border border-dashed border-white/10 rounded p-3 flex items-center justify-center gap-2 text-gray-600 h-20">
+        <User size={16} />
+        <span className="text-xs uppercase tracking-wide">
+          No {type} Selected
+        </span>
+      </div>
+    );
+  }
+
+  // Logic is only displayed if showResult is true
+  let status = "pending";
+  let reason = "";
+
+  if (showResult) {
+    const check = checkSchedule(actor, date);
+    status = check.status;
+    reason = check.reason;
+  }
+
+  const isPrimary = type === "Primary";
+
+  return (
+    <div
+      className={`relative p-3 rounded border flex items-center gap-3 transition-colors ${
+        isPrimary
+          ? "bg-gold/10 border-gold/30"
+          : "bg-blue-900/10 border-blue-500/20"
+      }`}
+    >
+      {/* BADGE */}
+      <div
+        className={`absolute -top-2 -left-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded shadow-sm ${
+          isPrimary ? "bg-gold text-midnight" : "bg-blue-600 text-white"
+        }`}
+      >
+        {type}
+      </div>
+
+      <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center text-sm font-bold text-gray-300">
+        {actor.name.charAt(0)}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-white truncate">
+          {actor.name}
+        </div>
+        <div className="text-[10px] text-gray-400 truncate">{actor.email}</div>
+      </div>
+
+      {/* AVAILABILITY INDICATOR */}
+      <div className="text-right">
+        {!showResult ? (
+          <div className="flex flex-col items-end text-gray-500">
+            <Clock size={14} />
+            <span className="text-[9px] uppercase font-bold mt-0.5">
+              Pending
+            </span>
+          </div>
+        ) : status === "available" ? (
+          <div className="flex flex-col items-end text-green-400">
+            <CheckCircle size={14} />
+            <span className="text-[9px] uppercase font-bold mt-0.5">Open</span>
+          </div>
+        ) : status === "unknown" ? (
+          <div className="flex flex-col items-end text-gray-500">
+            <AlertCircle size={14} />
+            <span className="text-[9px] uppercase font-bold mt-0.5">
+              Unknown
+            </span>
+          </div>
+        ) : (
+          <div className="flex flex-col items-end text-red-400">
+            <AlertCircle size={14} />
+            <span className="text-[9px] uppercase font-bold mt-0.5">Busy</span>
+          </div>
+        )}
+
+        {/* REASON TEXT */}
+        {showResult && status !== "available" && (
+          <div className="text-[8px] text-red-300 opacity-80 mt-1 max-w-[80px] leading-tight">
+            {reason}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -11,9 +11,9 @@ import {
 import axios from "axios";
 import Link from "next/link";
 
-// 🔴 REPLACE WITH YOUR V12/V13 URL
+// 🔴 ENSURE THIS MATCHES YOUR V20 DEPLOYMENT URL
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
+  "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
 
 export default function AuthorForm() {
   const [submitted, setSubmitted] = useState(false);
@@ -58,6 +58,20 @@ export default function AuthorForm() {
     fetchLists();
   }, []);
 
+  // 🟢 NEW HANDLER: Adds commas to Word Count (e.g. 100,000)
+  const handleWordCountChange = (e) => {
+    // 1. Strip existing commas to get raw number
+    const rawValue = e.target.value.replace(/,/g, "");
+
+    // 2. Validation: If it's not a number, ignore the keystroke
+    if (isNaN(rawValue)) return;
+
+    // 3. Format it with commas (or keep empty if user cleared it)
+    const formatted = rawValue ? Number(rawValue).toLocaleString() : "";
+
+    setFormData((prev) => ({ ...prev, wordCount: formatted }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -93,20 +107,51 @@ export default function AuthorForm() {
     e.preventDefault();
     setLoading(true);
 
+    // 1. FIX CHARACTER FORMATTING (M1/F1 Logic)
+    let mCount = 0;
+    let fCount = 0;
+
+    const charStringBlock = formData.characters
+      .map((c) => {
+        // Calculate Prefix (M1, M2, F1, F2)
+        let prefix = "O"; // Default Other
+        if (c.gender === "Male") {
+          mCount++;
+          prefix = `M${mCount}`;
+        } else {
+          fCount++;
+          prefix = `F${fCount}`;
+        }
+        // Format: "M1: Henry - 30s - Warm"
+        return `${prefix}: ${c.name} - ${c.age} - ${c.vocal}`;
+      })
+      .join("\n"); // Join with newlines so they stack in the cell
+
+    // 2. FORMAT GENRES
+    const genreString = [
+      formData.genres.primary,
+      formData.genres.secondary,
+      formData.genres.tertiary,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    // 🟢 3. FORMAT TIMELINE (THE FIX)
+    // Bundle all 3 dates so the backend receives "2024-01-01|2024-02-01|2024-03-01"
+    const timelineBlock = `${formData.date1}|${formData.date2}|${formData.date3}`;
+
     const payload = {
       op: "client_intake",
-      ...formData,
-      genres: [
-        formData.genres.primary,
-        formData.genres.secondary,
-        formData.genres.tertiary,
-      ].filter(Boolean),
-      maleDetails: formData.characters
-        .filter((c) => c.gender === "Male")
-        .map((c, i) => `M${i + 1}: ${c.name} - ${c.age} - ${c.vocal}`),
-      femaleDetails: formData.characters
-        .filter((c) => c.gender !== "Male")
-        .map((c, i) => `F${i + 1}: ${c.name} - ${c.age} - ${c.vocal}`),
+      clientType: formData.clientType,
+      name: formData.clientName,
+      email: formData.email,
+      title: formData.bookTitle,
+      wordCount: formData.wordCount,
+      style: formData.style,
+      genres: genreString,
+      characters: charStringBlock,
+      timeline: timelineBlock, // 🟢 Sends the correct bundled format now
+      notes: formData.notes,
     };
 
     try {
@@ -120,10 +165,12 @@ export default function AuthorForm() {
     setLoading(false);
   };
 
-  // 🟢 UNIFIED INPUT STYLES (Exact match to Word Count + Autofill Fix)
-  // This shadow trick forces the background to stay dark even when Chrome tries to turn it white for autofill
+  // 🟢 FIXED INPUT STYLES (Forces White Text on Autofill)
   const inputClass =
-    "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white outline-none focus:border-gold transition-colors placeholder:text-gray-500 [&:-webkit-autofill]:shadow-[0_0_0_30px_#1a1a1a_inset] [&:-webkit-autofill]:-webkit-text-fill-color-white";
+    "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white outline-none focus:border-gold transition-colors placeholder:text-gray-500 " +
+    "[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0c0442_inset] " + // Forces background to Dark Blue
+    "[&:-webkit-autofill]:-webkit-text-fill-color:white " + // Forces text to White
+    "[&:-webkit-autofill]:transition-[background-color_5000s_ease-in-out_0s]"; // Delays the white flash
 
   const selectClass =
     "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight";
@@ -183,11 +230,12 @@ export default function AuthorForm() {
               <div className="relative">
                 <select
                   name="clientType"
+                  value={formData.clientType}
                   onChange={handleChange}
                   className={selectClass}
                   required
                 >
-                  <option value="" disabled selected>
+                  <option value="" disabled>
                     I'm a...
                   </option>
                   <option value="Publisher">Publisher</option>
@@ -199,15 +247,14 @@ export default function AuthorForm() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* 🟢 EXACT SAME CLASS AS WORD COUNT */}
                 <input
                   name="clientName"
                   placeholder="Full Name / Company Name"
                   onChange={handleChange}
                   className={inputClass}
                   required
+                  autoComplete="off" // 🟢 KILLS AUTOFILL
                 />
-                {/* 🟢 EXACT SAME CLASS AS WORD COUNT */}
                 <input
                   name="email"
                   type="email"
@@ -215,6 +262,7 @@ export default function AuthorForm() {
                   onChange={handleChange}
                   className={inputClass}
                   required
+                  autoComplete="off" // 🟢 KILLS AUTOFILL
                 />
               </div>
             </div>
@@ -228,30 +276,35 @@ export default function AuthorForm() {
 
             <input
               name="bookTitle"
+              value={formData.bookTitle} // 🟢 THIS FIXES THE ERROR
               placeholder="Project Title"
               onChange={handleChange}
               className="w-full text-3xl bg-transparent border-b border-gold/30 py-4 px-2 mb-8 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600 text-white"
               required
+              autoComplete="off"
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <input
                 name="wordCount"
-                type="number"
+                type="text" // 🟢 Changed from "number" to allow commas
+                value={formData.wordCount} // 🟢 Binds the formatted state
                 placeholder="Word Count (Est.)"
-                onChange={handleChange}
+                onChange={handleWordCountChange} // 🟢 Uses new handler
                 className={inputClass}
                 required
+                autoComplete="off"
               />
 
               <div className="relative">
                 <select
                   name="style"
+                  value={formData.style}
                   onChange={handleStyleChange}
                   className={selectClass}
                   required
                 >
-                  <option value="" disabled selected>
+                  <option value="" disabled>
                     Production Style...
                   </option>
                   <option value="Solo Narration">Solo Narration</option>
@@ -271,16 +324,12 @@ export default function AuthorForm() {
               {["primary", "secondary", "tertiary"].map((level, idx) => (
                 <div className="relative" key={level}>
                   <select
+                    value={formData.genres[level]}
                     onChange={(e) => handleGenreChange(level, e.target.value)}
                     className={selectClass}
                     required={idx === 0}
                   >
-                    <option
-                      value=""
-                      disabled
-                      selected
-                      className="text-gray-500"
-                    >
+                    <option value="" disabled className="text-gray-500">
                       {level.charAt(0).toUpperCase() + level.slice(1)}...
                     </option>
                     {listOptions.genres.map((g) => (
@@ -317,6 +366,7 @@ export default function AuthorForm() {
                           updateCharacter(i, "name", e.target.value)
                         }
                         className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold placeholder:text-gray-600 text-white"
+                        autoComplete="off" // 🟢 KILLS AUTOFILL
                       />
                     </div>
 

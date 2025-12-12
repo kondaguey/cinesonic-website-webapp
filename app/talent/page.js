@@ -21,7 +21,7 @@ import {
 
 // 🔴 YOUR V12/V13 URL (Official Mapping)
 const API_URL =
-  "https://script.google.com/macros/s/AKfycbxjKTIkZgMvjuCv49KK00885LI5r2Ir6qMY7UGb29iqojgnhTck0stR__yejTODfLVO/exec";
+  "https://script.google.com/macros/s/AKfycbzhLUscRTFik-wBNIrOwiOkajn0yhnBbTsOkqqVrRwD2oS8i3HhjNrt951a0rlkGtp_/exec";
 
 const AGE_RANGES = ["Teen", "20s", "30s", "40s", "50s", "60s", "70s", "80+"];
 

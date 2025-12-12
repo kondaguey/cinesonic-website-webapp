@@ -1,217 +1,291 @@
-import React from "react";
-import { Play } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Mic,
+  Sparkles,
+  Loader2,
+  Users,
+  Check,
+  CalendarArrowUp,
+} from "lucide-react";
 
-const CastingTab = ({
+export default function CastingTab({
   project,
-  roles = [],
-  roster = [],
+  roles,
+  roster,
   updateField,
-  matchResults = {},
+  matchResults,
   setMatchResults,
   runCreativeMatch,
-}) => {
-  if (!project)
-    return <div className="p-4 text-gray-500">No project selected.</div>;
-  const safeRoles = roles.filter((r) => r && r["Character Name"]);
+  onConfirmSelections,
+  initialSelections,
+}) {
+  const [isMatching, setIsMatching] = useState(false);
+  const [selections, setSelections] = useState(initialSelections || {});
 
-  const handleRunMatch = (role, index) => {
-    if (runCreativeMatch) {
-      const results = runCreativeMatch(role, roster);
-      setMatchResults((prev) => ({ ...prev, [index]: results }));
-    }
+  // --- 1. THE MATCHMAKER ---
+  const handleRunMatchmaker = () => {
+    setIsMatching(true);
+    setTimeout(() => {
+      const results = {};
+      if (!roster || roster.length === 0) {
+        setIsMatching(false);
+        return;
+      }
+      roles.forEach((role) => {
+        const matches = runCreativeMatch(role, roster);
+        results[role["Role ID"]] = matches;
+      });
+      setMatchResults(results);
+      setIsMatching(false);
+    }, 800);
   };
 
-  const assignActor = (actorName, roleIndex, type = "primary") => {
-    const primaryKeys = ["Talent A", "Talent B", "Talent C", "Talent D"];
-    const backupKeys = ["Backup A", "Backup B", "Backup C", "Backup D"];
-    if (roleIndex >= primaryKeys.length) return;
-    const field =
-      type === "primary" ? primaryKeys[roleIndex] : backupKeys[roleIndex];
-    const emailField = field + " Email";
-    const currentValue = project[field];
+  // --- 2. SELECTION HANDLER ---
+  const toggleSelection = (roleId, actor, type) => {
+    setSelections((prev) => {
+      const roleSel = prev[roleId] || { primary: null, backup: null };
 
-    if (currentValue === actorName) {
-      updateField(field, "");
-      updateField(emailField, "");
-    } else {
-      const actorData = roster.find((r) => r.name === actorName);
-      const actorEmail = actorData ? actorData.email : "";
-      updateField(field, actorName);
-      updateField(emailField, actorEmail);
+      // If clicking the one already selected, toggle it OFF
+      if (roleSel[type]?.id === actor.id) {
+        return { ...prev, [roleId]: { ...roleSel, [type]: null } };
+      }
+
+      // If selecting Primary, ensure this actor isn't also Backup (and vice versa)
+      const otherType = type === "primary" ? "backup" : "primary";
+      const isActorInOtherSlot = roleSel[otherType]?.id === actor.id;
+
+      return {
+        ...prev,
+        [roleId]: {
+          ...roleSel,
+          [type]: actor,
+          [otherType]: isActorInOtherSlot ? null : roleSel[otherType], // Clear other slot if moving
+        },
+      };
+    });
+  };
+
+  // --- 3. CONFIRM / MOVE TO SCHEDULE ---
+  const handleConfirmCasting = () => {
+    if (onConfirmSelections) {
+      onConfirmSelections(selections);
     }
   };
 
   return (
-    <div className="space-y-6 pb-20 animate-fade-in">
-      {safeRoles.length === 0 && (
-        <div className="text-gray-500 italic border border-white/10 p-8 rounded text-center">
-          No roles found for this project.
+    <div className="space-y-6 animate-fade-in">
+      {/* HEADER & ACTIONS */}
+      <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10">
+        <div>
+          <h2 className="text-xl font-serif text-gold flex items-center gap-2">
+            <Mic className="w-5 h-5" /> Casting Breakdown
+          </h2>
+          <p className="text-xs text-gray-400 mt-1">
+            {roles.length} Roles • {roster.length} Talent Available
+          </p>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            onClick={handleRunMatchmaker}
+            disabled={isMatching || roles.length === 0}
+            className="bg-black/40 border border-gold/30 hover:bg-gold/10 text-gold font-bold px-4 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 transition-all disabled:opacity-50"
+          >
+            {isMatching ? (
+              <Loader2 className="animate-spin w-4 h-4" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            {matchResults && Object.keys(matchResults).length > 0
+              ? "Re-Run Auto-Cast"
+              : "Run Auto-Cast"}
+          </button>
+
+          <button
+            onClick={handleConfirmCasting}
+            disabled={Object.keys(selections).length === 0}
+            className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-gold/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <CalendarArrowUp className="w-4 h-4" /> Confirm & Schedule
+          </button>
+        </div>
+      </div>
+
+      {/* ROLES GRID */}
+      {roles.length === 0 ? (
+        <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
+          <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-gray-400 font-bold uppercase tracking-widest">
+            No Roles Found
+          </h3>
+          <p className="text-gray-600 text-sm mt-2">
+            Run the intake Exploder first.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {roles.map((role) => {
+            const roleMatches = matchResults[role["Role ID"]] || [];
+            const activeSel = selections[role["Role ID"]] || {
+              primary: null,
+              backup: null,
+            };
+
+            return (
+              <div
+                key={role["Role ID"]}
+                className={`bg-black/40 border rounded-xl overflow-hidden flex flex-col transition-all duration-300 ${
+                  activeSel.primary
+                    ? "border-gold shadow-[0_0_15px_rgba(212,175,55,0.15)]"
+                    : "border-white/10"
+                }`}
+              >
+                {/* ROLE HEADER */}
+                <div className="p-4 bg-white/5 border-b border-white/5 relative overflow-hidden">
+                  <div className="flex justify-between items-start relative z-10">
+                    <div>
+                      <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                        {role["Character Name"]}
+                        {activeSel.primary && (
+                          <Check className="w-4 h-4 text-gold" />
+                        )}
+                      </h3>
+                      <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wider text-gray-400">
+                        <span className="bg-white/10 px-2 py-0.5 rounded">
+                          {role["Gender"]}
+                        </span>
+                        <span className="bg-white/10 px-2 py-0.5 rounded">
+                          {role["Age Range"]}
+                        </span>
+                      </div>
+                    </div>
+                    {/* SELECTION SUMMARY */}
+                    <div className="text-right text-[10px] space-y-1">
+                      {activeSel.primary && (
+                        <div className="text-gold font-bold bg-gold/10 px-2 py-1 rounded border border-gold/20">
+                          1st: {activeSel.primary.name}
+                        </div>
+                      )}
+                      {activeSel.backup && (
+                        <div className="text-blue-300 font-bold bg-blue-900/20 px-2 py-1 rounded border border-blue-500/20">
+                          2nd: {activeSel.backup.name}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-300 italic line-clamp-2">
+                    "{role["Vocal Specs"] || "No specs."}"
+                  </div>
+                </div>
+
+                {/* MATCHES LIST */}
+                <div className="flex-1 bg-black/20 p-4 min-h-[250px] max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {roleMatches.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold flex items-center gap-1">
+                        <Sparkles size={10} className="text-gold" /> Suggested
+                        Talent
+                      </p>
+                      {roleMatches.map((match, i) => {
+                        if (!match || !match.actor) return null;
+                        const actor = match.actor;
+                        const isPrimary = activeSel.primary?.id === actor.id;
+                        const isBackup = activeSel.backup?.id === actor.id;
+
+                        return (
+                          <div
+                            key={actor.id || i}
+                            className={`flex items-center justify-between p-2 rounded border transition-all group ${
+                              isPrimary
+                                ? "bg-gold/20 border-gold/50"
+                                : isBackup
+                                ? "bg-blue-900/20 border-blue-500/30"
+                                : "bg-white/5 border-transparent hover:border-white/20 hover:bg-white/10"
+                            }`}
+                          >
+                            {/* ACTOR INFO */}
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                                  isPrimary
+                                    ? "bg-gold text-midnight border-gold"
+                                    : "bg-white/10 text-gray-400 border-white/10"
+                                }`}
+                              >
+                                {match.score}%
+                              </div>
+                              <div>
+                                <div
+                                  className={`text-sm font-bold ${
+                                    isPrimary ? "text-gold" : "text-gray-200"
+                                  }`}
+                                >
+                                  {actor.name}
+                                </div>
+                                <div className="text-[10px] text-gray-500 flex gap-1">
+                                  <span>{actor.gender}</span>
+                                  {actor.sag === "SAG-AFTRA" && (
+                                    <span className="text-yellow-600 font-bold">
+                                      • SAG
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* SELECTION BUTTONS */}
+                            <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() =>
+                                  toggleSelection(
+                                    role["Role ID"],
+                                    actor,
+                                    "primary"
+                                  )
+                                }
+                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-colors ${
+                                  isPrimary
+                                    ? "bg-gold text-midnight border-gold shadow-glow"
+                                    : "border-gray-600 text-gray-500 hover:border-gold hover:text-gold"
+                                }`}
+                              >
+                                1st
+                              </button>
+                              <button
+                                onClick={() =>
+                                  toggleSelection(
+                                    role["Role ID"],
+                                    actor,
+                                    "backup"
+                                  )
+                                }
+                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-colors ${
+                                  isBackup
+                                    ? "bg-blue-600 text-white border-blue-500 shadow-lg"
+                                    : "border-gray-600 text-gray-500 hover:border-blue-400 hover:text-blue-400"
+                                }`}
+                              >
+                                2nd
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-2 opacity-50">
+                      <Users className="w-8 h-8" />
+                      <span className="text-xs uppercase tracking-wide">
+                        Run Auto-Cast to find talent
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-      {safeRoles.map((role, rIdx) => {
-        const matches = matchResults[rIdx] || [];
-        const keys = ["Talent A", "Talent B", "Talent C", "Talent D"];
-        const backupKeys = ["Backup A", "Backup B", "Backup C", "Backup D"];
-        if (rIdx >= keys.length) return null;
-        const currentActor = project[keys[rIdx]];
-        const currentBackup = project[backupKeys[rIdx]];
-
-        return (
-          <div
-            key={rIdx}
-            className="bg-black/20 border border-white/10 rounded-xl overflow-hidden shadow-lg hover:border-white/20 transition"
-          >
-            <div className="p-4 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-white/5 to-transparent">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center text-gold font-bold text-lg">
-                  {rIdx + 1}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                    {role["Character Name"]}
-                  </h3>
-                  <div className="text-xs text-gray-400 font-mono mt-0.5 flex gap-2">
-                    <span className="bg-white/10 px-2 py-0.5 rounded">
-                      {role["Gender"] || "Any"}
-                    </span>
-                    <span className="bg-white/10 px-2 py-0.5 rounded">
-                      {role["Age Range"] || "Any"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => handleRunMatch(role, rIdx)}
-                className="bg-gold hover:bg-white text-midnight px-4 py-2 rounded font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition"
-              >
-                <Play className="w-3 h-3 fill-current" />
-                {matches.length > 0 ? "Re-Run Match" : "Run Match"}
-              </button>
-            </div>
-            <div className="p-6 bg-black/20">
-              <div className="flex gap-8 mb-4 border-b border-white/5 pb-4">
-                <div className="text-xs">
-                  <span className="text-gray-500 uppercase tracking-widest text-[9px]">
-                    Primary:
-                  </span>
-                  <div
-                    className={`text-lg font-bold ${
-                      currentActor ? "text-gold" : "text-gray-600"
-                    }`}
-                  >
-                    {currentActor || "None"}
-                  </div>
-                </div>
-                <div className="text-xs">
-                  <span className="text-gray-500 uppercase tracking-widest text-[9px]">
-                    Backup:
-                  </span>
-                  <div
-                    className={`text-lg font-bold ${
-                      currentBackup ? "text-blue-400" : "text-gray-600"
-                    }`}
-                  >
-                    {currentBackup || "None"}
-                  </div>
-                </div>
-              </div>
-              {matches.length === 0 ? (
-                <div className="text-center text-gray-600 text-xs italic py-8 border border-white/5 border-dashed rounded">
-                  Click "Run Match" to scan the actor database.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                  {[0, 1, 2, 3, 4].map((slotIdx) => {
-                    const candidate = matches[slotIdx];
-                    const isThisPrimary = currentActor === candidate?.name;
-                    const isThisBackup = currentBackup === candidate?.name;
-                    return (
-                      <div
-                        key={slotIdx}
-                        className={`relative p-3 rounded border border-white/5 flex flex-col justify-between min-h-[120px] transition ${
-                          candidate
-                            ? "bg-white/5 hover:border-gold/30"
-                            : "bg-transparent border-dashed border-white/10 opacity-50"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[9px] text-gold font-bold uppercase">
-                            Choice {slotIdx + 1}
-                          </span>
-                          {candidate && (
-                            <span className="text-[9px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold">
-                              {candidate.score}%
-                            </span>
-                          )}
-                        </div>
-                        {candidate ? (
-                          <div className="flex-1 mb-2">
-                            <div className="font-bold text-sm text-white truncate">
-                              {candidate.name}
-                            </div>
-                            <div className="text-[10px] text-gray-400">
-                              {candidate.status || "Active"}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex-1 flex items-center justify-center text-[10px] text-gray-600 font-bold uppercase tracking-widest">
-                            Empty
-                          </div>
-                        )}
-                        {candidate && (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() =>
-                                assignActor(candidate.name, rIdx, "primary")
-                              }
-                              disabled={
-                                isThisBackup || (currentActor && !isThisPrimary)
-                              }
-                              className={`w-full py-1 text-[9px] uppercase tracking-wider rounded border transition ${
-                                isThisPrimary
-                                  ? "bg-green-500 text-midnight border-green-500 font-bold"
-                                  : "border-white/20 hover:bg-gold hover:text-midnight"
-                              } ${
-                                isThisBackup || (currentActor && !isThisPrimary)
-                                  ? "opacity-20 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            >
-                              {isThisPrimary ? "Selected" : "Primary"}
-                            </button>
-                            <button
-                              onClick={() =>
-                                assignActor(candidate.name, rIdx, "backup")
-                              }
-                              disabled={
-                                isThisPrimary ||
-                                (currentBackup && !isThisBackup)
-                              }
-                              className={`w-full py-1 text-[9px] uppercase tracking-wider rounded border transition ${
-                                isThisBackup
-                                  ? "bg-blue-500 text-white border-blue-500 font-bold"
-                                  : "border-white/10 text-gray-400 hover:text-blue-300"
-                              } ${
-                                isThisPrimary ||
-                                (currentBackup && !isThisBackup)
-                                  ? "opacity-20 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            >
-                              {isThisBackup ? "Selected" : "Backup"}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
-};
-export default CastingTab;
+}
