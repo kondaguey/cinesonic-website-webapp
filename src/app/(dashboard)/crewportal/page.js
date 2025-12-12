@@ -20,18 +20,23 @@ import {
 import Link from "next/link";
 
 // COMPONENT IMPORTS
-import Sidebar from "../../components/Sidebar";
-import DashboardStats from "../../components/DashboardStats";
-import TalentManager from "../../components/TalentManager";
-import ProductionView from "../../components/ProductionView";
-import CastingTab from "../../components/CastingTab";
-import ContractsTab from "../../components/ContractsTab";
-import ProductionHub from "../../components/ProductionHub";
-import ScheduleHub from "../../components/ScheduleHub";
-import ProjectHeader from "../../components/ProductionHeader";
+// We use "@/src/" to start from the very top of your project safely.
+
+// 1. The Sidebar (already in a subfolder)
+import Sidebar from "@/src/components/dashboard/Sidebar";
+
+// 2. The other components (currently sitting in the main components folder)
+import DashboardStats from "@/src/components/dashboard/DashboardStats";
+import TalentManager from "@/src/components/dashboard/TalentManager";
+import ProductionView from "@/src/components/dashboard/ProductionView";
+import CastingTab from "@/src/components/dashboard/CastingTab";
+import ContractsTab from "@/src/components/dashboard/ContractsTab";
+import ProductionHub from "@/src/components/dashboard/ProductionHub";
+import ScheduleHub from "@/src/components/dashboard/ScheduleHub";
+import ProjectHeader from "@/src/components/dashboard/ProductionHeader";
 
 // UTILS
-import { runCreativeMatch } from "../../utils/matchmaker";
+import { runCreativeMatch } from "@/src/utils/dashboard/matchmaker";
 
 // 🟢 INITIALIZE SUPABASE
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

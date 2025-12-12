@@ -74,7 +74,7 @@ export default function DashboardHub() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-10">
           {/* 1. TALENT SHOWCASE -> app/dashboard/talentupload */}
           <Link
-            href="/dashboard/talentupload"
+            href="./talentupload"
             className="group bg-black/40 backdrop-blur-xl border border-gold/20 p-10 rounded-2xl hover:border-gold/60 transition-all hover:-translate-y-2 flex flex-col items-center shadow-2xl"
           >
             <div className="w-20 h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -90,7 +90,7 @@ export default function DashboardHub() {
 
           {/* 2. TALENT PORTAL -> app/dashboard/talentform */}
           <Link
-            href="/dashboard/talentform"
+            href="./talentform"
             className="group bg-black/40 backdrop-blur-xl border border-gold/20 p-10 rounded-2xl hover:border-gold/60 transition-all hover:-translate-y-2 flex flex-col items-center shadow-2xl"
           >
             <div className="w-20 h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -106,7 +106,7 @@ export default function DashboardHub() {
 
           {/* 3. STAFF / CREW PORTAL -> app/dashboard/crewportal */}
           <Link
-            href="/dashboard/crewportal"
+            href="./crewportal"
             className="group bg-black/40 backdrop-blur-xl border border-gold/20 p-10 rounded-2xl hover:border-gold/60 transition-all hover:-translate-y-2 flex flex-col items-center shadow-2xl"
           >
             <div className="w-20 h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
