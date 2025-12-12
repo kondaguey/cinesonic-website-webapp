@@ -4,11 +4,8 @@ import {
   Check,
   Lock,
   Mail,
-  Trophy,
-  AlertCircle,
   MessageSquare,
   Send,
-  Clock,
   FileAudio,
   AlertTriangle,
 } from "lucide-react";
@@ -41,7 +38,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
   };
   const contractStatus = getContractStatus();
 
-  // --- CORRESPONDENCE PARSER ---
   const getCorrespondence = () => {
     try {
       const val = project["Project Correspondence"];
@@ -56,12 +52,21 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
   const currentProductionStep =
     contractStatus.production_step || PROGRESS_STEPS[0];
 
+  // 🟢 FIXED: Updates State AND Database instantly
   const setProductionStep = (step) => {
     const newContracts = { ...contractStatus, production_step: step };
+
+    // 1. Prepare new object
+    const updatedProject = { ...project, "Contract Data": newContracts };
+
+    // 2. Update UI
     updateField("Contract Data", newContracts);
+
+    // 3. Save to DB Immediately
+    saveProject(updatedProject);
   };
 
-  // --- POST MESSAGE HANDLER ---
+  // 🟢 FIXED: Updates State AND Database instantly
   const handlePostNote = () => {
     if (!newNote.trim()) return;
 
@@ -73,20 +78,19 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
     };
 
     const newLog = [...correspondenceLog, entry];
-    updateField("Project Correspondence", newLog);
 
+    // 1. Prepare new object
+    const updatedProject = { ...project, "Project Correspondence": newLog };
+
+    // 2. Update UI
+    updateField("Project Correspondence", newLog);
     setNewNote("");
 
-    // Silent Auto-Save
-    setTimeout(() => {
-      if (saveProject) saveProject();
-    }, 100);
+    // 3. Save to DB Immediately (No timeout needed)
+    saveProject(updatedProject);
   };
 
   useEffect(() => {
-    // OLD: chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-
-    // NEW: Add block: "nearest"
     chatEndRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "nearest",
@@ -115,31 +119,30 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
     )}&subject=Project Update: ${project["Title"]}`;
   };
 
-  // NEW: TOGGLE FILES RECEIVED
+  // 🟢 FIXED: Updates State AND Database instantly
   const toggleFilesReceived = (key) => {
     const statusKey = `${key}_files_received`;
     const currentVal = contractStatus[statusKey] || false;
 
     const newContracts = { ...contractStatus, [statusKey]: !currentVal };
+
+    // 1. Prepare new object
+    const updatedProject = { ...project, "Contract Data": newContracts };
+
+    // 2. Update UI
     updateField("Contract Data", newContracts);
 
-    // Auto-save to lock it in
-    setTimeout(() => {
-      if (saveProject) saveProject();
-    }, 100);
+    // 3. Save to DB Immediately
+    saveProject(updatedProject);
   };
 
-  // NEW: CHECK OVERDUE STATUS
   const getOverdueStatus = (received) => {
     if (received) return { status: "complete", label: "Files In" };
-
     if (!project["Confirmed End"])
       return { status: "pending", label: "In Progress" };
 
     const today = new Date();
     const dueDate = new Date(project["Confirmed End"]);
-
-    // Reset time to midnight for fair comparison
     today.setHours(0, 0, 0, 0);
     dueDate.setHours(0, 0, 0, 0);
 
@@ -148,7 +151,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return { status: "late", label: `${diffDays} Days Late`, days: diffDays };
     }
-
     return { status: "pending", label: "On Track" };
   };
 
@@ -164,7 +166,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
   ].filter((k) => contractStatus[k] === true && project[k]).length;
 
   return (
-    // 🟢 FIX: Removed 'animate-fade-in' class here to stop scrolling on click
     <div className="space-y-8 pb-20">
       {/* WORKFLOW TRACKER */}
       <div className="relative bg-gradient-to-r from-[#0A0A1F] to-[#1a1a3a] border border-gold/20 rounded-2xl overflow-hidden shadow-2xl group">
@@ -189,7 +190,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                 );
                 const isCompleted = idx < currentIdx;
                 const isActive = currentProductionStep === step;
-                const stepTime = contractStatus.step_timestamps?.[step];
 
                 return (
                   <div
@@ -235,19 +235,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     >
                       {step}
                     </div>
-                    {stepTime && (isCompleted || isActive) && (
-                      <div className="absolute top-24 w-32 text-center text-[9px] text-gray-500 font-mono flex flex-col items-center opacity-0 group-hover/step:opacity-100 transition-opacity">
-                        <span className="text-gold/50">
-                          {new Date(stepTime).toLocaleDateString()}
-                        </span>
-                        <span>
-                          {new Date(stepTime).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -326,7 +313,7 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
         </div>
       </div>
 
-      {/* LOCKED ROSTER & SUBMISSION TRACKER */}
+      {/* LOCKED ROSTER */}
       <header className="flex justify-between items-end border-b border-white/10 pb-4">
         <div>
           <h3 className="text-white font-bold text-xl flex items-center gap-2">
@@ -334,11 +321,10 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
           </h3>
           <p className="text-gray-400 text-xs mt-1 tracking-wide">
             {lockedCount > 0
-              ? `${lockedCount} team members confirmed and ready.`
+              ? `${lockedCount} team members confirmed.`
               : "Awaiting signed contracts."}
           </p>
         </div>
-
         {lockedCount > 0 && (
           <button
             onClick={handleEmailTeam}
@@ -349,7 +335,7 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
         )}
       </header>
 
-      {/* SUBMISSION TRACKING GRID */}
+      {/* TRACKING GRID */}
       {lockedCount === 0 ? (
         <div className="bg-white/5 border border-white/10 border-dashed rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-4">
           <AlertCircle className="w-12 h-12 text-gray-600 opacity-50" />
@@ -358,8 +344,8 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
               Roster Empty
             </h4>
             <p className="text-gray-500 text-xs mt-1">
-              Visit the <strong className="text-gold">Contracts Tab</strong> to
-              lock in Crew & Talent.
+              Visit <strong className="text-gold">Contracts Tab</strong> to lock
+              Crew.
             </p>
           </div>
         </div>
@@ -377,23 +363,15 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
           ].map((item, i) => {
             const name = project[item.key];
             const email = project[`${item.key} Email`];
-
             if (!name || contractStatus[item.key] !== true) return null;
 
-            // CALCULATE STATUS
             const filesReceived =
               contractStatus[`${item.key}_files_received`] || false;
             const timeline = getOverdueStatus(filesReceived);
             const isLate = timeline.status === "late";
             const isDone = timeline.status === "complete";
-
-            // DYNAMIC BUTTON
-            const emailSubject = isLate
-              ? `URGENT: Material Overdue - ${project["Title"]}`
-              : `Production Update: ${project["Title"]}`;
-
             const btnColor = isLate
-              ? "bg-red-500 hover:bg-red-600 text-white border-red-500 shadow-red-900/50"
+              ? "bg-red-500 hover:bg-red-600 text-white border-red-500"
               : "bg-black/40 border-white/10 text-gray-300 hover:bg-gold hover:text-midnight hover:border-gold";
 
             return (
@@ -426,19 +404,17 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                             ? "bg-green-500"
                             : "bg-gold"
                         }`}
-                      ></div>
+                      ></div>{" "}
                       {item.role}
                     </div>
                     <div className="text-white font-serif font-bold text-lg leading-tight truncate">
                       {name}
                     </div>
                   </div>
-
-                  {/* STATUS BADGE */}
                   <div
                     className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider border ${
                       isLate
-                        ? "bg-red-500 text-white border-red-400 shadow-glow-red"
+                        ? "bg-red-500 text-white border-red-400"
                         : isDone
                         ? "bg-green-500 text-midnight border-green-400"
                         : "bg-white/5 text-gray-500 border-white/10"
@@ -447,8 +423,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     {timeline.label}
                   </div>
                 </div>
-
-                {/* FILES TOGGLE */}
                 <div
                   onClick={() => toggleFilesReceived(item.key)}
                   className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
@@ -483,14 +457,8 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     }
                   />
                 </div>
-
-                {/* ACTION BUTTON */}
                 <button
-                  onClick={() =>
-                    (window.location.href = `mailto:${email}?subject=${encodeURIComponent(
-                      emailSubject
-                    )}`)
-                  }
+                  onClick={() => (window.location.href = `mailto:${email}`)}
                   className={`w-full py-2.5 mt-auto rounded-lg text-[10px] font-bold uppercase border flex items-center justify-center gap-2 transition-all shadow-lg ${btnColor}`}
                 >
                   {isLate ? <AlertTriangle size={12} /> : <Mail size={12} />}
