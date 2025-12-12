@@ -15,22 +15,23 @@ import {
   Calendar,
   Play,
   Trash2,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 
 // COMPONENT IMPORTS
-import Sidebar from "../components/Sidebar";
-import DashboardStats from "../components/DashboardStats";
-import TalentManager from "../components/TalentManager";
-import ProductionView from "../components/ProductionView";
-import CastingTab from "../components/CastingTab";
-import ContractsTab from "../components/ContractsTab";
-import ProductionHub from "../components/ProductionHub";
-import ScheduleHub from "../components/ScheduleHub";
-import ProjectHeader from "../components/ProductionHeader";
+import Sidebar from "../../components/Sidebar";
+import DashboardStats from "../../components/DashboardStats";
+import TalentManager from "../../components/TalentManager";
+import ProductionView from "../../components/ProductionView";
+import CastingTab from "../../components/CastingTab";
+import ContractsTab from "../../components/ContractsTab";
+import ProductionHub from "../../components/ProductionHub";
+import ScheduleHub from "../../components/ScheduleHub";
+import ProjectHeader from "../../components/ProductionHeader";
 
 // UTILS
-import { runCreativeMatch } from "../utils/matchmaker";
+import { runCreativeMatch } from "../../utils/matchmaker";
 
 // 🟢 INITIALIZE SUPABASE
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -473,12 +474,22 @@ export default function AdminPortal() {
   if (view === "login")
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)]">
-        <Link
-          href="/"
-          className="absolute top-6 left-6 md:top-8 md:left-8 text-gold/60 hover:text-gold flex items-center gap-2 text-xs md:text-sm uppercase tracking-widest transition-colors z-10"
-        >
-          <ArrowLeft size={16} /> Back to Home
-        </Link>
+        {/* 🟢 NAVIGATION: DUAL BACK BUTTONS */}
+        <div className="absolute top-6 left-6 z-50 flex flex-col items-start gap-3">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-gold/60 hover:text-gold text-xs uppercase tracking-widest transition-colors"
+          >
+            <ArrowLeft size={14} /> Back to Hub
+          </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors pl-1"
+          >
+            <Globe size={12} /> Public Home
+          </Link>
+        </div>
+
         <div className="w-full max-w-[400px] rounded-2xl border border-gold/30 backdrop-blur-2xl bg-black/40 p-10 shadow-2xl animate-fade-in-up">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-gold/30">

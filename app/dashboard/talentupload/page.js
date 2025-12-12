@@ -1,19 +1,22 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Link from "next/link";
 import {
+  ArrowLeft,
+  Globe,
   Upload,
   Mic,
   Image as ImageIcon,
   Save,
-  CheckCircle,
   Loader2,
-  Move,
   ZoomIn,
   ZoomOut,
-  AlertCircle,
   Search,
   RotateCcw,
+  Shield,
+  AlertTriangle,
+  Clapperboard,
 } from "lucide-react";
 
 // 🟢 CONFIGURATION
@@ -25,27 +28,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function AdminUpload() {
+export default function TalentUploadPage() {
+  // 🟢 VIEW STATE: 'login' or 'upload'
+  const [view, setView] = useState("login");
+  const [accessKey, setAccessKey] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  // 🟢 UPLOAD LOGIC STATE
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
-
-  // 🟢 SEARCH STATE
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [editMode, setEditMode] = useState(false); // Are we editing?
-  const [actorId, setActorId] = useState(null); // The Supabase ID (if editing)
+  const [editMode, setEditMode] = useState(false);
+  const [actorId, setActorId] = useState(null);
 
-  const [formData, setFormData] = useState({
-    name: "",
-    bio: "",
-    tags: "",
-  });
+  const [formData, setFormData] = useState({ name: "", bio: "", tags: "" });
 
   // FILE STATE
   const [headshot, setHeadshot] = useState(null);
   const [demo, setDemo] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [existingHeadshot, setExistingHeadshot] = useState(null); // For display in edit mode
+  const [existingHeadshot, setExistingHeadshot] = useState(null);
 
   // DRAG STATE
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -54,7 +58,32 @@ export default function AdminUpload() {
   const dragStart = useRef({ x: 0, y: 0 });
   const imageRef = useRef(null);
 
-  // Event Listeners for Drag
+  // --- LOGIN HANDLER (Security Check) ---
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setVerifying(true);
+    setLoginError("");
+
+    try {
+      // Check against CREW database
+      const { data } = await supabase
+        .from("crew_db")
+        .select("*")
+        .eq("access_key", accessKey.trim())
+        .single();
+
+      if (data) {
+        setView("upload");
+      } else {
+        setLoginError("Invalid Access Key");
+      }
+    } catch (err) {
+      setLoginError("Connection Error");
+    }
+    setVerifying(false);
+  };
+
+  // --- DRAG EVENT LISTENERS ---
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false);
     if (isDragging) {
@@ -67,14 +96,13 @@ export default function AdminUpload() {
     };
   }, [isDragging]);
 
-  // 🟢 SEARCH HANDLER
+  // --- SEARCH HANDLER ---
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
 
     try {
-      // Search by Name OR Actor ID
       const { data, error } = await supabase
         .from("actor_db")
         .select("*")
@@ -85,9 +113,8 @@ export default function AdminUpload() {
       if (error || !data) {
         alert("Actor not found. Try exact ID or Name.");
       } else {
-        // LOAD DATA INTO FORM
         setEditMode(true);
-        setActorId(data.actor_id); // Keep the ID safe
+        setActorId(data.actor_id);
         setFormData({
           name: data.name,
           bio: data.bio || "",
@@ -95,17 +122,16 @@ export default function AdminUpload() {
             ? data.voice_type.join(", ")
             : data.voice_type || "",
         });
-        setExistingHeadshot(data.headshot_url); // Show current image
-        setPreviewImage(data.headshot_url); // Put current image in cropper (as reference)
+        setExistingHeadshot(data.headshot_url);
+        setPreviewImage(data.headshot_url);
       }
     } catch (err) {
-      console.error(err);
       alert("Search failed.");
     }
     setIsSearching(false);
   };
 
-  // RESET FORM (Back to Add Mode)
+  // --- RESET HANDLER ---
   const resetForm = () => {
     setEditMode(false);
     setActorId(null);
@@ -119,7 +145,7 @@ export default function AdminUpload() {
     setScale(1);
   };
 
-  // --- HANDLERS ---
+  // --- FILE HANDLERS ---
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -135,6 +161,7 @@ export default function AdminUpload() {
     if (file) setDemo(file);
   };
 
+  // --- DRAG LOGIC ---
   const onMouseDown = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -153,11 +180,11 @@ export default function AdminUpload() {
     });
   };
 
+  // --- CROP LOGIC ---
   const generateCroppedImage = async () => {
-    if (!imageRef.current || !headshot) return null; // Only crop if NEW file
+    if (!imageRef.current || !headshot) return null;
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-
     canvas.width = 600;
     canvas.height = 800;
     ctx.fillStyle = "#000";
@@ -185,88 +212,59 @@ export default function AdminUpload() {
     });
   };
 
+  // --- UPLOAD HANDLER ---
   const handleUpload = async (e) => {
     e.preventDefault();
-
-    if (formData.bio.length < MIN_BIO) {
-      return alert(
-        `Bio is too short! Please write at least ${MIN_BIO} characters.`
-      );
-    }
-
-    if (!formData.name) {
-      return alert("Name is required.");
-    }
-
-    // In Edit Mode, image is optional. In Add Mode, it's required.
-    if (!editMode && !headshot) {
+    if (formData.bio.length < MIN_BIO)
+      return alert(`Bio is too short! Min ${MIN_BIO} chars.`);
+    if (!formData.name) return alert("Name is required.");
+    if (!editMode && !headshot)
       return alert("Headshot is required for new profiles.");
-    }
 
     setUploading(true);
 
     try {
-      // 1. Determine ID (New or Existing)
       const targetId = editMode
         ? actorId
         : "ACT-" + Math.floor(1000 + Math.random() * 9000);
-
-      // 2. Process Image (Only if changed)
       let publicImgUrl = existingHeadshot;
+
       if (headshot) {
         const finalImageFile = await generateCroppedImage();
         const imageFileName = `headshots/${Date.now()}-${targetId}.jpg`;
-
         const { error: imgError } = await supabase.storage
           .from("roster-assets")
           .upload(imageFileName, finalImageFile);
-
         if (imgError) throw imgError;
-
         const { data } = supabase.storage
           .from("roster-assets")
           .getPublicUrl(imageFileName);
         publicImgUrl = data.publicUrl;
       }
 
-      // 3. Process Demo (Only if changed)
-      let publicDemoUrl = null; // Don't overwrite unless we have logic to keep old one
-
-      // If editing, first fetch current demo url to preserve it if not changing
-      if (editMode && !demo) {
-        // We essentially "keep" the old one by not updating that column,
-        // OR we fetch it first.
-        // Simplest way for update: Construct payload dynamically.
-      }
-
+      let publicDemoUrl = null;
       if (demo) {
         const demoFileName = `demos/${Date.now()}-${targetId}.mp3`;
         const { error: demoError } = await supabase.storage
           .from("roster-assets")
           .upload(demoFileName, demo);
-
         if (demoError) throw demoError;
-
         const { data } = supabase.storage
           .from("roster-assets")
           .getPublicUrl(demoFileName);
         publicDemoUrl = data.publicUrl;
       }
 
-      // 4. Construct Payload
       const voiceTags = formData.tags
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t);
-
       const dbPayload = {
         name: formData.name,
         bio: formData.bio,
         voice_type: voiceTags,
         headshot_url: publicImgUrl,
-        // Only update demo_url if a new one was uploaded
         ...(publicDemoUrl && { demo_url: publicDemoUrl }),
-        // Defaults for new records
         ...(!editMode && {
           actor_id: targetId,
           status: "Active",
@@ -275,43 +273,112 @@ export default function AdminUpload() {
         }),
       };
 
-      // 5. Database Action
-      let dbError;
-      if (editMode) {
-        // UPDATE
-        const { error } = await supabase
-          .from("actor_db")
-          .update(dbPayload)
-          .eq("actor_id", targetId);
-        dbError = error;
-      } else {
-        // INSERT
-        const { error } = await supabase.from("actor_db").insert([dbPayload]);
-        dbError = error;
-      }
+      const { error } = editMode
+        ? await supabase
+            .from("actor_db")
+            .update(dbPayload)
+            .eq("actor_id", targetId)
+        : await supabase.from("actor_db").insert([dbPayload]);
 
-      if (dbError) throw dbError;
+      if (error) throw error;
 
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
-        if (!editMode) resetForm(); // Clear only if it was a new add
+        if (!editMode) resetForm();
         setUploading(false);
       }, 1500);
     } catch (error) {
-      console.error("Error:", error);
       alert("Action failed: " + error.message);
       setUploading(false);
     }
   };
 
+  // 🟢 RENDER LOGIN VIEW
+  if (view === "login") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)]">
+        {/* NAVIGATION */}
+        <div className="absolute top-6 left-6 z-50 flex flex-col items-start gap-3">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 text-gold/60 hover:text-gold text-xs uppercase tracking-widest transition-colors"
+          >
+            <ArrowLeft size={14} /> Back to Hub
+          </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors pl-1"
+          >
+            <Globe size={12} /> Public Home
+          </Link>
+        </div>
+
+        <div className="w-full max-w-[400px] rounded-2xl border border-gold/30 backdrop-blur-2xl bg-black/40 p-10 shadow-2xl animate-fade-in-up">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gold/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-gold/30">
+              <Clapperboard className="w-8 h-8 text-gold" />
+            </div>
+            <h2 className="text-2xl font-serif text-gold mb-2">
+              Showcase Access
+            </h2>
+            <p className="text-xs text-gray-400 uppercase tracking-[0.2em]">
+              Enter Admin Key to Upload
+            </p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <input
+              type="password"
+              value={accessKey}
+              onChange={(e) => setAccessKey(e.target.value)}
+              className="w-full bg-white/5 border border-gold/20 text-white py-4 pl-4 pr-4 rounded-xl text-center text-lg tracking-[0.2em] outline-none focus:border-gold focus:shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-all"
+              placeholder="ACCESS KEY"
+            />
+            {loginError && (
+              <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-xs text-center flex items-center justify-center gap-2 animate-fade-in">
+                <AlertTriangle size={14} /> {loginError}
+              </div>
+            )}
+            <button
+              disabled={verifying}
+              className="w-full bg-gold hover:bg-gold-light text-midnight font-bold py-4 rounded-xl uppercase tracking-widest flex justify-center gap-2 transition-all shadow-lg shadow-gold/20"
+            >
+              {verifying ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                "Unlock Upload Tool"
+              )}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // 🟢 RENDER UPLOAD TOOL VIEW
   return (
-    <div className="min-h-screen bg-[#050510] text-white p-8 flex items-center justify-center font-sans">
-      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12">
+    <div className="min-h-screen bg-[#050510] text-white p-8 flex items-center justify-center font-sans relative">
+      {/* NAVIGATION (Still visible in tool) */}
+      <div className="absolute top-6 left-6 z-50 flex flex-col items-start gap-3">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 text-gold/60 hover:text-gold text-xs uppercase tracking-widest transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Hub
+        </Link>
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors pl-1"
+        >
+          <Globe size={12} /> Public Home
+        </Link>
+      </div>
+
+      <div className="max-w-6xl w-full grid grid-cols-1 lg:grid-cols-2 gap-12 mt-10">
         {/* LEFT: FORM */}
         <div className="bg-white/5 border border-white/10 p-8 rounded-2xl shadow-xl order-2 lg:order-1 relative">
-          {/* 🟢 TOP SEARCH BAR */}
-          <div className="absolute -top-14 left-0 w-full flex gap-2 px-8">
+          {/* TOP SEARCH BAR */}
+          <div className="absolute -top-14 left-0 w-full flex gap-2 px-8 pl-0 lg:pl-8">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
@@ -370,7 +437,6 @@ export default function AdminUpload() {
                 required
               />
             </div>
-
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">
                 Voice Tags (Separated by commas)
@@ -384,8 +450,6 @@ export default function AdminUpload() {
                 placeholder="e.g. Warm, Fiction, British"
               />
             </div>
-
-            {/* BIO */}
             <div>
               <div className="flex justify-between items-end mb-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-gray-500 block">
@@ -439,14 +503,8 @@ export default function AdminUpload() {
                       ? "Keep Current Image"
                       : "Select Image"}
                   </span>
-                  {editMode && !headshot && (
-                    <span className="text-[9px] text-gray-500 mt-1">
-                      (Click to replace)
-                    </span>
-                  )}
                 </div>
               </div>
-
               <div className="relative group">
                 <input
                   type="file"
@@ -469,11 +527,6 @@ export default function AdminUpload() {
                       ? "Keep Current Audio"
                       : "Select Audio"}
                   </span>
-                  {editMode && !demo && (
-                    <span className="text-[9px] text-gray-500 mt-1">
-                      (Click to replace)
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -489,7 +542,7 @@ export default function AdminUpload() {
               {uploading ? (
                 <>
                   <Loader2 className="animate-spin w-4 h-4" />{" "}
-                  {editMode ? "Updating Profile..." : "Creating Profile..."}
+                  {editMode ? "Updating..." : "Creating..."}
                 </>
               ) : success ? (
                 "Saved Successfully!"
@@ -505,15 +558,12 @@ export default function AdminUpload() {
 
         {/* RIGHT: PREVIEW */}
         <div className="flex flex-col items-center justify-start order-1 lg:order-2 pt-10">
-          {/* Info Badge */}
           {editMode && (
             <div className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-4 py-2 rounded-full text-xs font-bold mb-4 animate-fade-in">
               Editing Mode Active
             </div>
           )}
-
           <div className="w-80 relative group select-none">
-            {/* If we are dragging a NEW image, allow crop controls. If just viewing old one, lock it. */}
             <div
               className={`aspect-[3/4] overflow-hidden rounded-xl border-2 border-gold/50 relative shadow-2xl bg-black ${
                 headshot ? "cursor-move" : ""
@@ -554,7 +604,6 @@ export default function AdminUpload() {
                   </div>
                 </div>
               )}
-              {/* OVERLAY */}
               <div className="absolute inset-0 border-[10px] border-black/10 pointer-events-none z-20"></div>
               <div className="absolute bottom-0 left-0 w-full p-4 z-20 pointer-events-none bg-gradient-to-t from-black/80 to-transparent">
                 <h3 className="text-2xl font-serif font-bold text-white mb-1">
@@ -586,7 +635,6 @@ export default function AdminUpload() {
             </div>
           </div>
 
-          {/* ZOOM CONTROLS (Only for NEW images) */}
           {headshot && (
             <div className="mt-6 flex items-center gap-4 bg-white/5 p-2 rounded-full border border-white/10 animate-fade-in">
               <button
@@ -605,12 +653,6 @@ export default function AdminUpload() {
                 <ZoomIn className="w-4 h-4" />
               </button>
             </div>
-          )}
-
-          {!headshot && editMode && (
-            <p className="mt-4 text-[10px] text-gray-500 uppercase tracking-widest">
-              Showing Current Headshot
-            </p>
           )}
         </div>
       </div>

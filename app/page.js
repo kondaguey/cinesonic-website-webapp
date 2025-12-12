@@ -1,164 +1,92 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { Film, Mic, Shield, Users, ArrowRight, Globe } from "lucide-react";
+import { Mic2, Shield, Users, Send, ArrowRight } from "lucide-react";
 
-export default function Landing() {
-  // 🟢 SYSTEM STATUS LOGIC
-  const [isOnline, setIsOnline] = useState(true);
-
-  useEffect(() => {
-    setIsOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
-
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
-
+export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center text-white relative overflow-hidden bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)]">
-      {/* Background Ambience */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
-        <div className="absolute -top-20 -left-20 w-96 h-96 bg-gold/5 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px]"></div>
-      </div>
-
-      {/* 🟢 TOP RIGHT STATUS HUD (Fixed position) */}
-      <div className="absolute top-6 right-6 z-50 flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg animate-fade-in">
-        <div className="relative flex h-2 w-2">
-          <span
-            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isOnline ? "bg-green-400" : "bg-red-400"
-            }`}
-          ></span>
-          <span
-            className={`relative inline-flex rounded-full h-2 w-2 ${
-              isOnline
-                ? "bg-green-500 shadow-[0_0_10px_#22c55e]"
-                : "bg-red-500 shadow-[0_0_10px_#ef4444]"
-            }`}
-          ></span>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] text-white">
+      {/* NAV: Links to the Internal Hub */}
+      <nav className="p-6 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50">
+        <div className="text-2xl font-serif text-white tracking-wider flex items-center gap-2">
+          <Mic2 className="text-gold" size={24} />
+          PRODUCTION<span className="text-gold">HOUSE</span>
         </div>
-        <span
-          className={`text-[10px] tracking-widest uppercase font-bold ${
-            isOnline ? "text-green-500/90" : "text-red-500"
-          }`}
-        >
-          {isOnline ? "Systems Online" : "Connection Lost"}
-        </span>
-      </div>
 
-      {/* CONTENT WRAPPER */}
-      <div className="flex-grow flex flex-col items-center justify-center w-full max-w-7xl px-4 py-8 relative z-10">
-        {/* HERO */}
-        <div className="text-center animate-fade-in-up w-full max-w-4xl mb-10 md:mb-12">
-          <img
-            src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-            className="h-32 md:h-64 object-contain mx-auto mb-6 md:mb-8 shadow-[0_0_40px_rgba(212,175,55,0.15)] rounded-2xl border border-gold/10"
-            alt="CineSonic Logo"
+        <Link
+          href="/dashboard"
+          className="group flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:border-gold/50 hover:bg-gold/5 hover:shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all duration-500"
+        >
+          {/* 🟢 The Live Pulse (The "Whoa" Factor) */}
+          <div className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 duration-1000"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500 shadow-[0_0_8px_#22c55e]"></span>
+          </div>
+
+          {/* 🖥️ Tech Text */}
+          <div className="flex flex-col leading-none">
+            <span className="text-[10px] font-bold text-gray-400 group-hover:text-gold uppercase tracking-[0.2em] transition-colors">
+              Production Hub
+            </span>
+            <span className="text-[8px] text-green-500/70 font-mono tracking-widest group-hover:text-green-400 transition-colors mt-[2px]">
+              SYSTEMS ONLINE
+            </span>
+          </div>
+
+          <Shield
+            size={12}
+            className="text-gray-600 group-hover:text-gold transition-colors ml-1"
           />
-          <h1 className="text-4xl md:text-6xl font-serif text-gold mb-3 tracking-wide drop-shadow-lg">
-            CineSonic
+        </Link>
+      </nav>
+
+      {/* HERO SECTION */}
+      <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in-up">
+        <div className="text-center mb-16 max-w-2xl">
+          <h1 className="text-5xl md:text-7xl font-serif text-white mb-6 leading-tight">
+            Voices that <span className="text-gold">Resonate</span>
           </h1>
-          <p className="text-gray-400 tracking-[0.3em] md:tracking-[0.5em] text-xs md:text-sm uppercase font-light">
-            Production Intelligence V13
+          <p className="text-lg text-gray-400 leading-relaxed">
+            Premium audio production services. From casting to mastering, we
+            manage the entire lifecycle of your audio project.
           </p>
         </div>
 
-        {/* MAIN GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-10 animate-fade-in">
-          {/* Publishers */}
+        {/* PRIMARY ACTIONS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+          {/* 1. START A PRODUCTION (Links to app/projectform) */}
           <Link
-            href="/projectintake"
-            className="group relative bg-black/40 backdrop-blur-xl border border-gold/20 p-8 md:p-10 rounded-2xl hover:border-gold/60 transition-all duration-300 hover:-translate-y-2 overflow-hidden shadow-2xl flex flex-col items-center"
+            href="/projectform"
+            className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gold/50 p-10 rounded-2xl text-left transition-all duration-300"
           >
-            <div className="absolute inset-0 bg-gold/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div className="relative z-10 text-center">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                <Film className="w-8 h-8 md:w-10 md:h-10 text-gold" />
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-white mb-2 font-serif">
-                Publishers
-              </h3>
-              <p className="text-xs md:text-sm text-gray-400 group-hover:text-white transition-colors">
-                Submit New Project
-              </p>
+            <div className="absolute top-6 right-6 p-3 bg-gold/10 rounded-full group-hover:bg-gold text-gold group-hover:text-midnight transition-colors">
+              <Send size={24} />
             </div>
+            <h3 className="text-2xl font-serif text-white mb-2">
+              Start a Production
+            </h3>
+            <p className="text-sm text-gray-400 group-hover:text-gray-200">
+              Publishers & Authors: Submit a new project request here.
+            </p>
           </Link>
 
-          {/* Talent */}
-          <Link
-            href="/talent"
-            className="group relative bg-black/40 backdrop-blur-xl border border-gold/20 p-8 md:p-10 rounded-2xl hover:border-gold/60 transition-all duration-300 hover:-translate-y-2 overflow-hidden shadow-2xl flex flex-col items-center"
-          >
-            <div className="absolute inset-0 bg-gold/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div className="relative z-10 text-center">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                <Mic className="w-8 h-8 md:w-10 md:h-10 text-gold" />
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-white mb-2 font-serif">
-                Talent Portal
-              </h3>
-              <p className="text-xs md:text-sm text-gray-400 group-hover:text-white transition-colors">
-                Manage Profile & Avail
-              </p>
-            </div>
-          </Link>
-
-          {/* Admin */}
-          <Link
-            href="/admin"
-            className="group relative bg-black/40 backdrop-blur-xl border border-gold/20 p-8 md:p-10 rounded-2xl hover:border-gold/60 transition-all duration-300 hover:-translate-y-2 overflow-hidden shadow-2xl flex flex-col items-center"
-          >
-            <div className="absolute inset-0 bg-gold/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-            <div className="relative z-10 text-center">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-midnight border border-gold/30 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]">
-                <Shield className="w-8 h-8 md:w-10 md:h-10 text-gold" />
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-white mb-2 font-serif">
-                Staff Access
-              </h3>
-              <p className="text-xs md:text-sm text-gray-400 group-hover:text-white transition-colors">
-                Studio Dashboard
-              </p>
-            </div>
-          </Link>
-        </div>
-
-        {/* 🟢 DUAL ACTION BUTTONS */}
-        <div className="relative z-10 animate-fade-in-up delay-300 flex flex-col md:flex-row gap-4 w-full md:w-auto">
-          {/* Button 1: Roster (Glass Style) */}
+          {/* 2. BROWSE ROSTER (Links to app/roster) */}
           <Link
             href="/roster"
-            className="group flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-white/5 backdrop-blur-md border border-gold/30 hover:bg-gold hover:text-midnight hover:border-gold transition-all duration-300 shadow-[0_0_15px_rgba(212,175,55,0.1)] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]"
+            className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gold/50 p-10 rounded-2xl text-left transition-all duration-300"
           >
-            <Users className="w-4 h-4 text-gold group-hover:text-midnight transition-colors" />
-            <span className="uppercase tracking-[0.2em] text-xs font-bold text-gray-200 group-hover:text-midnight">
+            <div className="absolute top-6 right-6 p-3 bg-gold/10 rounded-full group-hover:bg-gold text-gold group-hover:text-midnight transition-colors">
+              <Users size={24} />
+            </div>
+            <h3 className="text-2xl font-serif text-white mb-2">
               Browse Roster
-            </span>
-          </Link>
-
-          {/* Button 2: Main Website (Solid Gold Style) */}
-          <Link
-            href="https://www.danielnotdaylewis.com" // Update this link if needed
-            target="_blank"
-            className="group flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gold/10 hover:bg-gold border border-gold text-gold hover:text-midnight transition-all duration-300 shadow-[0_0_15px_rgba(212,175,55,0.1)] hover:shadow-[0_0_30px_rgba(212,175,55,0.6)]"
-          >
-            <Globe className="w-4 h-4" />
-            <span className="uppercase tracking-[0.2em] text-xs font-bold">
-              Official Site
-            </span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </h3>
+            <p className="text-sm text-gray-400 group-hover:text-gray-200">
+              View our active talent pool and listen to demos.
+            </p>
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
