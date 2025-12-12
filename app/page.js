@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Film, Mic, Shield } from "lucide-react";
+import { Film, Mic, Shield, Users, ArrowRight } from "lucide-react";
 
 export default function Landing() {
   return (
@@ -10,10 +10,10 @@ export default function Landing() {
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px]"></div>
       </div>
 
+      {/* HERO SECTION */}
       <div className="relative z-10 mb-12 md:mb-16 text-center animate-fade-in-up w-full max-w-4xl">
         <img
           src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-          // 🟢 UPDATED: Much Larger Logo (Responsive)
           className="h-40 md:h-64 object-contain mx-auto mb-8 shadow-[0_0_40px_rgba(212,175,55,0.15)] rounded-lg border border-gold/10"
           alt="CineSonic Logo"
         />
@@ -25,7 +25,8 @@ export default function Landing() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full relative z-10 animate-fade-in px-2">
+      {/* MAIN GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full relative z-10 animate-fade-in px-2 mb-10">
         {/* CARD 1: CLIENTS */}
         <Link
           href="/projectintake"
@@ -45,7 +46,7 @@ export default function Landing() {
           </div>
         </Link>
 
-        {/* CARD 2: TALENT */}
+        {/* CARD 2: TALENT LOGIN */}
         <Link
           href="/talent"
           className="group relative bg-black/40 backdrop-blur-xl border border-gold/20 p-8 md:p-10 rounded-2xl hover:border-gold/60 transition-all duration-300 hover:-translate-y-2 overflow-hidden shadow-2xl"
@@ -56,7 +57,7 @@ export default function Landing() {
               <Mic className="w-8 h-8 md:w-10 md:h-10 text-gold" />
             </div>
             <h3 className="text-xl md:text-2xl font-bold uppercase tracking-widest text-white mb-2 font-serif">
-              Talent
+              Talent Portal
             </h3>
             <p className="text-xs md:text-sm text-gray-400 group-hover:text-white transition-colors">
               Manage Profile & Avail
@@ -81,6 +82,20 @@ export default function Landing() {
               Studio Dashboard
             </p>
           </div>
+        </Link>
+      </div>
+
+      {/* 🟢 NEW: SLEEK ROSTER SHOWCASE BUTTON */}
+      <div className="relative z-10 animate-fade-in-up delay-300">
+        <Link
+          href="/roster"
+          className="group flex items-center gap-3 px-8 py-3 rounded-full bg-white/5 border border-gold/30 hover:bg-gold hover:text-midnight hover:border-gold transition-all duration-300 shadow-glow hover:shadow-[0_0_30px_rgba(212,175,55,0.4)]"
+        >
+          <Users className="w-4 h-4 text-gold group-hover:text-midnight transition-colors" />
+          <span className="uppercase tracking-[0.2em] text-xs font-bold text-gray-200 group-hover:text-midnight">
+            Browse Talent Roster
+          </span>
+          <ArrowRight className="w-4 h-4 text-gold group-hover:text-midnight transition-transform group-hover:translate-x-1" />
         </Link>
       </div>
 
