@@ -105,15 +105,25 @@ export default function AdminPortal() {
   };
 
   // --- DATA FETCHING (Now with Loader) ---
-  const fetchAllData = async () => {
-    setIsLoadingData(true); // 🟢 Start Wheel
+  // --- DATA FETCHING (With Cache Buster) ---
+  // --- DATA FETCHING (Silent Mode Capable) ---
+  const fetchAllData = async (showLoadingScreen = true) => {
+    // Only show the big spinner if we asked for it (e.g. initial login)
+    if (showLoadingScreen) setIsLoadingData(true);
+
     try {
+      const timestamp = Date.now();
+
       // 1. Get Intakes
-      const resIntake = await axios.get(`${API_URL}?op=get_intakes`);
+      const resIntake = await axios.get(
+        `${API_URL}?op=get_intakes&_t=${timestamp}`
+      );
       if (resIntake.data.success) setIntakes(resIntake.data.intakes);
 
       // 2. Get Admin Master Data
-      const resAdmin = await axios.get(`${API_URL}?op=get_admin_data`);
+      const resAdmin = await axios.get(
+        `${API_URL}?op=get_admin_data&_t=${timestamp}`
+      );
       if (resAdmin.data.success) {
         setProjects(resAdmin.data.projects);
         setAllRoles(resAdmin.data.roles);
@@ -122,7 +132,9 @@ export default function AdminPortal() {
     } catch (e) {
       console.error("Fetch error", e);
     }
-    setIsLoadingData(false); // 🟢 Stop Wheel
+
+    // Always turn off loader if it was on
+    if (showLoadingScreen) setIsLoadingData(false);
   };
 
   // --- INTAKE APPROVAL ---
@@ -407,8 +419,9 @@ export default function AdminPortal() {
                 project={selectedProject}
                 roles={currentRoles}
                 roster={roster}
-                checkSchedule={checkSchedule}
+                // checkSchedule={checkSchedule} // (Optional: You can remove this line since the new Hub uses its own internal logic)
                 castingSelections={castingSelections}
+                onSync={fetchAllData} // 👈 ADD THIS LINE
               />
             )}
 
@@ -417,6 +430,9 @@ export default function AdminPortal() {
                 project={selectedProject}
                 roles={currentRoles}
                 updateField={updateField}
+                // 👇 ADD THESE TWO LINES
+                roster={roster}
+                castingSelections={castingSelections}
               />
             )}
 
@@ -424,6 +440,8 @@ export default function AdminPortal() {
               <ProductionHub
                 project={selectedProject}
                 updateField={updateField}
+                user={crewUser} // 👈 Must have this
+                saveProject={saveProject} // 👈 Must have this
               />
             )}
           </div>

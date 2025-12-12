@@ -6,6 +6,7 @@ import {
   Users,
   Check,
   CalendarArrowUp,
+  Info,
 } from "lucide-react";
 
 export default function CastingTab({
@@ -32,8 +33,11 @@ export default function CastingTab({
         return;
       }
       roles.forEach((role) => {
-        const matches = runCreativeMatch(role, roster);
-        results[role["Role ID"]] = matches;
+        // Safety check inside the loop
+        if (role && role["Role ID"]) {
+          const matches = runCreativeMatch(role, roster);
+          results[role["Role ID"]] = matches;
+        }
       });
       setMatchResults(results);
       setIsMatching(false);
@@ -72,43 +76,70 @@ export default function CastingTab({
     }
   };
 
+  const hasSelections = Object.keys(selections).length > 0;
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-20">
       {/* HEADER & ACTIONS */}
-      <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/10">
-        <div>
-          <h2 className="text-xl font-serif text-gold flex items-center gap-2">
-            <Mic className="w-5 h-5" /> Casting Breakdown
-          </h2>
-          <p className="text-xs text-gray-400 mt-1">
-            {roles.length} Roles • {roster.length} Talent Available
-          </p>
+      <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-xl font-serif text-gold flex items-center gap-2">
+              <Mic className="w-5 h-5" /> Casting Breakdown
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              {roles.length} Roles • {roster.length} Talent Available
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleRunMatchmaker}
+              disabled={isMatching || roles.length === 0}
+              className="bg-black/40 border border-gold/30 hover:bg-gold/10 text-gold font-bold px-4 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              {isMatching ? (
+                <Loader2 className="animate-spin w-4 h-4" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {matchResults && Object.keys(matchResults).length > 0
+                ? "Re-Run Auto-Cast"
+                : "Run Auto-Cast"}
+            </button>
+
+            <button
+              onClick={handleConfirmCasting}
+              disabled={!hasSelections}
+              className={`font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                hasSelections
+                  ? "bg-gold hover:bg-gold-light text-midnight shadow-gold/20 animate-pulse-slow"
+                  : "bg-gray-700 text-gray-400"
+              }`}
+            >
+              <CalendarArrowUp className="w-4 h-4" /> Confirm & Schedule
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={handleRunMatchmaker}
-            disabled={isMatching || roles.length === 0}
-            className="bg-black/40 border border-gold/30 hover:bg-gold/10 text-gold font-bold px-4 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 transition-all disabled:opacity-50"
-          >
-            {isMatching ? (
-              <Loader2 className="animate-spin w-4 h-4" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
-            {matchResults && Object.keys(matchResults).length > 0
-              ? "Re-Run Auto-Cast"
-              : "Run Auto-Cast"}
-          </button>
-
-          <button
-            onClick={handleConfirmCasting}
-            disabled={Object.keys(selections).length === 0}
-            className="bg-gold hover:bg-gold-light text-midnight font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg shadow-gold/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <CalendarArrowUp className="w-4 h-4" /> Confirm & Schedule
-          </button>
-        </div>
+        {/* DRAFT MODE WARNING */}
+        {hasSelections && (
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3 animate-fade-in">
+            <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-blue-200 leading-relaxed">
+              <strong className="text-blue-100 uppercase tracking-wide">
+                Selection Draft Active:
+              </strong>{" "}
+              Your "1st" and "2nd" choices are currently <u>unsaved</u>. The
+              global "Save Changes" button (top right) <strong>will not</strong>{" "}
+              save these picks.
+              <br />
+              You must click{" "}
+              <strong className="text-gold">Confirm & Schedule</strong> above to
+              lock them in.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ROLES GRID */}
@@ -124,7 +155,11 @@ export default function CastingTab({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {roles.map((role) => {
+          {roles.map((role, idx) => {
+            // 🟢 CRASH FIX: Guard Clause
+            // If 'role' is undefined or doesn't have an ID, skip rendering this box
+            if (!role || !role["Role ID"]) return null;
+
             const roleMatches = matchResults[role["Role ID"]] || [];
             const activeSel = selections[role["Role ID"]] || {
               primary: null,
@@ -133,7 +168,7 @@ export default function CastingTab({
 
             return (
               <div
-                key={role["Role ID"]}
+                key={role["Role ID"] || idx}
                 className={`bg-black/40 border rounded-xl overflow-hidden flex flex-col transition-all duration-300 ${
                   activeSel.primary
                     ? "border-gold shadow-[0_0_15px_rgba(212,175,55,0.15)]"

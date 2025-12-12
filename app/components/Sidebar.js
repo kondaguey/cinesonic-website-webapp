@@ -14,28 +14,18 @@ const Sidebar = ({
   onSelectProject,
   onLogout,
   onDashboardClick,
-  filterStatus,
-  setFilterStatus,
-  metaStatuses,
+  // Removed filter props (filterStatus, setFilterStatus, metaStatuses)
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const displayProjects = projects.filter((p) => {
-    // 🟢 FILTER LOGIC
-    if (filterStatus !== "All") {
-      const pStatus = String(p["Status"] || "")
-        .toUpperCase()
-        .trim();
-      const fStatus = String(filterStatus).toUpperCase().trim();
-      if (pStatus !== fStatus) return false;
-    }
-
+    // 🟢 SEARCH LOGIC ONLY (Filtering logic removed)
     if (!searchTerm) return true;
 
-    // Search Logic
     const lowerTerm = searchTerm.toLowerCase();
     const title = (p["Title"] || "").toLowerCase();
     const pid = (p["Project ID"] || "").toLowerCase();
+
     return title.includes(lowerTerm) || pid.includes(lowerTerm);
   });
 
@@ -100,32 +90,7 @@ const Sidebar = ({
             />
           </div>
 
-          {/* 🟢 HORIZONTAL FILTER TABS WITH GOLD SCROLL */}
-          <div className="flex gap-2 overflow-x-auto pb-2 gold-scroll">
-            <button
-              onClick={() => setFilterStatus("All")}
-              className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase whitespace-nowrap transition-colors border ${
-                filterStatus === "All"
-                  ? "bg-white/10 text-white border-white/20"
-                  : "text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/5"
-              }`}
-            >
-              All
-            </button>
-            {(metaStatuses || []).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase whitespace-nowrap transition-colors border ${
-                  filterStatus === status
-                    ? "bg-gold/20 text-gold border-gold/30"
-                    : "text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/5"
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
+          {/* REMOVED: Horizontal Filter Tabs */}
         </div>
 
         <div className="flex-1 overflow-y-auto gold-scroll p-3 pr-5 space-y-2">

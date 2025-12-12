@@ -10,12 +10,14 @@ import {
 
 const ProductionView = ({ project, updateField, roster }) => {
   if (!project) return null;
+
   const handleEmailIndividual = (email, subject = "") => {
     if (!email) return alert("No email address found for this person.");
     window.location.href = `mailto:${email}?subject=${encodeURIComponent(
       subject
     )}`;
   };
+
   const handleEmailAll = () => {
     let emails = [];
     [
@@ -37,47 +39,65 @@ const ProductionView = ({ project, updateField, roster }) => {
     )}&subject=${encodeURIComponent(subject)}`;
   };
 
+  // 🟢 HELPER: Safe Date Parsing
+  // Ensures the date input doesn't crash if the backend sends "TBD" or a weird string
+  const getIsoDate = (dateVal) => {
+    if (!dateVal) return "";
+    // If it's already YYYY-MM-DD, return it
+    if (typeof dateVal === "string" && dateVal.match(/^\d{4}-\d{2}-\d{2}$/))
+      return dateVal;
+
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return "";
+      return d.toISOString().split("T")[0];
+    } catch (e) {
+      return "";
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in pb-20">
       <div className="bg-midnight border border-white/10 rounded-xl p-8 shadow-lg relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition pointer-events-none">
           <FileText className="w-64 h-64 text-gold" />
         </div>
+
         <h3 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
           <Calendar className="w-5 h-5 text-gold" /> Production Logistics
         </h3>
+
+        {/* 🟢 DATES SECTION (Mapped to Confirmed Keys) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div>
             <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">
-              Start Date
+              Official Start Date
             </label>
             <input
               type="date"
-              value={
-                project["Start Date"]
-                  ? new Date(project["Start Date"]).toISOString().split("T")[0]
-                  : ""
-              }
-              onChange={(e) => updateField("Start Date", e.target.value)}
+              // 🟢 READS "Confirmed Start" (Parsed from Col AG)
+              value={getIsoDate(project["Confirmed Start"])}
+              // 🟢 WRITES "Confirmed Start"
+              onChange={(e) => updateField("Confirmed Start", e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-white text-sm focus:border-gold outline-none transition [color-scheme:dark]"
             />
           </div>
           <div>
             <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-1 block">
-              End Date
+              Official End Date
             </label>
             <input
               type="date"
-              value={
-                project["End Date"]
-                  ? new Date(project["End Date"]).toISOString().split("T")[0]
-                  : ""
-              }
-              onChange={(e) => updateField("End Date", e.target.value)}
+              // 🟢 READS "Confirmed End" (Parsed from Col AG)
+              value={getIsoDate(project["Confirmed End"])}
+              // 🟢 WRITES "Confirmed End"
+              onChange={(e) => updateField("Confirmed End", e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-white text-sm focus:border-gold outline-none transition [color-scheme:dark]"
             />
           </div>
         </div>
+
+        {/* 🟢 CREW ASSIGNMENTS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { label: "Coordinator", key: "Coordinator" },
@@ -126,6 +146,8 @@ const ProductionView = ({ project, updateField, roster }) => {
           })}
         </div>
       </div>
+
+      {/* 🟢 LOCKED ROSTER */}
       <div className="bg-midnight border border-white/10 rounded-xl p-8">
         <header className="flex justify-between items-center mb-6">
           <h3 className="text-white font-bold text-lg flex items-center gap-2">
@@ -144,6 +166,7 @@ const ProductionView = ({ project, updateField, roster }) => {
             const actorEmail = project[`${key} Email`];
             const displayEmail = actorEmail || "No Email";
             const hasEmail = displayEmail !== "No Email";
+
             if (!actorName)
               return (
                 <div
@@ -153,6 +176,7 @@ const ProductionView = ({ project, updateField, roster }) => {
                   Slot Empty
                 </div>
               );
+
             return (
               <div
                 key={key}

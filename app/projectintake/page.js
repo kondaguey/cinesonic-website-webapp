@@ -7,6 +7,7 @@ import {
   CheckCircle,
   ChevronDown,
   Info,
+  Clock, // Added Clock icon for the disclaimer
 } from "lucide-react";
 import axios from "axios";
 import Link from "next/link";
@@ -58,17 +59,21 @@ export default function AuthorForm() {
     fetchLists();
   }, []);
 
-  // 🟢 NEW HANDLER: Adds commas to Word Count (e.g. 100,000)
+  // 🟢 NEW: DATE CALCULATOR FOR 30 DAY GAPS
+  const getMinDate = (baseDate) => {
+    if (!baseDate) return undefined;
+    const date = new Date(baseDate);
+    // Add 30 days to the selected date
+    date.setDate(date.getDate() + 30);
+    // Return in YYYY-MM-DD format for the HTML input
+    return date.toISOString().split("T")[0];
+  };
+
+  // 🟢 HANDLER: Adds commas to Word Count (e.g. 100,000)
   const handleWordCountChange = (e) => {
-    // 1. Strip existing commas to get raw number
     const rawValue = e.target.value.replace(/,/g, "");
-
-    // 2. Validation: If it's not a number, ignore the keystroke
     if (isNaN(rawValue)) return;
-
-    // 3. Format it with commas (or keep empty if user cleared it)
     const formatted = rawValue ? Number(rawValue).toLocaleString() : "";
-
     setFormData((prev) => ({ ...prev, wordCount: formatted }));
   };
 
@@ -107,14 +112,12 @@ export default function AuthorForm() {
     e.preventDefault();
     setLoading(true);
 
-    // 1. FIX CHARACTER FORMATTING (M1/F1 Logic)
     let mCount = 0;
     let fCount = 0;
 
     const charStringBlock = formData.characters
       .map((c) => {
-        // Calculate Prefix (M1, M2, F1, F2)
-        let prefix = "O"; // Default Other
+        let prefix = "O";
         if (c.gender === "Male") {
           mCount++;
           prefix = `M${mCount}`;
@@ -122,12 +125,10 @@ export default function AuthorForm() {
           fCount++;
           prefix = `F${fCount}`;
         }
-        // Format: "M1: Henry - 30s - Warm"
         return `${prefix}: ${c.name} - ${c.age} - ${c.vocal}`;
       })
-      .join("\n"); // Join with newlines so they stack in the cell
+      .join("\n");
 
-    // 2. FORMAT GENRES
     const genreString = [
       formData.genres.primary,
       formData.genres.secondary,
@@ -136,8 +137,6 @@ export default function AuthorForm() {
       .filter(Boolean)
       .join(", ");
 
-    // 🟢 3. FORMAT TIMELINE (THE FIX)
-    // Bundle all 3 dates so the backend receives "2024-01-01|2024-02-01|2024-03-01"
     const timelineBlock = `${formData.date1}|${formData.date2}|${formData.date3}`;
 
     const payload = {
@@ -150,7 +149,7 @@ export default function AuthorForm() {
       style: formData.style,
       genres: genreString,
       characters: charStringBlock,
-      timeline: timelineBlock, // 🟢 Sends the correct bundled format now
+      timeline: timelineBlock,
       notes: formData.notes,
     };
 
@@ -165,12 +164,11 @@ export default function AuthorForm() {
     setLoading(false);
   };
 
-  // 🟢 FIXED INPUT STYLES (Forces White Text on Autofill)
   const inputClass =
     "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white outline-none focus:border-gold transition-colors placeholder:text-gray-500 " +
-    "[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0c0442_inset] " + // Forces background to Dark Blue
-    "[&:-webkit-autofill]:-webkit-text-fill-color:white " + // Forces text to White
-    "[&:-webkit-autofill]:transition-[background-color_5000s_ease-in-out_0s]"; // Delays the white flash
+    "[&:-webkit-autofill]:shadow-[0_0_0_1000px_#0c0442_inset] " +
+    "[&:-webkit-autofill]:-webkit-text-fill-color:white " +
+    "[&:-webkit-autofill]:transition-[background-color_5000s_ease-in-out_0s]";
 
   const selectClass =
     "w-full bg-white/5 border-b border-gold/30 py-4 px-4 text-lg text-white appearance-none outline-none focus:border-gold transition-colors cursor-pointer [&>option]:bg-midnight";
@@ -253,7 +251,7 @@ export default function AuthorForm() {
                   onChange={handleChange}
                   className={inputClass}
                   required
-                  autoComplete="off" // 🟢 KILLS AUTOFILL
+                  autoComplete="off"
                 />
                 <input
                   name="email"
@@ -262,7 +260,7 @@ export default function AuthorForm() {
                   onChange={handleChange}
                   className={inputClass}
                   required
-                  autoComplete="off" // 🟢 KILLS AUTOFILL
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -276,7 +274,7 @@ export default function AuthorForm() {
 
             <input
               name="bookTitle"
-              value={formData.bookTitle} // 🟢 THIS FIXES THE ERROR
+              value={formData.bookTitle}
               placeholder="Project Title"
               onChange={handleChange}
               className="w-full text-3xl bg-transparent border-b border-gold/30 py-4 px-2 mb-8 font-serif outline-none focus:border-gold transition-colors placeholder:text-gray-600 text-white"
@@ -287,10 +285,10 @@ export default function AuthorForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
               <input
                 name="wordCount"
-                type="text" // 🟢 Changed from "number" to allow commas
-                value={formData.wordCount} // 🟢 Binds the formatted state
+                type="text"
+                value={formData.wordCount}
                 placeholder="Word Count (Est.)"
-                onChange={handleWordCountChange} // 🟢 Uses new handler
+                onChange={handleWordCountChange}
                 className={inputClass}
                 required
                 autoComplete="off"
@@ -316,7 +314,7 @@ export default function AuthorForm() {
               </div>
             </div>
 
-            {/* DYNAMIC GENRES */}
+            {/* GENRES */}
             <label className="text-xs text-gold uppercase tracking-widest mb-2 block ml-1 font-bold">
               Genre Breakdown
             </label>
@@ -366,7 +364,7 @@ export default function AuthorForm() {
                           updateCharacter(i, "name", e.target.value)
                         }
                         className="w-full bg-transparent border-b border-white/20 p-2 text-base outline-none focus:border-gold placeholder:text-gray-600 text-white"
-                        autoComplete="off" // 🟢 KILLS AUTOFILL
+                        autoComplete="off"
                       />
                     </div>
 
@@ -430,11 +428,9 @@ export default function AuthorForm() {
               <p className="text-gold/90 text-sm leading-relaxed font-sans">
                 <strong>We welcome mature and complex subject matter</strong>{" "}
                 that demonstrates genuine literary merit, authentically
-                exploring the full spectrum of the human experience, including
-                crime, violent acts, and sometimes deeply disturbing themes.
-                That said, we prohibit material that promotes, instructs, or
-                praises real-world illegal activity, as well as Age Gap themes
-                involving minors.
+                exploring the full spectrum of the human experience. However, we
+                prohibit material that promotes illegal activity or Age Gap
+                themes involving minors.
               </p>
             </div>
 
@@ -448,9 +444,22 @@ export default function AuthorForm() {
 
           {/* TIMELINE */}
           <div>
-            <h3 className="text-lg font-bold uppercase tracking-widest text-gold mb-8 flex items-center gap-2 font-serif">
+            <h3 className="text-lg font-bold uppercase tracking-widest text-gold mb-4 flex items-center gap-2 font-serif">
               <Calendar className="w-5 h-5" /> Timeline Preferences
             </h3>
+
+            {/* 🟢 DISCLAIMER BLOCK */}
+            <div className="mb-8 flex items-start gap-3 bg-white/5 p-4 rounded-lg border border-gold/10">
+              <Clock className="w-5 h-5 text-gold/70 mt-0.5 shrink-0" />
+              <p className="text-xs text-gray-300 leading-relaxed">
+                <span className="text-gold font-bold uppercase tracking-widest block mb-1">
+                  Availability Tip
+                </span>
+                To secure the best casting options, we recommend spacing your
+                start date preferences by at least{" "}
+                <strong className="text-white">30 days</strong>.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
               {/* Option 1 */}
@@ -468,26 +477,40 @@ export default function AuthorForm() {
               </div>
 
               {/* Option 2 */}
-              <div className="flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg opacity-75 hover:opacity-100 transition">
+              <div
+                className={`flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg transition ${
+                  !formData.date1 ? "opacity-30 pointer-events-none" : ""
+                }`}
+              >
                 <span className="text-xs font-bold uppercase text-gold">
                   Option 2
                 </span>
                 <input
                   type="date"
                   name="date2"
+                  // 🟢 LOGIC: Must be 30 days after Date 1
+                  min={getMinDate(formData.date1)}
+                  disabled={!formData.date1}
                   onChange={handleChange}
                   className="bg-transparent text-white outline-none w-full uppercase font-bold text-base cursor-pointer [color-scheme:dark]"
                 />
               </div>
 
               {/* Option 3 */}
-              <div className="flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg opacity-75 hover:opacity-100 transition">
+              <div
+                className={`flex flex-col gap-2 bg-midnight/40 border border-gold/10 p-4 rounded-lg transition ${
+                  !formData.date2 ? "opacity-30 pointer-events-none" : ""
+                }`}
+              >
                 <span className="text-xs font-bold uppercase text-gold">
                   Option 3
                 </span>
                 <input
                   type="date"
                   name="date3"
+                  // 🟢 LOGIC: Must be 30 days after Date 2
+                  min={getMinDate(formData.date2)}
+                  disabled={!formData.date2}
                   onChange={handleChange}
                   className="bg-transparent text-white outline-none w-full uppercase font-bold text-base cursor-pointer [color-scheme:dark]"
                 />
