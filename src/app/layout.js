@@ -1,9 +1,8 @@
-// app/layout.js
 import { Cinzel, Lato } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./providers"; // Import the new wrapper
+// NOTE: We REMOVED the Navbar import from here.
+// It belongs in your MarketingLayout, not here.
 
-// Configure Google Fonts
 const cinzel = Cinzel({
   subsets: ["latin"],
   variable: "--font-cinzel",
@@ -27,7 +26,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${lato.variable}`}>
       <body className="font-sans antialiased bg-deep-space text-white">
-        <Providers>{children}</Providers>
+        {/* Render children directly. The MarketingLayout will wrap the Navbar around them. */}
+        {children}
       </body>
     </html>
   );

@@ -1,46 +1,11 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { Mic2, Shield, Users, Send, ArrowRight } from "lucide-react";
+import { Mic2, Shield, Users, Send } from "lucide-react";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] text-white">
-      {/* NAV: Links to the Internal Hub */}
-      <nav className="p-6 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50">
-        <div className="text-2xl font-serif text-white tracking-wider flex items-center gap-2">
-          <Mic2 className="text-gold" size={24} />
-          PRODUCTION<span className="text-gold">HOUSE</span>
-        </div>
-
-        <Link
-          href="/dashboard"
-          className="group flex items-center gap-3 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:border-gold/50 hover:bg-gold/5 hover:shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all duration-500"
-        >
-          {/* 🟢 The Live Pulse (The "Whoa" Factor) */}
-          <div className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 duration-1000"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500 shadow-[0_0_8px_#22c55e]"></span>
-          </div>
-
-          {/* 🖥️ Tech Text */}
-          <div className="flex flex-col leading-none">
-            <span className="text-[10px] font-bold text-gray-400 group-hover:text-gold uppercase tracking-[0.2em] transition-colors">
-              Production Hub
-            </span>
-            <span className="text-[8px] text-green-500/70 font-mono tracking-widest group-hover:text-green-400 transition-colors mt-[2px]">
-              SYSTEMS ONLINE
-            </span>
-          </div>
-
-          <Shield
-            size={12}
-            className="text-gray-600 group-hover:text-gold transition-colors ml-1"
-          />
-        </Link>
-      </nav>
-
-      {/* HERO SECTION */}
       <div className="flex flex-col items-center justify-center min-h-[80vh] px-4 animate-fade-in-up">
         <div className="text-center mb-16 max-w-2xl">
           <h1 className="text-5xl md:text-7xl font-serif text-white mb-6 leading-tight">
@@ -54,7 +19,6 @@ export default function Home() {
 
         {/* PRIMARY ACTIONS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-          {/* 1. START A PRODUCTION (Links to app/projectform) */}
           <Link
             href="/projectform"
             className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gold/50 p-10 rounded-2xl text-left transition-all duration-300"
@@ -70,7 +34,6 @@ export default function Home() {
             </p>
           </Link>
 
-          {/* 2. BROWSE ROSTER (Links to app/roster) */}
           <Link
             href="/roster"
             className="group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-gold/50 p-10 rounded-2xl text-left transition-all duration-300"
