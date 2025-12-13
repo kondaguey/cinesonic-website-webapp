@@ -165,7 +165,7 @@ export default function TalentRoster() {
           The Roster
         </h1>
         <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-lg mb-8 font-light tracking-wide">
-          Curated voices for cinema-quality storytelling.
+          Curated voices for cinema-caliber storytelling.
         </p>
 
         {/* SEARCH */}

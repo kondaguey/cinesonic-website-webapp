@@ -66,7 +66,7 @@ export default function DashboardHub() {
             CineSonic
           </h1>
           <p className="text-gray-400 tracking-[0.4em] text-xs md:text-sm uppercase font-light">
-            Internal Hub V14
+            Production Hub V1.4
           </p>
         </div>
 
