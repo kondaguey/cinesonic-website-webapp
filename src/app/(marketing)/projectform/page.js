@@ -221,7 +221,7 @@ export default function AuthorForm() {
         {/* BANNER */}
         <div className="mb-2 shadow-glow rounded-xl overflow-hidden border border-gold/30 bg-midnight relative z-0">
           <img
-            src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
+            src="images/homepage-navbar-hero-logo-cinesonic-audiobooks-transparent.png"
             className="w-full h-32 md:h-56 object-cover opacity-90"
             alt="Banner"
           />

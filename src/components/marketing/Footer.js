@@ -112,16 +112,16 @@ export default function Footer() {
           {/* Desktop Order: 4 (Far Right) */}
           <div className="col-span-2 md:col-span-3 pt-4 md:pt-0 border-t border-white/5 md:border-none flex flex-col items-center md:items-start md:order-4">
             <h5 className="hidden md:block text-white font-serif font-bold text-sm mb-4 tracking-widest uppercase">
-              Contact
+              Talent Submissions
             </h5>
             <ul className="flex flex-col items-center md:items-start gap-4 md:gap-3 mt-2 md:mt-0">
               <li className="flex items-center md:items-start gap-2 text-xs text-gray-400">
-                <Mail size={14} className="text-gold shrink-0" />{" "}
+                <Mail size={16} className="text-gold shrink-0" />{" "}
                 <a
                   href="mailto:dm@cinesonicaudiobooks.com"
-                  className="text-[10px] hover:text-white transition-colors"
+                  className="text-md hover:text-white transition-colors"
                 >
-                  talent submissions: casting@cinesonicaudiobooks.com
+                  casting@cinesonicaudiobooks.com
                 </a>
               </li>
             </ul>

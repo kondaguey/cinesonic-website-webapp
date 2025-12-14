@@ -355,12 +355,6 @@ export default function TalentPortal() {
           </Link>
         </div>
 
-        <div className="w-full max-w-[480px] rounded-t-2xl overflow-hidden border border-gold/30 border-b-0 shadow-2xl">
-          <img
-            src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-            className="w-full h-48 object-cover object-center bg-midnight"
-          />
-        </div>
         <div className="w-full max-w-[480px] rounded-b-2xl border border-gold/30 border-t-0 backdrop-blur-2xl bg-black/40 p-8 md:p-10 shadow-2xl animate-fade-in-up">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-3xl text-gold font-serif mb-2">

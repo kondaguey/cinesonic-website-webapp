@@ -41,7 +41,7 @@ export default function Home() {
         {/* H1: Massive, Thin, Gradient */}
         <h1 className="text-4xl md:text-5xl font-serif font-light tracking-tighter leading-[1.05]">
           <span className="tracking-wide bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">
-            We don't narrate audiobooks.
+            More than just narration.
           </span>
           <br />
           <span className="tracking-wide bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">
@@ -54,7 +54,7 @@ export default function Home() {
           {/* Matching White Gradient */}
           <span className="tracking-wide bg-gradient-to-b from-white via-white to-white/40 bg-clip-text text-transparent">
             {" "}
-            them.
+            Audiobooks.
           </span>
         </h1>
         {/* H2: Large, Thin, Elegant */}
