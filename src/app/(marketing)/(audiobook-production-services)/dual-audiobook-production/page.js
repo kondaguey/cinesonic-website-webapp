@@ -16,6 +16,9 @@ import {
   Sparkles,
 } from "lucide-react";
 
+// 🟢 IMPORT ROSTER COMPONENT
+import RosterPreview from "../../../../components/marketing/RosterPreview";
+
 // Custom Neon Pink color used: #ff3399
 
 export default function DualAudiobookPage() {
@@ -209,6 +212,13 @@ export default function DualAudiobookPage() {
           </div>
         </div>
       </section>
+
+      {/* --- 🟢 ROSTER PREVIEW (THE SEXY INTEGRATION) --- */}
+      <div className="relative">
+        {/* Hot Pink Pulse Behind the Roster to mix with Gold -> Rose Gold Effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-[#ff3399]/10 blur-[120px] pointer-events-none z-0 mix-blend-screen" />
+        <RosterPreview accentColor="#ff3399" />
+      </div>
 
       {/* --- 5. TESTIMONIALS --- */}
       <section id="reviews" className="py-24 px-6 max-w-7xl mx-auto">

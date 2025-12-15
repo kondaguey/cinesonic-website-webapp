@@ -14,6 +14,9 @@ import {
   Shield,
 } from "lucide-react";
 
+// 🟢 IMPORT THE ROSTER COMPONENT
+import RosterPreview from "../../../../components/marketing/RosterPreview";
+
 export default function SoloAudiobookPage() {
   // Scroll Helper
   const scrollTo = (id) => {
@@ -179,6 +182,12 @@ export default function SoloAudiobookPage() {
           </div>
         </div>
       </section>
+
+      {/* --- 🟢 NEW: ROSTER PREVIEW (Seamlessly Integrated) --- */}
+      {/* We inserted this right after the "Process" section. 
+         It visually backs up the claim that we have great casting.
+      */}
+      <RosterPreview />
 
       {/* --- 5. TESTIMONIALS --- */}
       <section id="reviews" className="py-24 px-6 max-w-7xl mx-auto">

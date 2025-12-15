@@ -132,15 +132,31 @@ export default function Footer() {
         <div className="w-full h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent mb-6 opacity-50"></div>
 
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-[10px] text-gray-600 tracking-wider">
-            &copy; {currentYear} CineSonic Audiobooks. All rights reserved.
-          </p>
+          {/* LEFT: Copyright + Trademark Notice */}
+          <div className="text-center md:text-left space-y-1">
+            <p className="text-[10px] text-gray-600 tracking-wider">
+              &copy; {currentYear} CineSonic Audiobooks. All rights reserved.
+            </p>
+            {/* --- TRADEMARK NOTICE ADDED HERE --- */}
+            <p className="text-[9px] text-gray-700 font-sans">
+              CineSonic&trade; and "Production Intelligence"&trade; are
+              trademarks of CineSonic Audiobooks.
+            </p>
+          </div>
+
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
             <LegalLink href="/legal/privacy-policy">Privacy</LegalLink>
             <LegalLink href="/legal/terms-and-conditions">Terms</LegalLink>
             <LegalLink href="/legal/cookie-policy">Cookies</LegalLink>
             <LegalLink href="/legal/accessibility">Accessibility</LegalLink>
           </div>
+        </div>
+
+        {/* --- TECH CREDIT ADDED HERE --- */}
+        <div className="mt-8 pt-4 border-t border-white/5 text-center md:text-right">
+          <span className="text-[9px] font-mono text-gray-800 tracking-[0.2em] uppercase opacity-40">
+            System Secure // Ver 1.0.4 // RLS Enabled
+          </span>
         </div>
       </div>
     </footer>

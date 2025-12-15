@@ -1,5 +1,7 @@
 "use client";
-import React, { useState, useRef, useMemo } from "react";
+
+// FIX: Added useEffect to this list vvv
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -20,44 +22,63 @@ import {
 // 🟢 IMPORT ROSTER COMPONENT
 import RosterPreview from "../../../../components/marketing/RosterPreview";
 
-// --- 3D COMPONENT: SUBTLE VERTICAL FLOW ---
-function SubtleWarp({ count = 200 }) {
+// --- 3D COMPONENT: VERTICAL HYPER-DRIVE ("LIFTOFF") ---
+function VerticalWarp({ count = 600 }) {
   const mesh = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  // Generate Data
-  const { particles } = useMemo(() => {
+  const { particles, colors } = useMemo(() => {
     const tempParticles = [];
+    const tempColors = [];
+
+    // Sci-Fi Palette: Cyan, Electric Purple, White
+    const palette = [
+      new THREE.Color("#00f0ff"), // Cyan
+      new THREE.Color("#8a2be2"), // Violet
+      new THREE.Color("#ffffff"), // White
+    ];
 
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * 80; // Very wide spread
-      const y = (Math.random() - 0.5) * 60; // Tall spread
+      const x = (Math.random() - 0.5) * 50; // Wide horizontal spread
+      const y = (Math.random() - 0.5) * 50; // Tall vertical spread
       const z = (Math.random() - 0.5) * 30; // Depth
 
-      // Varied speeds for natural flow
-      const speed = 0.2 + Math.random() * 0.5;
-      const length = 2 + Math.random() * 5;
+      // Speed: Fast movement to simulate rapid ascent
+      const speed = 0.5 + Math.random() * 2.0;
+      const length = 2 + Math.random() * 10; // Length of the streak
 
       tempParticles.push({ x, y, z, speed, length });
+
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      tempColors.push(color.r, color.g, color.b);
     }
-    return { particles: tempParticles };
+    return { particles: tempParticles, colors: new Float32Array(tempColors) };
   }, [count]);
+
+  useEffect(() => {
+    if (mesh.current) {
+      mesh.current.geometry.setAttribute(
+        "color",
+        new THREE.InstancedBufferAttribute(colors, 3)
+      );
+    }
+  }, [colors]);
 
   useFrame(() => {
     if (!mesh.current) return;
-
     particles.forEach((p, i) => {
-      // Gentle downward flow
+      // MOVE STARS DOWN (Y-) to create illusion of FLYING UP (Y+)
       p.y -= p.speed;
 
-      // Infinite Loop
-      if (p.y < -40) p.y = 40;
+      // Loop them back to top when they fall off screen
+      if (p.y < -30) p.y = 30;
 
       dummy.position.set(p.x, p.y, p.z);
-      // Needle thin (.02), slightly stretched vertically
-      dummy.scale.set(0.02, p.length, 0.02);
-      dummy.updateMatrix();
 
+      // STRETCH ON Y-AXIS to look like vertical speed lines
+      dummy.scale.set(0.05, p.length, 0.05);
+
+      dummy.updateMatrix();
       mesh.current.setMatrixAt(i, dummy.matrix);
     });
     mesh.current.instanceMatrix.needsUpdate = true;
@@ -65,13 +86,9 @@ function SubtleWarp({ count = 200 }) {
 
   return (
     <instancedMesh ref={mesh} args={[null, null, count]}>
+      {/* Box geometry stretched makes perfect streaks */}
       <boxGeometry args={[1, 1, 1]} />
-      <meshBasicMaterial
-        color="#ffffff" // Pure White
-        transparent
-        opacity={0.15} // Ghostly opacity (Very subtle)
-        toneMapped={false}
-      />
+      <meshBasicMaterial vertexColors transparent opacity={0.6} />
     </instancedMesh>
   );
 }
@@ -86,27 +103,25 @@ export default function MultiCastPage() {
   };
 
   return (
-    <main className="relative min-h-screen bg-[#020010] text-white selection:bg-[#00f0ff]/30 overflow-x-hidden">
-      {/* --- 0. BACKGROUND: SUBTLE FLOW --- */}
-      <div className="fixed inset-0 z-0">
-        <Canvas
-          camera={{ position: [0, 0, 20], fov: 60 }}
-          gl={{ antialias: false }}
-        >
-          <SubtleWarp count={300} />
-          {/* Deep fog to fade them out smoothly at top/bottom */}
+    <main className="min-h-screen bg-[#020010] text-white selection:bg-[#00f0ff]/30 relative overflow-x-hidden">
+      {/* --- 0. BACKGROUND: VERTICAL WARP (LIFTOFF) --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
+          <VerticalWarp count={600} />
+          {/* Fog fades the stars at the bottom/top for smoothness */}
           <fog attach="fog" args={["#020010", 10, 40]} />
         </Canvas>
 
-        {/* Heavy Vignette to keep focus on text */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#020010_100%)] pointer-events-none" />
+        {/* Vignette & Overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#020010_100%)]" />
+        <div className="absolute inset-0 bg-[#020010]/60" />
       </div>
 
       {/* --- 1. HERO SECTION --- */}
       <section className="relative z-10 pt-32 pb-20 px-6 border-b border-white/5">
         <div className="max-w-5xl mx-auto text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#00f0ff]/30 bg-[#00f0ff]/5 rounded-full mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#00f0ff]/30 bg-[#00f0ff]/10 rounded-full mb-8 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
             <Users size={14} className="text-[#00f0ff]" />
             <span className="text-[11px] tracking-[0.2em] uppercase text-[#00f0ff] font-bold">
               Full Cast Ensemble
@@ -120,7 +135,7 @@ export default function MultiCastPage() {
             </span>
           </h1>
 
-          <p className="text-lg md:text-xl text-white/60 leading-relaxed mb-10 max-w-2xl mx-auto font-light">
+          <p className="text-lg md:text-xl text-white/70 leading-relaxed mb-10 max-w-2xl mx-auto font-light">
             Three to four distinct actors. A bridge between traditional
             narration and full-scale audio drama. <br />{" "}
             <span className="text-white font-medium">
@@ -196,7 +211,10 @@ export default function MultiCastPage() {
                 "Ideal for Sci-Fi & Fantasy",
               ].map((bullet, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <CheckCircle size={16} className="text-[#00f0ff] shrink-0" />
+                  <CheckCircle
+                    size={16}
+                    className="text-[#00f0ff] shrink-0 drop-shadow-[0_0_8px_#00f0ff]"
+                  />
                   <span className="text-sm font-medium text-white/90">
                     {bullet}
                   </span>
@@ -213,8 +231,8 @@ export default function MultiCastPage() {
             <div className="absolute inset-0 flex items-center justify-center">
               {/* The Orbital System Container */}
               <div className="relative w-64 h-64">
-                {/* Center Core */}
-                <div className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 shadow-[0_0_30px_rgba(212,175,55,0.2)] flex items-center justify-center z-20">
+                {/* Center Core (The Story) */}
+                <div className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 shadow-[0_0_30px_#d4af37] flex items-center justify-center z-20">
                   <div className="w-12 h-12 bg-[#d4af37] rounded-full animate-pulse" />
                 </div>
 
@@ -223,10 +241,13 @@ export default function MultiCastPage() {
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[#00f0ff] rounded-full shadow-[0_0_15px_#00f0ff]" />
                 </div>
 
-                {/* Orbit Ring 2 */}
+                {/* Orbit Ring 2 (Opposite direction) */}
                 <div className="absolute inset-4 rounded-full border border-[#8a2be2]/30 animate-[spin_15s_linear_infinite_reverse]">
                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-[#8a2be2] rounded-full shadow-[0_0_15px_#8a2be2]" />
                 </div>
+
+                {/* Decorative Lines */}
+                <div className="absolute inset-0 border border-white/5 rounded-full scale-150 opacity-20" />
               </div>
               <p className="absolute bottom-8 text-xs uppercase tracking-[0.3em] text-white/30">
                 Cast Synchronization
@@ -288,8 +309,8 @@ export default function MultiCastPage() {
 
       {/* --- 🟢 ROSTER PREVIEW (HOLOGRAPHIC HUD) --- */}
       <div className="relative z-10">
-        {/* Subtler Blue Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-[#00f0ff]/5 blur-[100px] pointer-events-none z-0" />
+        {/* Sci-Fi HUD Glow behind the roster */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-[#00f0ff]/10 blur-[120px] pointer-events-none z-0 mix-blend-screen" />
 
         {/* Pass Cyan Hex Color */}
         <RosterPreview accentColor="#00f0ff" />
@@ -344,6 +365,7 @@ export default function MultiCastPage() {
 
       {/* --- 7. CTA --- */}
       <section className="relative z-10 py-20 px-6">
+        {/* Holographic Card Effect */}
         <div className="max-w-5xl mx-auto rounded-[2rem] bg-[#0a0a20]/80 backdrop-blur-xl p-12 md:p-20 text-center relative overflow-hidden group border border-white/10 shadow-[0_0_50px_rgba(0,240,255,0.1)]">
           {/* Animated Gradient Border */}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
@@ -373,6 +395,7 @@ export default function MultiCastPage() {
 }
 
 // --- SUB-COMPONENTS ---
+
 function PillarCard({ icon: Icon, title, desc, color }) {
   return (
     <div className="p-8 rounded-xl bg-[#0a0a15] border border-white/5 hover:border-white/20 transition-all group relative overflow-hidden">

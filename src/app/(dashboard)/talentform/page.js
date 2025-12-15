@@ -228,8 +228,6 @@ export default function TalentPortal() {
           website: data.website_link || "",
           triggers: data.triggers || "",
           training: data.training_notes || "",
-
-          // 🟢 MAPPED TO NEW COLUMN
           audiobooks: data.audiobooks_narrated || "",
 
           headshot: data.headshot_url || "",
@@ -241,7 +239,6 @@ export default function TalentPortal() {
         const parsedBookouts = [];
         if (data.bookouts) {
           if (Array.isArray(data.bookouts)) {
-            // If it is already JSON array
             setBookoutRanges(data.bookouts);
             return;
           }
@@ -310,10 +307,7 @@ export default function TalentPortal() {
         triggers: formData.triggers,
         training_notes: formData.training,
         bookouts: bookoutsString,
-
-        // 🟢 SAVE TO NEW COLUMN
         audiobooks_narrated: formData.audiobooks,
-
         headshot_url: formData.headshot,
         resume_url: formData.resume,
         demo_url: formData.demo,
@@ -355,7 +349,8 @@ export default function TalentPortal() {
           </Link>
         </div>
 
-        <div className="w-full max-w-[480px] rounded-b-2xl border border-gold/30 border-t-0 backdrop-blur-2xl bg-black/40 p-8 md:p-10 shadow-2xl animate-fade-in-up">
+        {/* 🟢 FIXED: Removed rounded-b-2xl and border-t-0 to make it a standalone full card */}
+        <div className="w-full max-w-[480px] rounded-2xl border border-gold/30 backdrop-blur-2xl bg-black/40 p-8 md:p-10 shadow-2xl animate-fade-in-up">
           <div className="text-center mb-8">
             <h2 className="text-2xl md:text-3xl text-gold font-serif mb-2">
               Talent Portal
@@ -421,14 +416,10 @@ export default function TalentPortal() {
 
   return (
     <div className="min-h-screen flex flex-col items-center py-8 md:py-12 px-4 bg-[radial-gradient(circle_at_50%_0%,_#1a0f5e_0%,_#020014_70%)] text-white">
-      <div className="w-full max-w-4xl rounded-t-2xl overflow-hidden border border-gold/30 border-b-0 shadow-2xl">
-        <img
-          src="https://www.danielnotdaylewis.com/img/cinesonic_logo_banner_gold_16x9.png"
-          className="w-full h-32 md:h-56 object-cover object-center bg-midnight"
-        />
-      </div>
+      {/* 🟢 FIXED: Removed the Banner Image DIV completely */}
 
-      <div className="w-full max-w-4xl bg-black/40 border border-gold/30 rounded-b-2xl backdrop-blur-xl shadow-2xl p-6 md:p-12 animate-fade-in">
+      {/* 🟢 FIXED: Changed rounded-b-2xl to rounded-2xl to fix top corners */}
+      <div className="w-full max-w-4xl bg-black/40 border border-gold/30 rounded-2xl backdrop-blur-xl shadow-2xl p-6 md:p-12 animate-fade-in">
         {/* HEADER AREA */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-white/10 pb-6 gap-6 md:gap-4">
           <div className="w-full">

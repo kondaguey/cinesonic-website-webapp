@@ -11,6 +11,10 @@ import {
   Wand2,
 } from "lucide-react";
 
+// 🟢 IMPORT THE MATRIX COMPONENT
+// (Adjust the ../ depth if your folder structure is shallower/deeper)
+import ServiceComparisonMatrix from "../../../../components/marketing/ServiceComparisonMatrix";
+
 export default function ServicesOverviewPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white selection:bg-[#d4af37]/30 overflow-hidden">
@@ -101,6 +105,9 @@ export default function ServicesOverviewPage() {
         href="/multicast-audiobook-production"
         align="right"
       />
+
+      {/* --- 🟢 5. THE COMPARISON MATRIX (INSERTED HERE) --- */}
+      <ServiceComparisonMatrix />
 
       {/* --- FOOTER CTA --- */}
       <section className="py-24 px-6 text-center border-t border-white/10">

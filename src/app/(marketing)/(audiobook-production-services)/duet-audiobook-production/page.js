@@ -16,17 +16,17 @@ import {
   Music,
 } from "lucide-react";
 
+// 🟢 IMPORT ROSTER COMPONENT
+import RosterPreview from "../../../../components/marketing/RosterPreview";
+
 // --- 3D COMPONENT: REALISTIC RISING EMBERS ---
 function Embers({ count = 300 }) {
   const mesh = useRef();
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
-  // Generate random positions, speeds, and individual colors
   const { particles, colors } = useMemo(() => {
     const tempParticles = [];
     const tempColors = [];
-
-    // Realistic fire color palette
     const colorPalette = [
       new THREE.Color("#ff3300"), // Deep Red/Orange
       new THREE.Color("#ff7700"), // Bright Orange
@@ -35,20 +35,15 @@ function Embers({ count = 300 }) {
     ];
 
     for (let i = 0; i < count; i++) {
-      // Position and Movement Data
-      const x = (Math.random() - 0.5) * 20; // Wider spread
-      const y = (Math.random() - 0.5) * 20; // Taller height
-      const z = (Math.random() - 0.5) * 10; // Depth
-      // Slower, more subtle speed
+      const x = (Math.random() - 0.5) * 20;
+      const y = (Math.random() - 0.5) * 20;
+      const z = (Math.random() - 0.5) * 10;
       const speed = 0.1 + Math.random() * 0.6;
-      const sway = Math.random() * 0.02; // very gentle sway
-      const offset = Math.random() * 100; // Random starting time constraint
-      // Random base size for variety
+      const sway = Math.random() * 0.02;
+      const offset = Math.random() * 100;
       const baseScale = 0.02 + Math.random() * 0.04;
 
       tempParticles.push({ x, y, z, speed, sway, offset, baseScale });
-
-      // Color Data based on palette
       const color =
         colorPalette[Math.floor(Math.random() * colorPalette.length)];
       tempColors.push(color.r, color.g, color.b);
@@ -56,7 +51,6 @@ function Embers({ count = 300 }) {
     return { particles: tempParticles, colors: new Float32Array(tempColors) };
   }, [count]);
 
-  // Apply the colors to the geometry instance attribute
   useEffect(() => {
     if (mesh.current) {
       mesh.current.geometry.setAttribute(
@@ -68,29 +62,19 @@ function Embers({ count = 300 }) {
 
   useFrame((state) => {
     if (!mesh.current) return;
-
     particles.forEach((p, i) => {
       const time = state.clock.elapsedTime;
-
-      // Rising movement (looping)
       let currentY = p.y + ((time * p.speed) % 20);
       if (currentY > 10) currentY -= 20;
-
-      // Gentle drifting movement
       const currentX = p.x + Math.sin(time + p.offset) * p.sway;
-
-      // Realistic flickering scale (rapid tiny fluctuations)
-      // We mix a slow breathing wave with a fast jitter wave
       const slowBreath = Math.sin(time * 2 + p.offset) * 0.2 + 0.8;
       const fastJitter = Math.sin(time * 15 + p.offset) * 0.1;
       const currentScale = p.baseScale * (slowBreath + fastJitter);
 
       dummy.position.set(currentX, currentY, p.z);
       dummy.scale.set(currentScale, currentScale, currentScale);
-      // Subtle random rotation so they catch light differently
       dummy.rotation.x = time * p.speed * 0.5 + p.offset;
       dummy.rotation.z = time * p.speed * 0.3 + p.offset;
-
       dummy.updateMatrix();
       mesh.current.setMatrixAt(i, dummy.matrix);
     });
@@ -99,14 +83,13 @@ function Embers({ count = 300 }) {
 
   return (
     <instancedMesh ref={mesh} args={[null, null, count]}>
-      {/* Icosahedron is rounder and more organic than octahedron */}
       <icosahedronGeometry args={[1, 0]} />
       <meshBasicMaterial
-        vertexColors={true} // IMPORTANT: Enables the multi-color instance buffer
+        vertexColors={true}
         toneMapped={false}
         transparent
         opacity={0.8}
-        fog={true} // affected by fog for depth fade
+        fog={true}
       />
     </instancedMesh>
   );
@@ -126,13 +109,9 @@ export default function DuetAudiobookPage() {
       {/* --- 0. BACKGROUND: THE FURNACE (Fixed 3D Canvas) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <Canvas camera={{ position: [0, 0, 10], fov: 50 }}>
-          {/* Dark fog to make embers fade in/out realistically */}
           <fog attach="fog" args={["#050000", 8, 25]} />
-          {/* REALISTIC EMBERS */}
           <Embers count={250} />
         </Canvas>
-
-        {/* Color Overlays to tint the scene Deep Red/Orange */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#050000] via-transparent to-[#050000] opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#050000] via-[#ff4500]/10 to-[#050000] mix-blend-overlay" />
       </div>
@@ -164,7 +143,6 @@ export default function DuetAudiobookPage() {
 
           <Link
             href="/contact"
-            // CTA Button: Magma Gradient
             className="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-[#ff4500] to-[#ff0055] text-white font-bold rounded-full transition-all shadow-[0_0_30px_rgba(255,69,0,0.4)] hover:shadow-[0_0_60px_rgba(255,69,0,0.6)] hover:scale-105"
           >
             Turn Up The Heat <Zap size={20} fill="currentColor" />
@@ -193,7 +171,6 @@ export default function DuetAudiobookPage() {
         className="relative z-10 py-24 px-6 max-w-7xl mx-auto"
       >
         <div className="grid md:grid-cols-2 gap-16 items-center">
-          {/* Text Content */}
           <div>
             <h2 className="text-4xl md:text-6xl font-serif mb-8 leading-tight">
               It's not just reading.
@@ -236,11 +213,8 @@ export default function DuetAudiobookPage() {
             </div>
           </div>
 
-          {/* Visual Side: The Fire Box */}
           <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden border border-[#ff4500]/30 bg-[#ff4500]/5 shadow-[0_0_50px_rgba(255,69,0,0.1)]">
             <div className="absolute inset-0 bg-gradient-to-t from-[#ff0055]/40 via-transparent to-transparent opacity-60" />
-
-            {/* Abstract Visual */}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative">
                 <div className="absolute inset-0 bg-[#ff4500] blur-[100px] opacity-50 rounded-full animate-pulse" />
@@ -302,6 +276,15 @@ export default function DuetAudiobookPage() {
           </div>
         </div>
       </section>
+
+      {/* --- 🟢 ROSTER PREVIEW (THE FURNACE INTEGRATION) --- */}
+      <div className="relative z-10">
+        {/* Heat Haze Background Effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-[#ff4500]/10 blur-[150px] pointer-events-none z-0 mix-blend-screen" />
+
+        {/* Pass Magma Orange Color */}
+        <RosterPreview accentColor="#ff4500" />
+      </div>
 
       {/* --- 5. TESTIMONIALS --- */}
       <section
@@ -375,7 +358,6 @@ export default function DuetAudiobookPage() {
 }
 
 // --- SUB-COMPONENTS ---
-
 function PillarCard({ icon: Icon, title, desc }) {
   return (
     <div className="p-8 rounded-2xl bg-black/40 border border-white/10 hover:border-[#ff4500]/50 transition-colors group backdrop-blur-md">

@@ -1,6 +1,7 @@
 "use client";
-import React from "react";
-import Image from "next/image";
+import React, { useRef, useMemo } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 import {
   Sparkles,
   Heart,
@@ -8,178 +9,242 @@ import {
   Lightbulb,
   Users,
   Feather,
-  Film,
+  Aperture,
+  Disc,
 } from "lucide-react";
 
 // --- DATA ---
-const values = [
+const VALUES = [
   {
     title: "Artistry First",
     description:
-      "Technology serves the performance. We preserve the human element in every breath, creating audio that breathes.",
+      "Technology serves the performance. We preserve the human element in every breath, pause, and inflection.",
     icon: Sparkles,
   },
   {
     title: "Collaboration",
     description:
-      "The best stories emerge from the collective spark of authors, narrators, and directors working in unison.",
+      "The best stories emerge from the collective spark of authors, narrators, and directors working in sync.",
     icon: Heart,
   },
   {
     title: "Integrity",
     description:
-      "We honor the author's intent. This commitment is the anchor that holds our productions steady against trends.",
+      "We honor the author's intent above all else. It is the anchor that holds us steady against fleeting trends.",
     icon: Anchor,
   },
   {
     title: "Innovation",
     description:
-      "Pushing the boundaries of immersive sound design, spatial audio, and vocal performance.",
+      "Pushing the boundaries of immersive sound design, spatial audio, and cinematic performance.",
     icon: Lightbulb,
   },
   {
     title: "Empathy",
     description:
-      "We listen deeply before we speak. Understanding our characters and audience is the heart of our craft.",
+      "We listen deeply. Understanding the psychology of your characters is the beating heart of our craft.",
     icon: Users,
   },
   {
     title: "Stewardship",
     description:
-      "Nurturing the stories entrusted to us ensures they are remembered by future generations.",
+      "We don't just record books; we archive culture. Nurturing stories ensures they echo for future generations.",
     icon: Feather,
   },
 ];
 
+// --- 3D COMPONENT: STUDIO DUST ---
+function StudioDust({ count = 300 }) {
+  const mesh = useRef();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  const particles = useMemo(() => {
+    const temp = [];
+    for (let i = 0; i < count; i++) {
+      const x = (Math.random() - 0.5) * 50;
+      const y = (Math.random() - 0.5) * 50;
+      const z = (Math.random() - 0.5) * 20;
+      const speed = Math.random() * 0.02;
+      temp.push({ x, y, z, speed });
+    }
+    return temp;
+  }, [count]);
+
+  useFrame(() => {
+    if (!mesh.current) return;
+    particles.forEach((p, i) => {
+      p.y += p.speed;
+      if (p.y > 25) p.y = -25;
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.scale.set(0.05, 0.05, 0.05);
+      dummy.rotation.x += 0.01;
+      dummy.updateMatrix();
+      mesh.current.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={mesh} args={[null, null, count]}>
+      <dodecahedronGeometry args={[1, 0]} />
+      <meshBasicMaterial color="#d4af37" transparent opacity={0.4} />
+    </instancedMesh>
+  );
+}
+
 export default function CoreValues() {
   return (
-    <main className="relative min-h-screen w-full bg-[#050505] overflow-hidden selection:bg-[#d4af37]/30">
-      {/* --- 1. AMBIENT BACKGROUND --- */}
+    <main className="relative min-h-screen w-full bg-[#050505] overflow-x-hidden selection:bg-[#d4af37]/30 font-sans">
+      {/* --- 1. 3D BACKGROUND --- */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        {/* Deep Atmospheric Glows */}
-        <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-indigo-950/20 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-0 w-[50vw] h-[50vh] bg-[#d4af37]/5 blur-[150px] rounded-full" />
-
-        {/* Film Noise Texture */}
-        <div
-          className="absolute inset-0 opacity-[0.04] mix-blend-overlay"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`,
-          }}
-        />
+        <Canvas camera={{ position: [0, 0, 15], fov: 50 }}>
+          <StudioDust count={400} />
+          <fog attach="fog" args={["#050505", 5, 30]} />
+        </Canvas>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#050505_100%)] opacity-80" />
       </div>
 
-      {/* --- 2. MAIN CONTENT WRAPPER --- */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-24">
-        {/* HEADER */}
-        <div className="text-center max-w-3xl mx-auto mb-28 animate-fade-in-up relative z-20">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 border border-[#d4af37]/20 bg-[#d4af37]/5 backdrop-blur-md rounded-full mb-8 shadow-[0_0_15px_-3px_rgba(212,175,55,0.2)]">
-            <Film size={14} className="text-[#d4af37]" />
-            <span className="text-[11px] tracking-[0.3em] uppercase text-[#d4af37] font-semibold">
-              Production Values
-            </span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-serif text-white tracking-tight leading-none drop-shadow-2xl">
-            The Director's <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] drop-shadow-md">
-              Cut.
-            </span>
-          </h1>
+      {/* --- 2. HEADER SECTION --- */}
+      <section className="relative z-10 pt-40 pb-20 px-6 text-center">
+        <div className="inline-flex items-center gap-3 px-4 py-2 border border-[#d4af37]/20 bg-[#d4af37]/5 backdrop-blur-md rounded-full mb-10 shadow-[0_0_20px_-5px_rgba(212,175,55,0.3)]">
+          <Aperture size={16} className="text-[#d4af37] animate-spin-slow" />
+          <span className="text-xs tracking-[0.3em] uppercase text-[#d4af37] font-bold">
+            Company Ethos
+          </span>
         </div>
 
-        {/* --- 3. TIMELINE CONTAINER --- */}
-        <div className="relative w-full">
-          {/* =========================================
-              FILM STRIP SPINE (Centered)
-             ========================================= */}
-          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-[160px] z-0 pointer-events-none">
-            {/* 1. The Glow Behind the Film Strip */}
-            <div className="absolute inset-0 bg-[#d4af37]/10 blur-[60px] rounded-full" />
+        {/* 🟢 ADJUSTMENT 1: Tamed H1 Size */}
+        <h1 className="text-5xl md:text-7xl font-serif text-white tracking-tight leading-none mb-8 drop-shadow-2xl">
+          The Director's <br />
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] italic pr-4">
+            Cut.
+          </span>
+        </h1>
 
-            {/* 2. The Film Strip Image */}
-            <div className="relative w-full h-full opacity-60 mix-blend-screen">
-              <Image
-                src="/images/film-strip-core-values-cinesonic-audiobooks.png"
-                alt="Film Strip Spine"
-                fill
-                className="object-cover object-top"
-                priority
-              />
-            </div>
+        <p className="max-w-xl mx-auto text-white/50 text-lg md:text-xl font-light leading-relaxed">
+          The principles that guide our hand in the dark.
+        </p>
+      </section>
 
-            {/* 3. Top/Bottom Fade for Seamless Blending */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]" />
+      {/* --- 3. THE TIMELINE LAYOUT --- */}
+      <div className="relative w-full max-w-7xl mx-auto px-6 md:px-12 pb-40">
+        {/* 🟢 ADJUSTMENT 3: VISIBLE FILM STRIP SPINE (Pure CSS) */}
+        <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-[2px] md:w-[60px] md:-translate-x-1/2 z-0">
+          {/* Mobile Line (Simple) */}
+          <div className="md:hidden absolute inset-0 bg-gradient-to-b from-transparent via-[#d4af37]/30 to-transparent" />
+
+          {/* Desktop Film Strip (Visible) */}
+          <div className="hidden md:block w-full h-full border-x border-[#d4af37]/20 bg-[#0a0a0a]/50 backdrop-blur-sm relative overflow-hidden">
+            {/* Sprocket Holes Pattern */}
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{
+                backgroundImage: `linear-gradient(to bottom, transparent 50%, #d4af37 50%), linear-gradient(to bottom, transparent 50%, #d4af37 50%)`,
+                backgroundSize: "4px 20px, 4px 20px",
+                backgroundPosition: "left top, right top",
+                backgroundRepeat: "repeat-y",
+              }}
+            />
+            {/* Center Glow */}
+            <div className="absolute inset-x-0 top-0 bottom-0 bg-gradient-to-b from-transparent via-[#d4af37]/10 to-transparent" />
           </div>
 
-          {/* =========================================
-              VALUES LIST
-             ========================================= */}
-          <div className="relative z-10 space-y-6 md:space-y-12 py-10">
-            {values.map((value, index) => {
-              const isEven = index % 2 === 0;
-              return (
+          {/* The "Playhead" (Sticky Element) */}
+          <div className="sticky top-1/2 -translate-y-1/2 w-4 h-4 md:w-full md:h-1 bg-[#d4af37] md:bg-[#d4af37]/50 shadow-[0_0_30px_#d4af37] -ml-[7px] md:ml-0 z-10 flex items-center justify-center">
+            <div className="hidden md:block absolute w-full h-[1px] bg-[#d4af37]" />
+          </div>
+        </div>
+
+        {/* === VALUE CARDS === */}
+        {/* 🟢 ADJUSTMENT 2: Closer Nodes (space-y-16) */}
+        <div className="relative z-10 space-y-16 md:space-y-24">
+          {VALUES.map((value, index) => {
+            const isEven = index % 2 === 0;
+            return (
+              <div
+                key={index}
+                className={`flex flex-col md:flex-row items-center w-full ${
+                  isEven ? "md:flex-row" : "md:flex-row-reverse"
+                }`}
+              >
+                {/* SPACER */}
+                <div className="hidden md:block w-1/2" />
+
+                {/* CONTENT HALF */}
                 <div
-                  key={index}
-                  className={`relative flex flex-col md:flex-row items-center ${
-                    isEven ? "md:flex-row" : "md:flex-row-reverse"
-                  }`}
+                  className={`w-full md:w-1/2 flex ${
+                    isEven ? "justify-start md:pl-24" : "justify-end md:pr-24"
+                  } pl-12 md:pl-0`} // Mobile padding to clear spine
                 >
-                  {/* SPACER (Pushes card to the side on Desktop) */}
-                  <div className="hidden md:block w-1/2" />
-
-                  {/* GLASS CARD CONTAINER */}
-                  <div
-                    className={`w-full md:w-1/2 ${
-                      isEven ? "md:pl-20" : "md:pr-20"
-                    }`}
-                  >
-                    <div
-                      className="group relative p-8 md:p-10 rounded-2xl overflow-hidden
-                                    border border-[#d4af37]/20 
-                                    bg-[#0a0a0a]/60 backdrop-blur-xl
-                                    shadow-[0_0_0_1px_rgba(212,175,55,0.05)]
-                                    transition-all duration-500
-                                    hover:border-[#d4af37]/60 
-                                    hover:bg-[#0a0a0a]/80
-                                    hover:shadow-[0_0_30px_-5px_rgba(212,175,55,0.15)]
-                                    hover:-translate-y-1"
-                    >
-                      {/* Glossy Sheen Overlay (Top Right -> Bottom Left) */}
-                      <div className="absolute inset-0 bg-gradient-to-bl from-white/10 via-transparent to-transparent opacity-30 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none" />
-
-                      {/* Inner Content */}
-                      <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start md:items-center">
-                        {/* Icon Box (Glowing Gold) */}
-                        <div className="shrink-0 p-4 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/20 text-[#d4af37] shadow-[0_0_15px_-3px_rgba(212,175,55,0.2)] group-hover:bg-[#d4af37]/20 group-hover:scale-110 transition-transform duration-500">
-                          <value.icon size={26} strokeWidth={1.5} />
-                        </div>
-
-                        {/* Text */}
-                        <div className="space-y-2">
-                          <h3 className="text-2xl md:text-3xl font-serif text-white tracking-wide group-hover:text-[#fcf6ba] transition-colors duration-300">
-                            {value.title}
-                          </h3>
-                          <p className="text-base text-white/60 font-light leading-relaxed group-hover:text-white/80 transition-colors duration-300">
-                            {value.description}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <ValueCard data={value} index={index} />
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
+      </div>
 
-        {/* FOOTER ENDER */}
-        <div className="mt-32 text-center relative z-20">
-          <div className="w-px h-16 bg-gradient-to-b from-[#d4af37]/30 to-transparent mx-auto mb-6" />
-          <h5 className="text-[10px] tracking-[0.5em] uppercase text-white/30">
-            End Scene
-          </h5>
+      {/* --- 4. FOOTER MARKER --- */}
+      <div className="relative z-20 pb-24 text-center">
+        <div className="inline-flex flex-col items-center gap-4 opacity-30">
+          <div className="w-px h-16 bg-gradient-to-b from-[#d4af37] to-transparent" />
+          <Disc size={24} className="animate-spin-slow text-[#d4af37]" />
+          <span className="text-[10px] tracking-[0.5em] uppercase font-bold">
+            End Reel
+          </span>
         </div>
       </div>
     </main>
+  );
+}
+
+// --- SUB-COMPONENT: OBSIDIAN CARD ---
+function ValueCard({ data, index }) {
+  const Icon = data.icon;
+
+  return (
+    <div className="group relative w-full max-w-lg perspective-1000">
+      {/* Connection Line (Desktop) - Connects card to film strip */}
+      <div
+        className={`hidden md:block absolute top-1/2 w-24 h-px bg-[#d4af37]/20 
+                ${index % 2 === 0 ? "-left-24" : "-right-24"} 
+            `}
+      >
+        <div
+          className={`absolute top-1/2 -translate-y-1/2 w-1 h-1 bg-[#d4af37] rounded-full ${
+            index % 2 === 0 ? "-left-0" : "-right-0"
+          }`}
+        />
+      </div>
+
+      {/* The Card */}
+      <div className="relative p-8 md:p-10 rounded-3xl bg-[#0a0a0a] border border-white/5 overflow-hidden transition-all duration-500 hover:border-[#d4af37]/50 hover:shadow-[0_0_50px_-10px_rgba(212,175,55,0.15)] hover:-translate-y-2">
+        {/* Hover Spotlight Gradient */}
+        <div className="absolute inset-0 bg-[radial-gradient(600px_at_50%_50%,rgba(212,175,55,0.15),transparent)] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
+        {/* Noise Texture */}
+        <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-6">
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-[#d4af37] group-hover:bg-[#d4af37] group-hover:text-black transition-colors duration-500">
+              <Icon size={24} strokeWidth={1.5} />
+            </div>
+            <span className="font-serif text-5xl text-white/5 font-bold group-hover:text-[#d4af37]/10 transition-colors duration-500">
+              0{index + 1}
+            </span>
+          </div>
+
+          {/* Text */}
+          <h3 className="text-2xl font-serif text-white mb-3 group-hover:text-[#d4af37] transition-colors duration-300">
+            {data.title}
+          </h3>
+          <p className="text-white/60 font-light leading-relaxed text-base group-hover:text-white/80 transition-colors duration-300">
+            {data.description}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

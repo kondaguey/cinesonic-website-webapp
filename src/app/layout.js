@@ -25,7 +25,12 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${lato.variable}`}>
-      <body className="font-sans antialiased bg-deep-space text-white">
+      {/* We add suppressHydrationWarning={true} here. 
+          It has ZERO effect on visuals. It just silences the console error. */}
+      <body
+        className="font-sans antialiased bg-deep-space text-white"
+        suppressHydrationWarning={true}
+      >
         {/* Render children directly. The MarketingLayout will wrap the Navbar around them. */}
         {children}
       </body>
