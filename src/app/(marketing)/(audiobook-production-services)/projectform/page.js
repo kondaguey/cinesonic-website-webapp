@@ -1,470 +1,920 @@
 "use client";
 
-// FIX: Added useEffect to this list vvv
-import React, { useState, useRef, useMemo, useEffect } from "react";
-import Link from "next/link";
-import { Canvas, useFrame } from "@react-three/fiber";
-import * as THREE from "three";
+import React, { useState, useEffect, useRef } from "react";
+import { supabase } from "../../../../lib/supabaseClient";
 import {
-  ArrowRight,
-  CheckCircle,
-  Star,
-  ChevronDown,
-  ChevronUp,
-  Users,
+  User,
+  Mail,
+  BookOpen,
   Mic,
-  Globe,
-  Zap,
+  Plus,
+  Trash2,
+  Calendar,
+  Users,
+  Flame,
   Rocket,
-  Disc,
+  AlertCircle,
+  Play,
+  Pause,
+  ChevronDown,
+  CheckCircle,
 } from "lucide-react";
+// --- VISUAL FX COMPONENTS (Defined separately for performance) ---
 
-// 🟢 IMPORT ROSTER COMPONENT
-import RosterPreview from "../../../../components/marketing/RosterPreview";
+// 1. SOLO: Gold Pulse & Floating Particles
+const FxSolo = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute top-1/2 left-1/2 w-32 h-32 bg-[#d4af37] rounded-full blur-[50px] animate-[pulseGlow_4s_ease-in-out_infinite]" />
+    {[...Array(8)].map((_, i) => (
+      <div
+        key={i}
+        className="absolute rounded-full animate-pulse"
+        style={{
+          width: Math.random() * 4 + 1 + "px",
+          height: Math.random() * 4 + 1 + "px",
+          backgroundColor: "#d4af37",
+          top: Math.random() * 100 + "%",
+          left: Math.random() * 100 + "%",
+          opacity: Math.random() * 0.5 + 0.3,
+          animationDuration: Math.random() * 2 + 1 + "s",
+        }}
+      />
+    ))}
+  </div>
+);
 
-// --- 3D COMPONENT: VERTICAL HYPER-DRIVE ("LIFTOFF") ---
-function VerticalWarp({ count = 600 }) {
-  const mesh = useRef();
-  const dummy = useMemo(() => new THREE.Object3D(), []);
+// 2. DUAL: Floating Neon Hearts
+const FxDual = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    {[...Array(6)].map((_, i) => (
+      <div
+        key={i}
+        className="absolute text-[#ff3399] text-sm"
+        style={{
+          left: Math.random() * 80 + 10 + "%",
+          bottom: "-20px",
+          opacity: 0,
+          animation: `floatUp ${Math.random() * 4 + 3}s ease-in-out infinite`,
+          animationDelay: Math.random() * 2 + "s",
+        }}
+      >
+        ♥
+      </div>
+    ))}
+  </div>
+);
 
-  const { particles, colors } = useMemo(() => {
-    const tempParticles = [];
-    const tempColors = [];
+// 3. DUET: Rising Fire Embers
+const FxDuet = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    {[...Array(15)].map((_, i) => (
+      <div
+        key={i}
+        className="absolute rounded-full"
+        style={{
+          width: Math.random() * 3 + 1 + "px",
+          height: Math.random() * 3 + 1 + "px",
+          backgroundColor: "#ff4500",
+          left: Math.random() * 100 + "%",
+          bottom: "-20px",
+          opacity: 0,
+          animation: `riseFast ${Math.random() * 2 + 1}s linear infinite`,
+          animationDelay: Math.random() * 2 + "s",
+        }}
+      />
+    ))}
+    <div className="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-[#ff4500]/20 to-transparent" />
+  </div>
+);
 
-    // Sci-Fi Palette: Cyan, Electric Purple, White
-    const palette = [
-      new THREE.Color("#00f0ff"), // Cyan
-      new THREE.Color("#8a2be2"), // Violet
-      new THREE.Color("#ffffff"), // White
-    ];
+// 4. MULTI: The "Matrix" Data Stream (Flowing Up)
+const FxMulti = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    {[...Array(12)].map((_, i) => (
+      <div
+        key={i}
+        className="absolute w-[1px] bg-[#00f0ff]"
+        style={{
+          height: Math.random() * 40 + 20 + "px",
+          left: Math.random() * 100 + "%",
+          bottom: "-50px", // Starts below
+          opacity: 0,
+          // Uses 'warpUp' to flow upwards like data
+          animation: `warpUp ${Math.random() * 2 + 1.5}s linear infinite`,
+          animationDelay: Math.random() * 2 + "s",
+        }}
+      />
+    ))}
+  </div>
+);
 
-    for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * 50; // Wide horizontal spread
-      const y = (Math.random() - 0.5) * 50; // Tall vertical spread
-      const z = (Math.random() - 0.5) * 30; // Depth
+export default function ProjectIntakeForm() {
+  // --- STATE ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
 
-      // Speed: Fast movement to simulate rapid ascent
-      const speed = 0.5 + Math.random() * 2.0;
-      const length = 2 + Math.random() * 10; // Length of the streak
+  // Data Sources
+  const [dropdowns, setDropdowns] = useState({
+    genres: [],
+    voiceTypes: [],
+    ageRanges: [],
+  });
+  const [roster, setRoster] = useState([]);
 
-      tempParticles.push({ x, y, z, speed, length });
-
-      const color = palette[Math.floor(Math.random() * palette.length)];
-      tempColors.push(color.r, color.g, color.b);
-    }
-    return { particles: tempParticles, colors: new Float32Array(tempColors) };
-  }, [count]);
-
-  useEffect(() => {
-    if (mesh.current) {
-      mesh.current.geometry.setAttribute(
-        "color",
-        new THREE.InstancedBufferAttribute(colors, 3)
-      );
-    }
-  }, [colors]);
-
-  useFrame(() => {
-    if (!mesh.current) return;
-    particles.forEach((p, i) => {
-      // MOVE STARS DOWN (Y-) to create illusion of FLYING UP (Y+)
-      p.y -= p.speed;
-
-      // Loop them back to top when they fall off screen
-      if (p.y < -30) p.y = 30;
-
-      dummy.position.set(p.x, p.y, p.z);
-
-      // STRETCH ON Y-AXIS to look like vertical speed lines
-      dummy.scale.set(0.05, p.length, 0.05);
-
-      dummy.updateMatrix();
-      mesh.current.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.current.instanceMatrix.needsUpdate = true;
+  // Main Form Data
+  const [formData, setFormData] = useState({
+    client_name: "",
+    email: "",
+    project_title: "",
+    word_count: "",
+    style: "Narration",
+    genres: "",
+    notes: "",
+    client_type: "",
   });
 
-  return (
-    <instancedMesh ref={mesh} args={[null, null, count]}>
-      {/* Box geometry stretched makes perfect streaks */}
-      <boxGeometry args={[1, 1, 1]} />
-      <meshBasicMaterial vertexColors transparent opacity={0.6} />
-    </instancedMesh>
-  );
-}
+  // Dates
+  const [dates, setDates] = useState(["", "", ""]);
 
-// --- MAIN PAGE COMPONENT ---
-export default function MultiCastPage() {
-  const scrollTo = (id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Characters
+  const emptyChar = {
+    name: "",
+    gender: "",
+    age: "",
+    style: "",
+    preferredActorId: null,
+  };
+  const [characters, setCharacters] = useState([]);
+
+  // UI State
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
+  const [playingUrl, setPlayingUrl] = useState(null);
+  const audioRef = useRef(null);
+
+  // --- FETCH DATA ---
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const listsReq = supabase.from("lists_db").select("*");
+        const rosterReq = supabase
+          .from("actor_db")
+          .select(
+            "id, name, gender, voice_type, age_range, headshot_url, demo_url"
+          )
+          .eq("coming_soon", false)
+          .order("name");
+
+        const [listsRes, rosterRes] = await Promise.all([listsReq, rosterReq]);
+
+        if (listsRes.error) throw listsRes.error;
+        if (rosterRes.error) throw rosterRes.error;
+
+        const genres = [
+          ...new Set(listsRes.data.map((i) => i.genre).filter(Boolean)),
+        ];
+        const voiceTypes = [
+          ...new Set(listsRes.data.map((i) => i.voice_type).filter(Boolean)),
+        ];
+        const ageRanges = [
+          ...new Set(listsRes.data.map((i) => i.age_range).filter(Boolean)),
+        ];
+
+        setDropdowns({ genres, voiceTypes, ageRanges });
+        setRoster(rosterRes.data || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  // --- AUDIO LOGIC ---
+  const toggleAudio = (url) => {
+    if (!url) return;
+    if (playingUrl === url) {
+      audioRef.current.pause();
+      setPlayingUrl(null);
+    } else {
+      if (audioRef.current) audioRef.current.pause();
+      setPlayingUrl(url);
+      audioRef.current = new Audio(url);
+      audioRef.current.play();
+      audioRef.current.onended = () => setPlayingUrl(null);
     }
   };
 
-  return (
-    <main className="min-h-screen bg-[#020010] text-white selection:bg-[#00f0ff]/30 relative overflow-x-hidden">
-      {/* --- 0. BACKGROUND: VERTICAL WARP (LIFTOFF) --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
-          <VerticalWarp count={600} />
-          {/* Fog fades the stars at the bottom/top for smoothness */}
-          <fog attach="fog" args={["#020010", 10, 40]} />
-        </Canvas>
+  // --- HANDLERS ---
+  const handleServiceSelect = (type) => {
+    setFormData((prev) => ({ ...prev, client_type: type }));
+    if (type === "Solo") setCharacters([emptyChar]);
+    else if (type === "Dual" || type === "Duet")
+      setCharacters([emptyChar, emptyChar]);
+    else if (type === "Multi")
+      setCharacters([emptyChar, emptyChar, emptyChar, emptyChar]);
+  };
 
-        {/* Vignette & Overlay */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_#020010_100%)]" />
-        <div className="absolute inset-0 bg-[#020010]/60" />
-      </div>
+  const updateCharacter = (index, field, value) => {
+    const newChars = [...characters];
+    newChars[index][field] = value;
+    if (field === "gender") newChars[index].preferredActorId = null;
+    setCharacters(newChars);
+    if (field === "preferredActorId") setActiveDropdownIndex(null);
+  };
 
-      {/* --- 1. HERO SECTION --- */}
-      <section className="relative z-10 pt-32 pb-20 px-6 border-b border-white/5">
-        <div className="max-w-5xl mx-auto text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 border border-[#00f0ff]/30 bg-[#00f0ff]/10 rounded-full mb-8 shadow-[0_0_15px_rgba(0,240,255,0.2)]">
-            <Users size={14} className="text-[#00f0ff]" />
-            <span className="text-[11px] tracking-[0.2em] uppercase text-[#00f0ff] font-bold">
-              Full Cast Ensemble
-            </span>
-          </div>
+  const addCharacter = () => {
+    if (characters.length < 6) setCharacters([...characters, emptyChar]);
+  };
+  const removeCharacter = (index) => {
+    if (characters.length > 4)
+      setCharacters(characters.filter((_, i) => i !== index));
+  };
 
-          <h1 className="text-5xl md:text-7xl font-serif mb-6 drop-shadow-2xl text-white tracking-tight">
-            A Galaxy of <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] via-[#00f0ff] to-[#8a2be2]">
-              Voices.
-            </span>
-          </h1>
+  const handleDateChange = (index, value) => {
+    const newDates = [...dates];
+    newDates[index] = value;
+    setDates(newDates);
+  };
+  const getMinDate = (prevDateString) => {
+    if (!prevDateString) return new Date().toISOString().split("T")[0];
+    const d = new Date(prevDateString);
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split("T")[0];
+  };
 
-          <p className="text-lg md:text-xl text-white/70 leading-relaxed mb-10 max-w-2xl mx-auto font-light">
-            Three to four distinct actors. A bridge between traditional
-            narration and full-scale audio drama. <br />{" "}
-            <span className="text-white font-medium">
-              Character acting without the noise.
-            </span>
+  // --- SUBMIT ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const validDates = dates.filter((d) => d !== "").join("|");
+
+    try {
+      const intakeId = "PRJ-" + Math.floor(1000 + Math.random() * 9000);
+
+      // ENRICH CHARACTERS WITH ACTOR NAMES FOR DB READABILITY
+      const enrichedCharacters = characters.map((char) => {
+        if (char.preferredActorId) {
+          const actor = roster.find((r) => r.id === char.preferredActorId);
+          return {
+            ...char,
+            preferredActorName: actor ? actor.name : "Unknown ID",
+          };
+        }
+        return char;
+      });
+
+      const charDetailsString = JSON.stringify(enrichedCharacters);
+
+      const { error } = await supabase.from("project_intake_db").insert([
+        {
+          intake_id: intakeId,
+          client_type: formData.client_type,
+          client_name: formData.client_name,
+          email: formData.email,
+          project_title: formData.project_title,
+          word_count: formData.word_count || 0,
+          style: formData.style,
+          genres: formData.genres,
+          timeline_prefs: validDates,
+          notes: formData.notes,
+          character_details: charDetailsString, // This column now holds all the new data!
+          status: "New",
+        },
+      ]);
+
+      if (error) throw error;
+      setSubmitStatus("success");
+      window.scrollTo(0, 0);
+    } catch (err) {
+      console.error(err);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // --- DYNAMIC BUTTON STYLES ---
+  const getButtonConfig = () => {
+    switch (formData.client_type) {
+      case "Solo":
+        return {
+          text: "Submit Solo Request",
+          bg: "bg-[#d4af37]",
+          shadow: "hover:shadow-[0_0_40px_rgba(212,175,55,0.6)]",
+        };
+      case "Dual":
+        return {
+          text: "Submit Dual Request",
+          bg: "bg-[#ff3399]",
+          shadow: "hover:shadow-[0_0_40px_rgba(255,51,153,0.6)]",
+        };
+      case "Duet":
+        return {
+          text: "Submit Duet Request",
+          bg: "bg-[#ff4500]",
+          shadow: "hover:shadow-[0_0_40px_rgba(255,69,0,0.6)]",
+        };
+      case "Multi":
+        return {
+          text: "Submit Multi-Cast Request",
+          bg: "bg-[#00f0ff]",
+          shadow: "hover:shadow-[0_0_40px_rgba(0,240,255,0.6)]",
+        };
+      default:
+        return {
+          text: "Initiate Sequence",
+          bg: "bg-white",
+          shadow: "hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]",
+        };
+    }
+  };
+  const btnConfig = getButtonConfig();
+
+  // --- SUCCESS VIEW ---
+  if (submitStatus === "success") {
+    return (
+      <div className="min-h-screen bg-[#020010] flex items-center justify-center p-6 text-white text-center">
+        <div className="max-w-md w-full bg-white/5 border border-green-500/30 p-10 rounded-2xl backdrop-blur-md">
+          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
+          <h2 className="text-3xl font-serif mb-4">Manifest Logged</h2>
+          <p className="text-gray-400 mb-8">
+            We have received your project specs. A producer will review the
+            timeline and casting requirements shortly.
           </p>
-
-          <Link
-            href="/contact"
-            className="inline-flex items-center gap-3 px-10 py-4 bg-white/5 border border-white/10 hover:border-[#00f0ff]/50 hover:bg-[#00f0ff]/10 text-white font-bold rounded-full transition-all backdrop-blur-md group"
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-green-500/20 text-green-400 border border-green-500/50 rounded-full hover:bg-green-500/30 transition"
           >
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] to-[#00f0ff] group-hover:text-[#00f0ff] transition-colors">
-              Assemble Your Crew
-            </span>
-            <Rocket
-              size={18}
-              className="text-[#00f0ff] group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"
-            />
-          </Link>
+            Start New Project
+          </button>
         </div>
-      </section>
+      </div>
+    );
+  }
 
-      {/* --- 2. QUICK LINKS --- */}
-      <nav className="sticky top-0 z-40 bg-[#020010]/80 backdrop-blur-xl border-b border-white/10 py-4">
-        <div className="max-w-7xl mx-auto px-6 flex justify-center gap-8 md:gap-16 overflow-x-auto no-scrollbar">
-          {["The Cast", "Logistics", "Reviews", "FAQ"].map((item) => (
-            <button
-              key={item}
-              onClick={() => scrollTo(item.toLowerCase().replace(" ", "-"))}
-              className="text-xs md:text-sm font-bold text-white/40 hover:text-[#00f0ff] transition-colors uppercase tracking-[0.15em] whitespace-nowrap"
-            >
-              {item}
-            </button>
-          ))}
+  return (
+    <div className="min-h-screen bg-[#020010] text-white font-sans selection:bg-[#00f0ff]/30 py-24 px-4 sm:px-6">
+      {/* 🟢 GLOBAL ANIMATION STYLES */}
+      <style jsx global>{`
+        @keyframes riseFast {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 0;
+          }
+          20% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(-400px) scale(0);
+            opacity: 0;
+          }
+        }
+        @keyframes floatUp {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 0;
+          }
+          30% {
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateY(-300px) rotate(20deg);
+            opacity: 0;
+          }
+        }
+        /* 🟢 NEW: Flows UP from bottom (Reverse Matrix) */
+        @keyframes warpUp {
+          0% {
+            transform: translateY(200px);
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.8;
+          }
+          100% {
+            transform: translateY(-600px);
+            opacity: 0;
+          }
+        }
+        @keyframes pulseGlow {
+          0%,
+          100% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 0.15;
+          }
+          50% {
+            transform: translate(-50%, -50%) scale(1.5);
+            opacity: 0.3;
+          }
+        }
+      `}</style>
+
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-6xl font-serif mb-4">
+            Production <span className="text-[#d4af37]">Intake</span>
+          </h1>
+          <p className="text-gray-400 max-w-xl mx-auto">
+            Initialize your audiobook production. Select your format, define
+            your characters, and lock in your timeline.
+          </p>
         </div>
-      </nav>
 
-      {/* --- 3. THE CAST (WHY US) --- */}
-      <section
-        id="the-cast"
-        className="relative z-10 py-24 px-6 max-w-7xl mx-auto"
-      >
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          {/* Text */}
-          <div>
-            <h2 className="text-3xl md:text-5xl font-serif mb-8 leading-tight">
-              A Voice for
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00f0ff] to-[#8a2be2]">
-                Every Hero.
-              </span>
+        <form onSubmit={handleSubmit} className="space-y-12">
+          {/* 1. SERVICE SELECTION (ANIMATED CARDS) */}
+          <section>
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Mic className="text-[#00f0ff]" /> Select Format
             </h2>
-            <div className="space-y-6 text-white/70 leading-relaxed text-lg font-light">
-              <p>
-                Multi-Cast production sits in the sweet spot between a solo read
-                and a full Audio Drama.
-              </p>
-              <p>
-                While Audio Drama focuses on sound design and music to tell the
-                story,{" "}
-                <strong>Multi-Cast focuses entirely on the actors.</strong> We
-                hire 3-4 professionals to handle specific POV characters,
-                bringing a distinct personality to every corner of your universe
-                while keeping the text pure and narration-focused.
-              </p>
-            </div>
-
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {[
-                "3-4 Professional Actors",
-                "Distinct Character Voices",
-                "Focus on Vocal Performance",
-                "Ideal for Sci-Fi & Fantasy",
-              ].map((bullet, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <CheckCircle
-                    size={16}
-                    className="text-[#00f0ff] shrink-0 drop-shadow-[0_0_8px_#00f0ff]"
+                {
+                  id: "Solo",
+                  icon: Mic,
+                  color: "#d4af37",
+                  text: "1 Narrator",
+                  fx: <FxSolo />, // Uses the new component
+                },
+                {
+                  id: "Dual",
+                  icon: Users,
+                  color: "#ff3399",
+                  text: "2 Narrators (POV)",
+                  fx: <FxDual />, // Uses the new component
+                },
+                {
+                  id: "Duet",
+                  icon: Flame,
+                  color: "#ff4500",
+                  text: "Real-time Dialogue",
+                  fx: <FxDuet />, // Uses the new component
+                },
+                {
+                  id: "Multi",
+                  icon: Rocket,
+                  color: "#00f0ff",
+                  text: "Full Ensemble",
+                  fx: <FxMulti />, // Uses the new component
+                },
+              ].map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => handleServiceSelect(s.id)}
+                  className={`relative h-48 rounded-2xl border transition-all duration-300 overflow-hidden group text-left p-6 flex flex-col justify-end ${
+                    formData.client_type === s.id
+                      ? `border-[${s.color}] bg-[${s.color}]/10 shadow-[0_0_30px_${s.color}30]`
+                      : "border-white/10 bg-[#0a0a15] hover:border-white/30"
+                  }`}
+                  style={{
+                    borderColor: formData.client_type === s.id ? s.color : "",
+                  }}
+                >
+                  {formData.client_type === s.id && s.fx}
+                  <s.icon
+                    className="mb-auto w-8 h-8 relative z-10"
+                    style={{
+                      color:
+                        formData.client_type === s.id ? s.color : "#4b5563",
+                    }}
                   />
-                  <span className="text-sm font-medium text-white/90">
-                    {bullet}
-                  </span>
-                </div>
+                  <div className="relative z-10">
+                    <h3 className="text-xl font-serif font-bold">{s.id}</h3>
+                    <p className="text-xs text-gray-400 mt-1">{s.text}</p>
+                  </div>
+                </button>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* Visual: Holographic Orbit System */}
-          <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden border border-white/10 bg-black/40 backdrop-blur-sm">
-            {/* Background Glows */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00f0ff]/10 via-transparent to-[#8a2be2]/10" />
-
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* The Orbital System Container */}
-              <div className="relative w-64 h-64">
-                {/* Center Core (The Story) */}
-                <div className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 shadow-[0_0_30px_#d4af37] flex items-center justify-center z-20">
-                  <div className="w-12 h-12 bg-[#d4af37] rounded-full animate-pulse" />
-                </div>
-
-                {/* Orbit Ring 1 */}
-                <div className="absolute inset-0 w-full h-full rounded-full border border-[#00f0ff]/30 animate-[spin_10s_linear_infinite]">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[#00f0ff] rounded-full shadow-[0_0_15px_#00f0ff]" />
-                </div>
-
-                {/* Orbit Ring 2 (Opposite direction) */}
-                <div className="absolute inset-4 rounded-full border border-[#8a2be2]/30 animate-[spin_15s_linear_infinite_reverse]">
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-[#8a2be2] rounded-full shadow-[0_0_15px_#8a2be2]" />
-                </div>
-
-                {/* Decorative Lines */}
-                <div className="absolute inset-0 border border-white/5 rounded-full scale-150 opacity-20" />
+          {/* 2. PROJECT DETAILS */}
+          <section className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm space-y-8">
+            <h2 className="text-xl font-bold text-[#d4af37] flex items-center gap-2">
+              <BookOpen className="text-[#d4af37]" /> Core Data
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-gray-500">
+                  Author / Client Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-4 focus:border-[#d4af37] focus:outline-none"
+                  placeholder="Jane Doe"
+                  value={formData.client_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, client_name: e.target.value })
+                  }
+                />
               </div>
-              <p className="absolute bottom-8 text-xs uppercase tracking-[0.3em] text-white/30">
-                Cast Synchronization
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-gray-500">
+                  Contact Email
+                </label>
+                <input
+                  required
+                  type="email"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-4 focus:border-[#d4af37] focus:outline-none"
+                  placeholder="jane@example.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-gray-500">
+                  Book Title
+                </label>
+                <input
+                  required
+                  type="text"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-4 focus:border-[#d4af37] focus:outline-none"
+                  placeholder="The Stars Above"
+                  value={formData.project_title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, project_title: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs uppercase tracking-widest text-gray-500">
+                  Genre
+                </label>
+                <select
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-4 focus:border-[#d4af37] focus:outline-none appearance-none"
+                  value={formData.genres}
+                  onChange={(e) =>
+                    setFormData({ ...formData, genres: e.target.value })
+                  }
+                >
+                  <option value="">Select Genre...</option>
+                  {dropdowns.genres.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+
+          {/* 3. DYNAMIC CHARACTERS WITH STICKY CASTING DROPDOWN */}
+          {formData.client_type && (
+            <section className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-bold text-[#00f0ff] flex items-center gap-2">
+                  <User className="text-[#00f0ff]" /> Character Specs
+                </h2>
+                <span className="text-xs font-mono text-gray-500 border border-white/10 px-2 py-1 rounded bg-[#0a0a15]">
+                  Slots: {characters.length}
+                </span>
+              </div>
+
+              <div className="space-y-6">
+                {characters.map((char, index) => {
+                  const availableActors = roster.filter((a) => {
+                    if (!char.gender) return false;
+                    return (
+                      (a.gender || "").toLowerCase() ===
+                      char.gender.toLowerCase()
+                    );
+                  });
+
+                  return (
+                    <div
+                      key={index}
+                      className="p-6 bg-[#0a0a15] border border-white/10 rounded-2xl relative group"
+                    >
+                      {/* Top Row: Basic Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] uppercase text-gray-500">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Character Name"
+                            className="w-full bg-transparent border-b border-white/10 focus:border-[#00f0ff] focus:outline-none py-2"
+                            value={char.name}
+                            onChange={(e) =>
+                              updateCharacter(index, "name", e.target.value)
+                            }
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] uppercase text-gray-500 text-[#00f0ff]">
+                            Gender
+                          </label>
+                          <select
+                            className="w-full bg-transparent border-b border-white/10 focus:border-[#00f0ff] focus:outline-none py-2 appearance-none text-white"
+                            value={char.gender}
+                            onChange={(e) =>
+                              updateCharacter(index, "gender", e.target.value)
+                            }
+                          >
+                            <option value="">Select Gender...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] uppercase text-gray-500">
+                            Age Range
+                          </label>
+                          <select
+                            className="w-full bg-transparent border-b border-white/10 focus:border-[#00f0ff] focus:outline-none py-2 appearance-none text-gray-300"
+                            value={char.age}
+                            onChange={(e) =>
+                              updateCharacter(index, "age", e.target.value)
+                            }
+                          >
+                            <option value="">Select Age...</option>
+                            {dropdowns.ageRanges.map((a) => (
+                              <option key={a} value={a}>
+                                {a}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <label className="text-[10px] uppercase text-gray-500">
+                            Vocal Style
+                          </label>
+                          <select
+                            className="w-full bg-transparent border-b border-white/10 focus:border-[#00f0ff] focus:outline-none py-2 appearance-none text-gray-300"
+                            value={char.style}
+                            onChange={(e) =>
+                              updateCharacter(index, "style", e.target.value)
+                            }
+                          >
+                            <option value="">Select Style...</option>
+                            {dropdowns.voiceTypes.map((v) => (
+                              <option key={v} value={v}>
+                                {v}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* --- CASTING DROPDOWN (STICKY) --- */}
+                      <div className="mt-4 pt-4 border-t border-white/5">
+                        <div className="relative">
+                          <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+                            <span>Have a specific actor in mind?</span>
+                            {!char.gender && (
+                              <span className="text-red-500/50 italic">
+                                (Select Gender above to browse roster)
+                              </span>
+                            )}
+                          </div>
+
+                          {/* BACKDROP TO CLOSE */}
+                          {activeDropdownIndex === index && (
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setActiveDropdownIndex(null)}
+                            />
+                          )}
+
+                          {/* TRIGGER BAR */}
+                          <div
+                            className={`relative z-50 w-full bg-white/5 border border-white/10 rounded-lg p-3 flex items-center justify-between cursor-pointer transition-colors ${
+                              !char.gender
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:border-[#00f0ff]/50"
+                            }`}
+                            onClick={() => {
+                              if (char.gender)
+                                setActiveDropdownIndex(
+                                  activeDropdownIndex === index ? null : index
+                                );
+                            }}
+                          >
+                            {char.preferredActorId ? (
+                              (() => {
+                                const a = roster.find(
+                                  (r) => r.id === char.preferredActorId
+                                );
+                                return a ? (
+                                  <div className="flex items-center gap-3">
+                                    <img
+                                      src={a.headshot_url}
+                                      alt={a.name}
+                                      className="w-8 h-8 rounded-full object-cover border border-white/20"
+                                    />
+                                    <span className="text-[#00f0ff] font-bold">
+                                      {a.name}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span>Select from Roster...</span>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-gray-400 italic">
+                                Browse available {char.gender || ""} actors...
+                              </span>
+                            )}
+                            <ChevronDown
+                              size={16}
+                              className={`text-gray-500 transition-transform ${
+                                activeDropdownIndex === index
+                                  ? "rotate-180"
+                                  : ""
+                              }`}
+                            />
+                          </div>
+
+                          {/* DROPDOWN MENU */}
+                          {activeDropdownIndex === index && (
+                            <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-[#050510] border border-[#00f0ff]/30 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.9)] max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+                              {availableActors.length > 0 ? (
+                                availableActors.map((actor) => (
+                                  <div
+                                    key={actor.id}
+                                    className="p-3 border-b border-white/5 hover:bg-white/5 flex items-center justify-between group/item transition-colors"
+                                  >
+                                    <div
+                                      className="flex items-center gap-3 flex-1 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateCharacter(
+                                          index,
+                                          "preferredActorId",
+                                          actor.id
+                                        );
+                                      }}
+                                    >
+                                      <img
+                                        src={
+                                          actor.headshot_url ||
+                                          "https://placehold.co/50"
+                                        }
+                                        className="w-10 h-10 rounded-full object-cover"
+                                      />
+                                      <div>
+                                        <div className="text-sm font-bold text-white group-hover/item:text-[#00f0ff]">
+                                          {actor.name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-500">
+                                          {actor.age_range} •{" "}
+                                          {actor.voice_type
+                                            ? actor.voice_type.replace(
+                                                /[\[\]"]/g,
+                                                ""
+                                              )
+                                            : "Voice Actor"}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    {actor.demo_url && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleAudio(actor.demo_url);
+                                        }}
+                                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#00f0ff] hover:text-black flex items-center justify-center transition-all z-50"
+                                      >
+                                        {playingUrl === actor.demo_url ? (
+                                          <Pause
+                                            size={12}
+                                            fill="currentColor"
+                                          />
+                                        ) : (
+                                          <Play size={12} fill="currentColor" />
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-4 text-center text-gray-500 text-xs">
+                                  No {char.gender} actors currently revealed in
+                                  roster.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Delete Button (Multi Only) */}
+                      {formData.client_type === "Multi" && index >= 4 && (
+                        <button
+                          type="button"
+                          onClick={() => removeCharacter(index)}
+                          className="absolute top-2 right-2 text-red-500/50 hover:text-red-500"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ADD BUTTON */}
+              {formData.client_type === "Multi" && characters.length < 6 && (
+                <button
+                  type="button"
+                  onClick={addCharacter}
+                  className="mt-6 w-full py-4 border border-dashed border-white/20 rounded-2xl text-gray-400 hover:border-[#00f0ff] hover:text-[#00f0ff] hover:bg-[#00f0ff]/5 transition flex items-center justify-center gap-2 group"
+                >
+                  <Plus
+                    size={18}
+                    className="group-hover:rotate-90 transition-transform"
+                  />{" "}
+                  Add Additional Character Slot
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* 4. TIMELINE */}
+          <section className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-sm">
+            <h2 className="text-xl font-bold text-gray-200 mb-2 flex items-center gap-2">
+              <Calendar className="text-gray-400" /> Production Timeline
+            </h2>
+            <p className="text-sm text-gray-500 mb-8 max-w-2xl">
+              Please select 3 potential start dates.{" "}
+              <span className="text-[#d4af37] font-bold">
+                Ensure dates are at least 30 days apart.
+              </span>
+            </p>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[0, 1, 2].map((idx) => {
+                const label =
+                  idx === 0
+                    ? "Priority Option 1"
+                    : `Option ${idx + 1} (+30 Days)`;
+                const min =
+                  idx === 0
+                    ? new Date().toISOString().split("T")[0]
+                    : getMinDate(dates[idx - 1]);
+                const disabled = idx > 0 && !dates[idx - 1];
+                return (
+                  <div
+                    key={idx}
+                    className={`bg-[#0a0a15] p-4 rounded-xl border ${
+                      !disabled
+                        ? "border-white/10"
+                        : "border-white/5 opacity-50"
+                    }`}
+                  >
+                    <label
+                      className={`text-[10px] uppercase tracking-widest mb-2 block ${
+                        idx === 0 ? "text-[#d4af37]" : "text-gray-400"
+                      }`}
+                    >
+                      {label}
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      disabled={disabled}
+                      min={min}
+                      className="w-full bg-transparent text-white focus:outline-none text-sm disabled:cursor-not-allowed"
+                      value={dates[idx]}
+                      onChange={(e) => handleDateChange(idx, e.target.value)}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* DISCLAIMERS & SUBMIT */}
+          <div className="pt-8 border-t border-white/10">
+            <div className="flex gap-4 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl mb-8">
+              <AlertCircle className="text-amber-500 shrink-0" size={20} />
+              <p className="text-xs text-amber-500/80 leading-relaxed">
+                <strong>Conflict of Interest Disclosure:</strong> CineSonic
+                ownership consists of working professional narrators. To
+                maintain industry ethics, we will not cast any actor currently
+                engaged with a production company that our owners actively
+                narrate for.
               </p>
             </div>
+
+            <div className="text-center">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full max-w-md mx-auto py-4 text-black font-bold text-lg uppercase tracking-[0.2em] rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed ${btnConfig.bg} ${btnConfig.shadow}`}
+              >
+                {isSubmitting ? "Transmitting..." : btnConfig.text}
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
-
-      {/* --- 4. LOGISTICS (PROCESS) --- */}
-      <section
-        id="logistics"
-        className="relative z-10 py-24 bg-white/[0.02] border-y border-white/5 backdrop-blur-sm"
-      >
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-serif mb-4 text-white">
-              Mission Control
-            </h2>
-            <p className="text-white/50">
-              Managing a cast is hard. We make it easy.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            <PillarCard
-              icon={Users}
-              color="#d4af37" // Gold
-              title="Casting"
-              desc="We curate a team of 3-4 actors whose voices complement each other perfectly."
-            />
-            <PillarCard
-              icon={Globe}
-              color="#00f0ff" // Cyan
-              title="Coordination"
-              desc="We handle all scheduling across different time zones. You just get the files."
-            />
-            <PillarCard
-              icon={Zap}
-              color="#8a2be2" // Purple
-              title="Consistency"
-              desc="We build a pronunciation guide so every actor says 'Zorgon' the exact same way."
-            />
-            <PillarCard
-              icon={Mic}
-              color="#d4af37" // Gold
-              title="Direction"
-              desc="We direct the ensemble to ensure the tone matches across all chapters."
-            />
-            <PillarCard
-              icon={ArrowRight}
-              color="#00f0ff" // Cyan
-              title="Delivery"
-              desc="We merge the files into a retail-ready audiobook compliant with all platforms."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* --- 🟢 ROSTER PREVIEW (HOLOGRAPHIC HUD) --- */}
-      <div className="relative z-10">
-        {/* Sci-Fi HUD Glow behind the roster */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[80%] bg-[#00f0ff]/10 blur-[120px] pointer-events-none z-0 mix-blend-screen" />
-
-        {/* Pass Cyan Hex Color */}
-        <RosterPreview accentColor="#00f0ff" />
+        </form>
       </div>
-
-      {/* --- 5. REVIEWS --- */}
-      <section
-        id="reviews"
-        className="relative z-10 py-24 px-6 max-w-7xl mx-auto"
-      >
-        <h2 className="text-3xl md:text-4xl font-serif text-center mb-16">
-          Transmission Received
-        </h2>
-        <div className="grid md:grid-cols-2 gap-8">
-          <TestimonialCard
-            quote="I was worried different actors would be jarring, but CineSonic made it flow seamlessly. It felt like a high-budget TV series."
-            author="Sci-Fi Reviewer"
-            role="Audible Top 100"
-            accent="#00f0ff"
-          />
-          <TestimonialCard
-            quote="Finally, my four main characters actually sound different! The male and female narrators nailed the chemistry."
-            author="Epic Fantasy Author"
-            role="Client"
-            accent="#d4af37"
-          />
-        </div>
-      </section>
-
-      {/* --- 6. FAQ --- */}
-      <section id="faq" className="relative z-10 py-24 px-6 max-w-3xl mx-auto">
-        <h2 className="text-3xl font-serif text-center mb-12">Flight Manual</h2>
-        <div className="space-y-4">
-          <AccordionItem
-            q="How is this different from Audio Drama?"
-            a="Audio Drama focuses on sound effects and music to drive the scene. Multi-Cast focuses on the ACTING. It is cleaner, relying on the text and the voice actors to build the world."
-          />
-          <AccordionItem
-            q="How many actors should I hire?"
-            a="We recommend 3 to 4. Usually one for the main narrator/protagonist, and others for key POV characters or gender-specific roles."
-          />
-          <AccordionItem
-            q="Does this cost more than Solo?"
-            a="Yes. You are paying for multiple professionals. However, we bundle the project management fee to keep it affordable."
-          />
-          <AccordionItem
-            q="Who owns the rights?"
-            a="You do. Complete ownership. We facilitate the contracts with the actors so it's all work-for-hire."
-          />
-        </div>
-      </section>
-
-      {/* --- 7. CTA --- */}
-      <section className="relative z-10 py-20 px-6">
-        {/* Holographic Card Effect */}
-        <div className="max-w-5xl mx-auto rounded-[2rem] bg-[#0a0a20]/80 backdrop-blur-xl p-12 md:p-20 text-center relative overflow-hidden group border border-white/10 shadow-[0_0_50px_rgba(0,240,255,0.1)]">
-          {/* Animated Gradient Border */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-
-          <div className="relative z-10">
-            <Disc
-              size={40}
-              className="mx-auto mb-6 text-[#d4af37] animate-spin-slow"
-            />
-            <h2 className="text-4xl md:text-5xl font-serif text-white mb-6">
-              Ready for Liftoff?
-            </h2>
-            <p className="text-white/60 text-lg md:text-xl mb-10 max-w-2xl mx-auto">
-              Assemble your crew. Tell your story.
-            </p>
-            <Link
-              href="/contact"
-              className="inline-block px-12 py-4 bg-gradient-to-r from-[#00f0ff] to-[#8a2be2] text-white font-bold text-lg rounded-full hover:scale-105 transition-transform shadow-[0_0_20px_rgba(0,240,255,0.4)]"
-            >
-              Initiate Sequence
-            </Link>
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-// --- SUB-COMPONENTS ---
-
-function PillarCard({ icon: Icon, title, desc, color }) {
-  return (
-    <div className="p-8 rounded-xl bg-[#0a0a15] border border-white/5 hover:border-white/20 transition-all group relative overflow-hidden">
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center mb-6 group-hover:bg-white/10 transition-colors">
-        <Icon
-          size={24}
-          style={{ color: color }}
-          className="transition-transform group-hover:scale-110"
-        />
-      </div>
-      <h3 className="text-xl font-serif mb-3 text-white">{title}</h3>
-      <p className="text-sm text-white/50 leading-relaxed group-hover:text-white/70 transition-colors">
-        {desc}
-      </p>
-    </div>
-  );
-}
-
-function TestimonialCard({ quote, author, role, accent }) {
-  return (
-    <div className="p-10 rounded-2xl bg-[#0a0a15] border border-white/5 relative hover:bg-[#0f0f20] transition-colors">
-      <div className="absolute -top-3 -left-3 bg-[#020010] p-2 rounded-full border border-white/10">
-        <Star size={16} fill={accent} stroke="none" />
-      </div>
-      <p className="text-lg text-white/80 italic mb-8 leading-relaxed font-light">
-        "{quote}"
-      </p>
-      <div className="flex items-center gap-4">
-        <div
-          className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[#020010]"
-          style={{ backgroundColor: accent }}
-        >
-          {author[0]}
-        </div>
-        <div>
-          <div className="font-bold text-white">{author}</div>
-          <div
-            className="text-xs uppercase tracking-wider font-bold"
-            style={{ color: accent }}
-          >
-            {role}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AccordionItem({ q, a }) {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <div className="border border-white/10 rounded-lg bg-[#0a0a15] overflow-hidden">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 text-left hover:bg-white/5 transition-colors"
-      >
-        <span className="font-medium text-lg text-white/90">{q}</span>
-        {isOpen ? (
-          <ChevronUp className="text-[#00f0ff]" />
-        ) : (
-          <ChevronDown className="text-white/30" />
-        )}
-      </button>
-      {isOpen && (
-        <div className="p-6 pt-0 text-white/60 leading-relaxed border-t border-white/5">
-          {a}
-        </div>
-      )}
     </div>
   );
 }

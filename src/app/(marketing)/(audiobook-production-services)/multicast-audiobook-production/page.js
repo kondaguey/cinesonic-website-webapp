@@ -206,31 +206,37 @@ export default function MultiCastPage() {
           </div>
 
           {/* Visual: Holographic Orbit System */}
-          <div className="relative aspect-square md:aspect-[4/3] rounded-3xl overflow-hidden border border-white/10 bg-black/40 backdrop-blur-sm">
-            {/* Background Glows */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#00f0ff]/10 via-transparent to-[#8a2be2]/10" />
+          {/* The Orbital System Container */}
+          <div className="relative w-64 h-64">
+            {/* Center Core (The Story) */}
+            <div className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/50 shadow-[0_0_40px_rgba(212,175,55,0.15)] flex items-center justify-center z-20 backdrop-blur-sm">
+              <div className="w-8 h-8 bg-[#d4af37] rounded-full animate-pulse shadow-[0_0_20px_#d4af37]" />
+            </div>
 
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* The Orbital System Container */}
-              <div className="relative w-64 h-64">
-                {/* Center Core */}
-                <div className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-[#d4af37]/20 border border-[#d4af37]/50 shadow-[0_0_30px_rgba(212,175,55,0.2)] flex items-center justify-center z-20">
-                  <div className="w-12 h-12 bg-[#d4af37] rounded-full animate-pulse" />
-                </div>
+            {/* Orbit 1: Large Cyan (Slow) */}
+            <div className="absolute inset-0 rounded-full border border-[#00f0ff]/10 animate-[spin_12s_linear_infinite]">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-[#00f0ff] rounded-full shadow-[0_0_15px_#00f0ff]" />
+            </div>
 
-                {/* Orbit Ring 1 */}
-                <div className="absolute inset-0 w-full h-full rounded-full border border-[#00f0ff]/30 animate-[spin_10s_linear_infinite]">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-[#00f0ff] rounded-full shadow-[0_0_15px_#00f0ff]" />
-                </div>
+            {/* Orbit 2: Medium Purple (Reverse, Medium Speed) */}
+            <div className="absolute inset-6 rounded-full border border-[#8a2be2]/10 animate-[spin_9s_linear_infinite_reverse]">
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-[#8a2be2] rounded-full shadow-[0_0_15px_#8a2be2]" />
+            </div>
 
-                {/* Orbit Ring 2 */}
-                <div className="absolute inset-4 rounded-full border border-[#8a2be2]/30 animate-[spin_15s_linear_infinite_reverse]">
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-[#8a2be2] rounded-full shadow-[0_0_15px_#8a2be2]" />
-                </div>
-              </div>
-              <p className="absolute bottom-8 text-xs uppercase tracking-[0.3em] text-white/30">
-                Cast Synchronization
-              </p>
+            {/* Orbit 3: Inner Gold (Fast) */}
+            <div className="absolute inset-12 rounded-full border border-[#d4af37]/10 animate-[spin_5s_linear_infinite_reverse]">
+              <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#d4af37] rounded-full shadow-[0_0_10px_#d4af37]" />
+            </div>
+
+            {/* Orbit 4: Outer White Ghost (Very Slow Reverse) */}
+            <div className="absolute -inset-4 rounded-full border border-white/5 animate-[spin_20s_linear_infinite_reverse]">
+              <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow-[0_0_10px_white]" />
+            </div>
+
+            {/* Decorative Crosshairs */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-10">
+              <div className="w-full h-[1px] bg-white"></div>
+              <div className="h-full w-[1px] bg-white absolute"></div>
             </div>
           </div>
         </div>
