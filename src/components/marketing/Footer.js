@@ -1,162 +1,175 @@
+"use client";
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Instagram,
   Twitter,
   Linkedin,
   Youtube,
-  Twitch,
-  Facebook,
   Mail,
-  MapPin,
+  ArrowUpRight,
 } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative bg-[#020014] border-t border-white/5 pt-16 pb-8 overflow-hidden text-center md:text-left">
-      {/* --- AMBIENT GLOW --- */}
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-gold/5 rounded-full blur-[100px] pointer-events-none -ml-10 -mb-10" />
+    <footer className="relative bg-[#030303] border-t border-white/5 overflow-hidden">
+      {/* --- ATMOSPHERE FX --- */}
+      <div className="absolute inset-0 pointer-events-none select-none">
+        {/* Grain Texture */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
 
-      <div className="max-w-7xl container mx-auto px-6 relative z-10">
-        {/* === MAIN GRID === */}
-        <div className="grid grid-cols-2 md:grid-cols-12 gap-y-10 gap-x-4 md:gap-8 mb-10">
-          {/* 1. BRAND COLUMN */}
-          {/* Desktop Order: 1 (Leftmost) */}
-          <div className="pb-4 col-span-2 md:col-span-5 flex flex-col items-center md:items-start gap-5 md:order-1">
-            <div
-              className="max-w-lg space-y-6 font-sans font-light leading-loose tracking-wide
-                text-white/50 
-                [&_p]:text-xs [&_p]:md:text-sm"
-            >
+        {/* Bottom Glow (Golden Hour) */}
+        <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 w-[80vw] h-[300px] bg-gradient-to-t from-[#d4af37]/10 via-[#d4af37]/5 to-transparent blur-[80px] opacity-40" />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 pt-16 pb-8 relative z-10">
+        {/* === TOP SECTION: GRID LAYOUT === */}
+        {/* Mobile: Stacked, Tablet: 2 Col, Desktop: 12 Col Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 mb-16">
+          {/* 1. NARRATIVE COLUMN (Brand) */}
+          <div className="md:col-span-5 flex flex-col text-center md:text-left">
+            <h2 className="text-2xl font-serif text-white tracking-tight mb-6">
+              CineSonic<span className="text-[#d4af37]">.</span>
+            </h2>
+
+            <div className="space-y-4 text-white/40 text-xs md:text-sm font-light leading-relaxed max-w-md mx-auto md:mx-0">
               <p>
                 CineSonic Audiobooks creates literary audio of the highest
                 caliber. We cast from a "professional actor first" mindset,
                 ensuring every performance is shaped by expressive talent.
               </p>
               <p>
-                Extending our commitment to the craft, we are now{" "}
-                <span className="bg-gradient-to-r from-[#bf953f] via-[#fcf6ba] to-[#b38728] bg-clip-text text-transparent font-medium">
+                Extending our commitment, we are{" "}
+                <span className="text-white/70 italic">
                   pioneering premier education
                 </span>
                 —empowering authors to narrate their own works and guiding
-                aspiring voices as they break into the industry with confidence
-                and artistry.
+                aspiring voices to break into the industry.
               </p>
             </div>
 
-            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-8 md:mt-2">
+            {/* Socials - Compact Row */}
+            <div className="flex justify-center md:justify-start gap-3 mt-8">
               <SocialIcon
                 href="https://instagram.com"
-                icon={<Instagram size={16} />}
+                icon={<Instagram size={14} />}
               />
               <SocialIcon
                 href="https://twitter.com"
-                icon={<Twitter size={16} />}
+                icon={<Twitter size={14} />}
               />
               <SocialIcon
                 href="https://youtube.com"
-                icon={<Youtube size={16} />}
+                icon={<Youtube size={14} />}
               />
               <SocialIcon
                 href="https://linkedin.com"
-                icon={<Linkedin size={16} />}
+                icon={<Linkedin size={14} />}
               />
             </div>
           </div>
 
-          {/* 2. PRODUCTION COLUMN */}
-          {/* Desktop Order: 3 (Next to Contact) */}
-          <div className="col-span-1 md:col-span-2 flex flex-col items-center md:items-start border-r border-gold/30 md:border-none pr-2 md:pr-0 md:order-3">
-            <h5 className="text-white font-serif font-bold text-sm mb-4 tracking-widest uppercase">
-              Audiobook Services
-            </h5>
-            <ul className="flex flex-col gap-2 w-full">
-              <FooterLink href="/solo-audiobook-production">
-                Solo Narration
-              </FooterLink>
-              <FooterLink href="/dual-audiobook-production">
-                Dual Narration
-              </FooterLink>
-              <FooterLink href="/duet-audiobook-production">
-                Duet Narration
-              </FooterLink>
-              <FooterLink href="/multicast-audiobook-production">
-                Full-Cast Audio
-              </FooterLink>
-            </ul>
-          </div>
+          {/* 2. NAVIGATION GRID (Compacted for Mobile) */}
+          <div className="md:col-span-7 grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-4 text-center md:text-left">
+            {/* Services */}
+            <div className="flex flex-col gap-4">
+              <h5 className="text-[#d4af37] text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+                Production
+              </h5>
+              <ul className="flex flex-col gap-2">
+                <FooterLink href="/solo-audiobook-production">
+                  Solo Narration
+                </FooterLink>
+                <FooterLink href="/dual-audiobook-production">
+                  Dual Narration
+                </FooterLink>
+                <FooterLink href="/duet-audiobook-production">
+                  Duet Narration
+                </FooterLink>
+                <FooterLink href="/multicast-audiobook-production">
+                  Full-Cast Audio
+                </FooterLink>
+              </ul>
+            </div>
 
-          {/* 3. COMPANY COLUMN */}
-          {/* Desktop Order: 2 (Swapped to Left of Production) */}
-          <div className="col-span-1 md:col-span-2 flex flex-col items-center md:items-start pl-2 md:pl-0 md:order-2">
-            <h5 className="text-white font-serif font-bold text-sm mb-4 tracking-widest uppercase">
-              Company
-            </h5>
-            <ul className="flex flex-col gap-2 w-full">
-              <FooterLink href="/about-us">Production Process</FooterLink>
-              <FooterLink href="/talent-submissions">
-                Talent Submissions
-              </FooterLink>
-              <FooterLink href="/blog">Production Blog</FooterLink>
-              <FooterLink href="/frequently-asked-questions">FAQ</FooterLink>
-              <FooterLink href="/dashboard" highlight>
-                Production Hub
-              </FooterLink>
-            </ul>
-          </div>
+            {/* Company */}
+            <div className="flex flex-col gap-4">
+              <h5 className="text-[#d4af37] text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+                Studio
+              </h5>
+              <ul className="flex flex-col gap-2">
+                <FooterLink href="/about-us">Our Process</FooterLink>
+                <FooterLink href="/talent-submissions">Casting Call</FooterLink>
+                <FooterLink href="/blog">Journal</FooterLink>
+                <FooterLink href="/faq">The Archives</FooterLink>
+                <FooterLink href="/dashboard" highlight>
+                  Production Hub
+                </FooterLink>
+              </ul>
+            </div>
 
-          {/* 4. CONTACT COLUMN */}
-          {/* Desktop Order: 4 (Far Right) */}
-          <div className="col-span-2 md:col-span-3 pt-4 md:pt-0 border-t border-white/5 md:border-none flex flex-col items-center md:items-start md:order-4">
-            <h5 className="hidden md:block text-white font-serif font-bold text-sm mb-4 tracking-widest uppercase">
-              Talent Submissions
-            </h5>
-            <ul className="flex flex-col items-center md:items-start gap-4 md:gap-3 mt-2 md:mt-0">
-              <li className="flex items-center md:items-start gap-2 text-xs text-gray-400">
-                <Mail size={16} className="text-gold shrink-0" />{" "}
-                <a
-                  href="mailto:dm@cinesonicaudiobooks.com"
-                  className="text-md hover:text-white transition-colors"
-                >
-                  casting@cinesonicaudiobooks.com
-                </a>
-              </li>
-            </ul>
+            {/* Contact - Spans 2 cols on mobile to save vertical space, 1 on desktop */}
+            <div className="col-span-2 md:col-span-1 flex flex-col gap-4 items-center md:items-start pt-4 md:pt-0 border-t border-white/5 md:border-none">
+              <h5 className="text-[#d4af37] text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+                Inquiries
+              </h5>
+              <ul className="flex flex-col gap-3">
+                <li>
+                  <a
+                    href="mailto:casting@cinesonicaudiobooks.com"
+                    className="group flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors duration-300"
+                  >
+                    <Mail size={12} className="text-[#d4af37]" />
+                    <span>casting@cinesonicaudiobooks.com</span>
+                  </a>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="group inline-flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors duration-300"
+                  >
+                    <span>Start a Project</span>
+                    <ArrowUpRight
+                      size={12}
+                      className="opacity-0 -translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all"
+                    />
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
+
+        {/* === DIVIDER === */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
 
         {/* === BOTTOM BAR === */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-gold/30 to-transparent mb-6 opacity-50"></div>
-
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          {/* LEFT: Copyright + Trademark Notice */}
-          <div className="text-center md:text-left space-y-1">
-            <p className="text-[10px] text-gray-600 tracking-wider">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] text-white/30 font-light tracking-wide">
+          {/* Copyright & Legal */}
+          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-6 text-center md:text-left">
+            <span>
               &copy; {currentYear} CineSonic Audiobooks. All rights reserved.
-            </p>
-            {/* --- TRADEMARK NOTICE ADDED HERE --- */}
-            <p className="text-[9px] text-gray-700 font-sans">
+            </span>
+            <span className="hidden md:inline text-white/10">|</span>
+            <div className="flex gap-4">
+              <LegalLink href="/privacy">Privacy</LegalLink>
+              <LegalLink href="/terms">Terms</LegalLink>
+              <LegalLink href="/cookies">Cookies</LegalLink>
+            </div>
+          </div>
+
+          {/* Trademarks & Tech */}
+          <div className="flex flex-col items-center md:items-end gap-1">
+            <span className="opacity-60">
               CineSonic&trade; and "Production Intelligence"&trade; are
-              trademarks of CineSonic Audiobooks.
-            </p>
+              trademarks.
+            </span>
+            <span className="font-mono text-[9px] text-[#d4af37]/40 tracking-wider">
+              SYSTEM SECURE // VER 1.0.4 // RLS ENABLED
+            </span>
           </div>
-
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-            <LegalLink href="/legal/privacy-policy">Privacy</LegalLink>
-            <LegalLink href="/legal/terms-and-conditions">Terms</LegalLink>
-            <LegalLink href="/legal/cookie-policy">Cookies</LegalLink>
-            <LegalLink href="/legal/accessibility">Accessibility</LegalLink>
-          </div>
-        </div>
-
-        {/* --- TECH CREDIT ADDED HERE --- */}
-        <div className="mt-8 pt-4 border-t border-white/5 text-center md:text-right">
-          <span className="text-[9px] font-mono text-gray-800 tracking-[0.2em] uppercase opacity-40">
-            System Secure // Ver 1.0.4 // RLS Enabled
-          </span>
         </div>
       </div>
     </footer>
@@ -164,7 +177,7 @@ export default function Footer() {
 }
 
 // ----------------------------------------
-// HELPER COMPONENTS
+// SUB-COMPONENTS
 // ----------------------------------------
 
 function FooterLink({ href, children, highlight = false }) {
@@ -172,8 +185,10 @@ function FooterLink({ href, children, highlight = false }) {
     <li>
       <Link
         href={href}
-        className={`text-xs transition-all duration-300 inline-block hover:translate-x-1 ${
-          highlight ? "text-gold font-bold" : "text-gray-500 hover:text-gold"
+        className={`text-xs tracking-wide transition-all duration-300 inline-block hover:translate-x-1 ${
+          highlight
+            ? "text-[#d4af37] font-medium"
+            : "text-white/40 hover:text-white"
         }`}
       >
         {children}
@@ -184,10 +199,7 @@ function FooterLink({ href, children, highlight = false }) {
 
 function LegalLink({ href, children }) {
   return (
-    <Link
-      href={href}
-      className="text-[10px] text-gray-600 hover:text-gold uppercase tracking-widest transition-colors font-medium"
-    >
+    <Link href={href} className="hover:text-white transition-colors">
       {children}
     </Link>
   );
@@ -199,7 +211,7 @@ function SocialIcon({ href, icon }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-500 hover:text-gold hover:border-gold/50 hover:bg-gold/10 transition-all duration-300 hover:-translate-y-1"
+      className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-white/40 hover:text-[#d4af37] hover:border-[#d4af37]/30 hover:bg-[#d4af37]/5 transition-all duration-300"
     >
       {icon}
     </a>

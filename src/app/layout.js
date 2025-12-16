@@ -1,12 +1,10 @@
 import { Cinzel, Lato } from "next/font/google";
 import "./globals.css";
-// NOTE: We REMOVED the Navbar import from here.
-// It belongs in your MarketingLayout, not here.
 
 const cinzel = Cinzel({
   subsets: ["latin"],
   variable: "--font-cinzel",
-  weight: ["400", "700"],
+  weight: ["400", "600", "700"], // Added 600 for H3s
   display: "swap",
 });
 
@@ -18,20 +16,17 @@ const lato = Lato({
 });
 
 export const metadata = {
-  title: "CineSonic Production Intelligence",
+  title: "CineSonic | See Stories in Sound",
   description: "Audiobook production management system",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${lato.variable}`}>
-      {/* We add suppressHydrationWarning={true} here. 
-          It has ZERO effect on visuals. It just silences the console error. */}
       <body
-        className="font-sans antialiased bg-deep-space text-white"
+        className="font-sans antialiased overflow-x-hidden"
         suppressHydrationWarning={true}
       >
-        {/* Render children directly. The MarketingLayout will wrap the Navbar around them. */}
         {children}
       </body>
     </html>

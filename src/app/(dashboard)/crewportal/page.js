@@ -287,17 +287,14 @@ export default function AdminPortal() {
   };
 
   // --- 4. APPROVE & EXPLODE ---
-  // --- 4. APPROVE & EXPLODE (SMART VERSION) ---
   const handleApproveIntake = async () => {
     if (!selectedIntake) return;
     setProcessingId(selectedIntake.id);
 
     try {
       const projectId = "PROJ-" + Math.floor(1000 + Math.random() * 9000);
-      // Handle timeline splitting safely
       const dates = (selectedIntake.timeline || "").split("|");
 
-      // A. CREATE PRODUCTION ROW
       const { error: prodError } = await supabase.from("production_db").insert([
         {
           project_id: projectId,
@@ -313,70 +310,47 @@ export default function AdminPortal() {
 
       if (prodError) throw prodError;
 
-      // B. PARSE CHARACTERS (The Fix)
-      const rawChars = selectedIntake.characters || "";
-      let rolesToInsert = [];
+      const charBlock = selectedIntake.characters || "";
+      const lines = charBlock
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 2);
 
-      // Check if it looks like JSON (The new Intake Form)
-      if (rawChars.trim().startsWith("[")) {
-        try {
-          const parsedChars = JSON.parse(rawChars);
+      const rolesToInsert = lines.map((line) => {
+        let charName = line,
+          gender = "Any",
+          age = "Any",
+          specs = "See Breakdown";
+        if (line.includes(":")) {
+          const parts = line.split(":");
+          const prefix = parts[0].trim();
+          const details = parts.slice(1).join(":").trim();
 
-          rolesToInsert = parsedChars.map((char) => {
-            // Create a rich specs string
-            let specs = `${char.style || "Standard"} | Age: ${
-              char.age || "Any"
-            }`;
+          if (prefix.startsWith("M")) gender = "Male";
+          else if (prefix.startsWith("F")) gender = "Female";
 
-            // If they chose a specific actor, add it to specs so Casting sees it
-            if (char.preferredActorName) {
-              specs += ` | **CLIENT REQUEST: ${char.preferredActorName}**`;
-            }
-
-            return {
-              project_id: projectId,
-              role_id: "ROLE-" + Math.floor(10000 + Math.random() * 90000),
-              role_name: char.name || "Unnamed Character",
-              gender: char.gender || "Any", // Now we get clean Gender data!
-              age: char.age || "Any",
-              vocal_specs: specs,
-              status: "Open",
-              assigned_actor: "", // Keep empty so you can confirm availability first
-            };
-          });
-        } catch (e) {
-          console.error("JSON Parse failed, falling back to text", e);
+          const detailParts = details.split("-").map((s) => s.trim());
+          if (detailParts.length >= 2) {
+            charName = detailParts[0];
+            age = detailParts[1] || "Any";
+            specs = detailParts.slice(2).join(" - ") || "Standard";
+          } else {
+            charName = details;
+          }
         }
-      }
 
-      // Fallback: If JSON parsing failed or it didn't start with '[', treat as Legacy Text
-      if (rolesToInsert.length === 0) {
-        const lines = rawChars
-          .split(/\r?\n/)
-          .map((l) => l.trim())
-          .filter((l) => l.length > 2);
+        return {
+          project_id: projectId,
+          role_id: "ROLE-" + Math.floor(10000 + Math.random() * 90000),
+          role_name: charName,
+          gender: gender,
+          age: age,
+          vocal_specs: specs,
+          status: "Open",
+          assigned_actor: "",
+        };
+      });
 
-        rolesToInsert = lines.map((line) => {
-          // ... (Your existing legacy text parsing logic here) ...
-          let charName = line,
-            gender = "Any",
-            age = "Any",
-            specs = "See Breakdown";
-          // [Keep your existing string splitting logic here for safety]
-          return {
-            project_id: projectId,
-            role_id: "ROLE-" + Math.floor(10000 + Math.random() * 90000),
-            role_name: charName,
-            gender: gender,
-            age: age,
-            vocal_specs: specs,
-            status: "Open",
-            assigned_actor: "",
-          };
-        });
-      }
-
-      // C. INSERT ROLES
       if (rolesToInsert.length > 0) {
         const { error: castError } = await supabase
           .from("casting_db")
@@ -384,7 +358,6 @@ export default function AdminPortal() {
         if (castError) throw castError;
       }
 
-      // D. UPDATE INTAKE STATUS
       await supabase
         .from("project_intake_db")
         .update({ status: "APPROVED" })
@@ -392,6 +365,7 @@ export default function AdminPortal() {
 
       alert(`Project Approved! Created ID: ${projectId}`);
       setSelectedIntake(null);
+      // NOTE: We don't need to call fetchAllData() here because Realtime will catch the INSERT event!
     } catch (err) {
       console.error(err);
       alert("Approval Failed: " + err.message);

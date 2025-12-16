@@ -1,88 +1,79 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, Mic2, Star } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export default function CTASection() {
   return (
-    <section className="relative py-24 px-6 bg-[#050505] overflow-hidden">
-      {/* --- BACKGROUND FX --- */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* Top Spotlight */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60vw] h-[40vh] bg-[#d4af37]/10 blur-[120px] rounded-full mix-blend-screen" />
-        {/* Bottom Shadow */}
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-[#050505] to-transparent" />
-        {/* Grain */}
-        <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+    <section className="relative py-32 px-6 bg-[#030303] overflow-hidden flex items-center justify-center min-h-[60vh]">
+      {/* --- ATMOSPHERE --- */}
+      <div className="absolute inset-0 pointer-events-none select-none">
+        {/* Deep Ambient Glow from bottom */}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[80vw] h-[50vh] bg-gradient-to-t from-[#d4af37]/10 via-[#d4af37]/5 to-transparent blur-[100px] opacity-60" />
+
+        {/* Grain Texture (Subtler) */}
+        <div className="absolute inset-0 opacity-[0.04] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
+
+        {/* Vignette */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,#030303_100%)]" />
       </div>
 
-      <div className="max-w-5xl mx-auto relative z-10">
-        {/* THE CARD */}
-        <div className="relative rounded-[3rem] p-[1px] bg-gradient-to-b from-[#d4af37]/40 via-white/5 to-transparent overflow-hidden group">
-          {/* Inner Card Background */}
-          <div className="relative rounded-[3rem] bg-[#0a0a0a] overflow-hidden px-8 py-16 md:px-20 md:py-24 text-center">
-            {/* Hover Spotlight (Follows mouse effect logic simplified for CSS) */}
-            <div className="absolute inset-0 bg-[radial-gradient(800px_at_50%_-20%,rgba(212,175,55,0.1),transparent)] opacity-50 group-hover:opacity-100 transition-opacity duration-700" />
-
-            {/* Content */}
-            <div className="relative z-10 flex flex-col items-center">
-              {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/20 mb-8 animate-fade-in">
-                <div className="w-2 h-2 rounded-full bg-[#d4af37] animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#d4af37]">
-                  Booking Q3 Production
-                </span>
-              </div>
-
-              {/* Headline */}
-              <h2 className="text-4xl md:text-7xl font-serif text-white mb-6 tracking-tight leading-tight">
-                Ready to{" "}
-                <span className="text-[#d4af37] italic">Greenlight</span> <br />
-                Your Masterpiece?
-              </h2>
-
-              <p className="text-lg md:text-xl text-white/50 max-w-2xl mb-10 font-light leading-relaxed">
-                The studio is open. The roster is elite.{" "}
-                <br className="hidden md:block" />
-                The only thing missing is your manuscript.
-              </p>
-
-              {/* THE BUTTON */}
-              <Link
-                href="/projectform"
-                className="group/btn relative inline-flex items-center justify-center gap-4 px-12 py-5 bg-[#d4af37] text-[#050505] rounded-full overflow-hidden transition-transform duration-300 hover:scale-105 shadow-[0_0_40px_rgba(212,175,55,0.3)] hover:shadow-[0_0_60px_rgba(212,175,55,0.5)]"
-              >
-                {/* Button Shine Effect */}
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover/btn:animate-shine" />
-
-                <span className="text-sm font-bold uppercase tracking-widest relative z-10">
-                  Start Production
-                </span>
-                <ArrowRight
-                  size={18}
-                  className="relative z-10 group-hover/btn:translate-x-1 transition-transform"
-                />
-              </Link>
-
-              {/* Trust Indicator */}
-              <div className="mt-10 flex items-center gap-4 text-white/30 text-xs uppercase tracking-widest font-bold">
-                <div className="flex -space-x-2">
-                  {[...Array(3)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-6 h-6 rounded-full bg-white/10 border border-[#0a0a0a] flex items-center justify-center"
-                    >
-                      <Star
-                        size={10}
-                        className="text-[#d4af37] fill-[#d4af37]"
-                      />
-                    </div>
-                  ))}
-                </div>
-                <span>100% Rights Retention</span>
-              </div>
-            </div>
+      <div className="relative z-10 max-w-4xl mx-auto text-center group">
+        {/* Icon / Symbol - Floating */}
+        <div className="mb-8 flex justify-center">
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#d4af37] blur-[20px] opacity-0 group-hover:opacity-20 transition-opacity duration-1000" />
+            <Sparkles
+              className="w-6 h-6 text-[#d4af37]/60 group-hover:text-[#d4af37] transition-colors duration-500"
+              strokeWidth={1}
+            />
           </div>
+        </div>
+
+        {/* Headline - High Serif, Elegant, Fade-in feel */}
+        <h2 className="text-4xl md:text-6xl lg:text-7xl font-serif text-transparent bg-clip-text bg-gradient-to-b from-white via-white/90 to-white/40 mb-8 tracking-tight leading-[1.1]">
+          Your voice has a <br />
+          <span className="italic text-[#d4af37]/80 font-light">
+            story to tell.
+          </span>
+        </h2>
+
+        {/* Subtext - Mysterious & Invitational */}
+        <p className="text-lg text-white/40 max-w-xl mx-auto mb-12 font-light leading-relaxed tracking-wide">
+          We’ve set the stage. The acoustics are perfect. The only missing
+          element is the narrator.
+        </p>
+
+        {/* THE BUTTON - Glass/Ghost Style */}
+        <div className="flex flex-col items-center gap-6">
+          <Link
+            href="/projectform"
+            className="group/btn relative px-10 py-4 rounded-full overflow-hidden transition-all duration-500"
+          >
+            {/* Button Background - Glassy & Subtle */}
+            <div className="absolute inset-0 bg-white/5 border border-white/10 group-hover/btn:border-[#d4af37]/30 group-hover/btn:bg-[#d4af37]/5 transition-all duration-500 rounded-full" />
+
+            {/* Button Glow on Hover */}
+            <div className="absolute inset-0 opacity-0 group-hover/btn:opacity-100 bg-[radial-gradient(100px_at_50%_-20%,rgba(212,175,55,0.2),transparent)] transition-opacity duration-500" />
+
+            <div className="relative z-10 flex items-center gap-3">
+              <span className="text-sm font-medium tracking-[0.2em] uppercase text-white/80 group-hover/btn:text-[#d4af37] transition-colors duration-300">
+                Begin The Journey
+              </span>
+              <ArrowRight
+                size={16}
+                className="text-white/40 group-hover/btn:text-[#d4af37] group-hover/btn:translate-x-1 transition-all duration-300"
+              />
+            </div>
+          </Link>
+
+          {/* Very Subtle Text Link underneath */}
+          <Link
+            href="/portfolio"
+            className="text-xs uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors duration-300 border-b border-transparent hover:border-white/20 pb-0.5"
+          >
+            Explore the Archives
+          </Link>
         </div>
       </div>
     </section>

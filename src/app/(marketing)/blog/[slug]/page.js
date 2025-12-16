@@ -2,15 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
-import {
-  Calendar,
-  User,
-  ArrowLeft,
-  Share2,
-  Clock,
-  Tag,
-  BookOpen,
-} from "lucide-react";
+import { Calendar, User, ArrowLeft, Share2, Clock } from "lucide-react";
 import Link from "next/link";
 import Navbar from "../../../../components/marketing/Navbar";
 import Footer from "../../../../components/marketing/Footer";
@@ -21,18 +13,17 @@ export default function BlogPost() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // HELPER: Calculate Reading Time
+  // HELPER: Reading Time
   const getReadingTime = (htmlContent) => {
     if (!htmlContent) return 0;
-    const text = htmlContent.replace(/<[^>]*>/g, ""); // Strip HTML tags
+    const text = htmlContent.replace(/<[^>]*>/g, "");
     const wordCount = text.split(/\s+/).length;
-    return Math.ceil(wordCount / 200); // Avg reading speed: 200 words/min
+    return Math.ceil(wordCount / 200);
   };
 
   useEffect(() => {
     async function fetchPost() {
       if (!slug) return;
-
       const { data, error } = await supabase
         .from("blog_db")
         .select("*")
@@ -71,11 +62,19 @@ export default function BlogPost() {
 
   const readTime = getReadingTime(post.content);
 
+  // IMAGE FALLBACK
+  const coverImage =
+    post.cover_image && post.cover_image.length > 5
+      ? post.cover_image
+      : "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop";
+
   return (
     <div className="min-h-screen bg-[#020010] text-white font-sans selection:bg-[#d4af37]/30">
+      <Navbar />
+
       <main className="pt-32 pb-24">
         {/* HEADER SECTION */}
-        <div className="max-w-4xl mx-auto px-6 mb-12 text-center">
+        <div className="max-w-4xl mx-auto px-6 mb-16 text-center">
           <Link
             href="/blog"
             className="inline-flex items-center text-gray-500 hover:text-[#00f0ff] mb-8 transition-colors text-xs uppercase tracking-widest group"
@@ -87,56 +86,55 @@ export default function BlogPost() {
             Back to Log
           </Link>
 
-          {/* META BADGES */}
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs uppercase tracking-widest mb-6 font-bold">
-            <span className="flex items-center gap-2 text-[#d4af37]">
-              <Calendar size={14} />{" "}
+          {/* 1. COVER IMAGE (NOW FIRST) */}
+          <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] group mb-10">
+            <img
+              src={coverImage}
+              alt={post.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020010] via-transparent to-transparent opacity-60" />
+          </div>
+
+          {/* 2. TITLE (BELOW IMAGE, SMALLER, GRADIENT GOLD) */}
+          <h1 className="text-3xl md:text-5xl font-sans font-bold leading-tight mb-6 bg-gradient-to-br from-[#ffeebb] via-[#d4af37] to-[#b8860b] text-transparent bg-clip-text drop-shadow-sm">
+            {post.title}
+          </h1>
+
+          {/* 3. META BADGES (LAST) */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-bold opacity-80">
+            <span className="flex items-center gap-2 text-gray-400">
+              <Calendar size={12} />{" "}
               {new Date(post.created_at).toLocaleDateString()}
             </span>
             <span className="w-1 h-1 bg-white/20 rounded-full" />
             <span className="flex items-center gap-2 text-gray-400">
-              <User size={14} /> {post.author}
+              <User size={12} /> {post.author || "CineSonic Team"}
             </span>
             <span className="w-1 h-1 bg-white/20 rounded-full" />
             <span className="flex items-center gap-2 text-[#00f0ff]">
-              <Clock size={14} /> {readTime} Min Read
+              <Clock size={12} /> {readTime} Min Read
             </span>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-serif text-white leading-tight mb-8 drop-shadow-2xl">
-            {post.title}
-          </h1>
-
           {/* TAGS */}
           {post.tags && post.tags.length > 0 && (
-            <div className="flex justify-center gap-2 mb-8">
+            <div className="flex justify-center gap-2 mt-6">
               {post.tags.map((tag, i) => (
                 <span
                   key={i}
-                  className="px-3 py-1 border border-white/10 bg-white/5 rounded-full text-[10px] text-gray-300 uppercase tracking-widest hover:border-[#d4af37] transition-colors"
+                  className="px-3 py-1 border border-white/10 bg-white/5 rounded-full text-[10px] text-gray-500 uppercase tracking-widest"
                 >
                   {tag}
                 </span>
               ))}
             </div>
           )}
-
-          {/* COVER IMAGE */}
-          {post.cover_image && (
-            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] group">
-              <img
-                src={post.cover_image}
-                alt={post.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020010] via-transparent to-transparent opacity-60" />
-            </div>
-          )}
         </div>
 
         {/* CONTENT SECTION */}
         <div className="max-w-3xl mx-auto px-6">
-          <article className="prose prose-invert prose-lg prose-headings:font-serif prose-headings:text-white prose-p:text-gray-300 prose-p:leading-relaxed prose-a:text-[#00f0ff] prose-a:no-underline hover:prose-a:underline prose-strong:text-[#d4af37] prose-blockquote:border-l-[#d4af37] prose-blockquote:bg-white/5 prose-blockquote:py-2 prose-blockquote:pr-4">
+          <article className="blog-content">
             <div dangerouslySetInnerHTML={{ __html: post.content }} />
           </article>
 
@@ -157,6 +155,7 @@ export default function BlogPost() {
           </div>
         </div>
       </main>
+      <Footer />
     </div>
   );
 }
