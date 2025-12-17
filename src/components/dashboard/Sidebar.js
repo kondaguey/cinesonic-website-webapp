@@ -5,10 +5,15 @@ import {
   Search,
   ChevronRight,
   FolderOpen,
+  Clapperboard,
+  Mic,
 } from "lucide-react";
 
 // --- ATOMS ---
 import Button from "../ui/Button";
+
+// 🟢 IMPORT THEME HELPER
+import { getProjectTheme, THEME_COLORS } from "../ui/ThemeContext";
 
 const Sidebar = ({
   user,
@@ -30,7 +35,6 @@ const Sidebar = ({
 
   return (
     <>
-      {/* 🟢 CSS FOR GOLD SCROLLBAR */}
       <style jsx>{`
         .gold-scroll::-webkit-scrollbar {
           height: 6px;
@@ -40,12 +44,12 @@ const Sidebar = ({
           background: rgba(255, 255, 255, 0.05);
         }
         .gold-scroll::-webkit-scrollbar-thumb {
-          background-color: #d4af37;
+          background-color: #333;
           border-radius: 10px;
         }
       `}</style>
 
-      <div className="w-80 h-full bg-[#0a0a0a]/95 border-r border-[#d4af37]/20 flex flex-col shadow-2xl relative z-20 backdrop-blur-xl">
+      <div className="w-80 h-full bg-[#0a0a0a]/95 border-r border-white/10 flex flex-col shadow-2xl relative z-20 backdrop-blur-xl">
         {/* --- HEADER --- */}
         <div className="p-6 border-b border-white/10 bg-gradient-to-r from-[#0c0442] to-transparent">
           <h1 className="text-2xl font-serif font-bold text-[#d4af37] tracking-wider mb-1">
@@ -68,7 +72,6 @@ const Sidebar = ({
 
         {/* --- CONTROLS --- */}
         <div className="p-4 space-y-4 bg-[#0c0442]/95 backdrop-blur-sm sticky top-0 z-10 border-b border-white/5">
-          {/* Dashboard Nav Item */}
           <Button
             onClick={onDashboardClick}
             variant={!selectedProject ? "solid" : "ghost"}
@@ -83,7 +86,6 @@ const Sidebar = ({
             Dashboard
           </Button>
 
-          {/* Search Input */}
           <div className="relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-[#d4af37] transition-colors" />
             <input
@@ -108,15 +110,26 @@ const Sidebar = ({
               const isSelected =
                 selectedProject &&
                 selectedProject["Project ID"] === p["Project ID"];
+
+              // 🟢 DYNAMIC THEME
+              const themeColor = getProjectTheme(p["Format"]);
+              const isCinema = themeColor === THEME_COLORS.VIOLET;
+
               return (
                 <button
                   key={p["Project ID"]}
                   onClick={() => onSelectProject(p)}
-                  className={`w-full text-left p-3 rounded-lg transition-all duration-200 group relative overflow-hidden ${
-                    isSelected
-                      ? "bg-gradient-to-r from-[#d4af37]/10 to-transparent border-l-2 border-[#d4af37]"
-                      : "hover:bg-white/5 border-l-2 border-transparent hover:border-white/20"
-                  }`}
+                  className={`w-full text-left p-3 rounded-lg transition-all duration-200 group relative overflow-hidden border-l-2
+                    ${
+                      isSelected
+                        ? "bg-white/5"
+                        : "hover:bg-white/5 border-transparent hover:border-white/20"
+                    }
+                  `}
+                  style={{
+                    borderColor: isSelected ? themeColor : undefined,
+                    backgroundColor: isSelected ? `${themeColor}10` : undefined,
+                  }}
                 >
                   <div className="flex justify-between items-start relative z-10">
                     <div className="min-w-0 flex-1">
@@ -130,24 +143,23 @@ const Sidebar = ({
                         {p["Title"] || "Untitled Project"}
                       </div>
                       <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider">
+                        {isCinema ? (
+                          <Clapperboard size={10} color={themeColor} />
+                        ) : (
+                          <Mic size={10} color={themeColor} />
+                        )}
                         <span
-                          className={`${
-                            isSelected ? "text-[#d4af37]" : "text-gray-500"
-                          }`}
+                          style={{ color: isSelected ? themeColor : "#6b7280" }}
                         >
                           {p["Project ID"]}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-sm bg-white/5 ${
-                            isSelected ? "text-gray-300" : "text-gray-600"
-                          }`}
-                        >
-                          {p["Status"]}
                         </span>
                       </div>
                     </div>
                     {isSelected && (
-                      <ChevronRight className="w-4 h-4 text-[#d4af37] animate-pulse" />
+                      <ChevronRight
+                        className="w-4 h-4"
+                        style={{ color: themeColor }}
+                      />
                     )}
                   </div>
                 </button>

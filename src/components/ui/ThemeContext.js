@@ -1,63 +1,74 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 const ThemeContext = createContext();
 
+// 🟢 COLORS
+export const THEME_COLORS = {
+  GOLD: "#d4af37", // Standard / Solo
+  PINK: "#ff3399", // Dual
+  FIRE: "#ff4500", // Duet
+  CYAN: "#00f0ff", // Multi
+  VIOLET: "#7c3aed", // Cinema / Drama (Static)
+  SYSTEM: "#3b82f6", // Admin / Dashboard
+};
+
+// 🟢 HELPER: Determine Theme based on Project Format string
+export const getProjectTheme = (formatString) => {
+  if (!formatString) return THEME_COLORS.GOLD;
+  const lower = formatString.toLowerCase();
+
+  // If it's a Drama/Cinema -> VIOLET
+  if (lower.includes("drama") || lower.includes("cinema")) {
+    return THEME_COLORS.VIOLET;
+  }
+
+  // Otherwise -> GOLD (Standard)
+  return THEME_COLORS.GOLD;
+};
+
 export function ThemeProvider({ children }) {
-  // 1. STATE
-  const [theme, setTheme] = useState("gold"); // 'gold', 'pink', 'fire', 'cyan'
-  const [isCinematic, setIsCinematic] = useState(false); // true/false
+  const [theme, setTheme] = useState("gold");
+  const [isCinematic, setIsCinematic] = useState(false);
+  const pathname = usePathname();
 
-  // 2. THE STRICT 2-COLOR MATRIX
-  const getThemeStyles = () => {
-    const isDrama = isCinematic;
-
-    // The fixed "Drama" accent color (Violet)
-    const VIOLET = "#7c3aed";
-
-    // Define Base Colors
-    const COLORS = {
-      gold: "#d4af37",
-      pink: "#ff3399",
-      fire: "#ff4500",
-      cyan: "#00f0ff", // Pure Cyan now (No extra purple)
+  useEffect(() => {
+    // URL Logic
+    const colorZones = {
+      "/dual-audio-production": "pink",
+      "/duet-audio-production": "fire",
+      "/multicast-audio-production": "cyan",
+      "/solo-audio-production": "gold",
     };
 
-    const baseHex = COLORS[theme] || COLORS.gold;
+    const zoneTheme = colorZones[pathname];
 
-    // 🟢 GRADIENT LOGIC:
-    // If Drama: 70% Theme Color -> 30% Violet
-    // If Book:  100% Theme Color (Solid)
-    const activeGradient = isDrama
-      ? `linear-gradient(90deg, ${baseHex} 0%, ${baseHex} 70%, ${VIOLET} 100%)`
-      : `linear-gradient(90deg, ${baseHex}, ${baseHex})`; // Solid gradient
+    if (zoneTheme) {
+      setTheme(zoneTheme);
+    } else if (
+      pathname.includes("/crewportal") ||
+      pathname.includes("/dashboard")
+    ) {
+      // 🟢 DASHBOARD MODE: Default to System
+      setTheme("system");
+      setIsCinematic(false);
+    } else {
+      setTheme("gold");
+      setIsCinematic(false);
+    }
+  }, [pathname]);
 
-    return {
-      // 1. Class for Text (You still need these in your global.css)
-      shimmer: isDrama
-        ? `text-shimmer-${theme}-violet`
-        : `text-shimmer-${theme}`,
-
-      // 2. Hex for Borders/Icons/Solids
-      color: isDrama ? VIOLET : baseHex,
-
-      // 3. Gradient for Lines/Bars (Strict 70/30)
-      gradient: activeGradient,
-    };
+  const activeStyles = {
+    color: isCinematic
+      ? THEME_COLORS.VIOLET
+      : THEME_COLORS[theme.toUpperCase()] || THEME_COLORS.GOLD,
   };
-
-  const activeStyles = getThemeStyles();
 
   return (
     <ThemeContext.Provider
-      value={{
-        theme,
-        setTheme,
-        isCinematic,
-        setIsCinematic,
-        activeStyles,
-      }}
+      value={{ theme, setTheme, isCinematic, setIsCinematic, activeStyles }}
     >
       {children}
     </ThemeContext.Provider>

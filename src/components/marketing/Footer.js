@@ -9,24 +9,20 @@ import {
   Mail,
   ArrowUpRight,
 } from "lucide-react";
+// 🟢 1. IMPORT THE BRAIN
+import { useTheme } from "../ui/ThemeContext";
 
-export default function Footer({ theme = "gold" }) {
-  // 1. LOCAL COLOR MAP
-  const themeConfig = {
-    gold: { hex: "#d4af37" },
-    silver: { hex: "#c0c0c0" },
-    pink: { hex: "#ff3399" },
-    fire: { hex: "#ff4500" },
-    cyan: { hex: "#00f0ff" },
-    system: { hex: "#3b82f6" },
-  };
+export default function Footer() {
+  // 🟢 2. CONNECT TO CONTEXT
+  // We ignore the passed prop and use the global state instead
+  const { activeStyles } = useTheme();
 
-  const activeTheme = themeConfig[theme] || themeConfig.gold;
-  const color = activeTheme.hex;
+  // Fallback to Gold if context isn't ready, otherwise use the global active color
+  const color = activeStyles?.color || "#d4af37";
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative bg-[#020010] border-t border-white/5 overflow-hidden">
+    <footer className="relative bg-[#020010] border-t border-white/5 overflow-hidden transition-colors duration-1000">
       {/* --- ATMOSPHERE FX --- */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {/* Grain Texture */}
@@ -46,7 +42,10 @@ export default function Footer({ theme = "gold" }) {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8 mb-20">
           {/* 1. NARRATIVE COLUMN (Brand) */}
           <div className="md:col-span-5 flex flex-col text-center md:text-left space-y-6">
-            <h2 className="text-3xl font-serif text-white tracking-tight">
+            <h2
+              style={{ color: color }}
+              className="text-3xl font-serif text-white tracking-tight"
+            >
               CineSonic&trade;
             </h2>
 
@@ -59,7 +58,7 @@ export default function Footer({ theme = "gold" }) {
               <p>
                 Extending our commitment, we are{" "}
                 <span
-                  className="italic text-white"
+                  className="italic text-white transition-colors duration-1000"
                   style={{ textShadow: `0 0 10px ${color}40` }}
                 >
                   pioneering premier education
@@ -99,22 +98,25 @@ export default function Footer({ theme = "gold" }) {
             {/* Services */}
             <div className="flex flex-col gap-6">
               <h5
-                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 transition-colors duration-1000"
                 style={{ color: color }}
               >
                 Production
               </h5>
               <ul className="flex flex-col gap-3">
-                <FooterLink href="/solo" color={color}>
+                <FooterLink href="/solo-audiobook-production" color={color}>
                   Solo Narration
                 </FooterLink>
-                <FooterLink href="/dual" color={color}>
+                <FooterLink href="/dual-audiobook-production" color={color}>
                   Dual Narration
                 </FooterLink>
-                <FooterLink href="/duet" color={color}>
+                <FooterLink href="/duet-audiobook-production" color={color}>
                   Duet Narration
                 </FooterLink>
-                <FooterLink href="/multicast" color={color}>
+                <FooterLink
+                  href="/multicast-audiobook-production"
+                  color={color}
+                >
                   Full-Cast Audio
                 </FooterLink>
               </ul>
@@ -123,22 +125,28 @@ export default function Footer({ theme = "gold" }) {
             {/* Company */}
             <div className="flex flex-col gap-6">
               <h5
-                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 transition-colors duration-1000"
                 style={{ color: color }}
               >
                 Studio
               </h5>
               <ul className="flex flex-col gap-3">
-                <FooterLink href="/about" color={color}>
+                <FooterLink
+                  href="/about-us/audiobook-production-process"
+                  color={color}
+                >
                   Our Process
                 </FooterLink>
-                <FooterLink href="/casting" color={color}>
+                <FooterLink
+                  href="/audiobook-production-services/roster"
+                  color={color}
+                >
                   Casting Call
                 </FooterLink>
                 <FooterLink href="/blog" color={color}>
                   Journal
                 </FooterLink>
-                <FooterLink href="/faq" color={color}>
+                <FooterLink href="/frequently-asked-questions" color={color}>
                   The Archives
                 </FooterLink>
                 <FooterLink href="/dashboard" highlight color={color}>
@@ -150,7 +158,7 @@ export default function Footer({ theme = "gold" }) {
             {/* Contact */}
             <div className="col-span-2 md:col-span-1 flex flex-col gap-6 items-center md:items-start pt-8 md:pt-0 border-t border-white/5 md:border-none">
               <h5
-                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60"
+                className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-60 transition-colors duration-1000"
                 style={{ color: color }}
               >
                 Inquiries
@@ -171,7 +179,7 @@ export default function Footer({ theme = "gold" }) {
                 </li>
                 <li>
                   <Link
-                    href="/contact"
+                    href="/audiobook-production-services/projectform"
                     className="group inline-flex items-center gap-2 text-xs text-white/50 hover:text-white transition-colors duration-300"
                   >
                     <span>Start a Project</span>
@@ -205,9 +213,9 @@ export default function Footer({ theme = "gold" }) {
             <span>&copy; {currentYear} CineSonic Audiobooks.</span>
             <span className="hidden md:inline text-white/10">|</span>
             <div className="flex gap-6">
-              <LegalLink href="/privacy">Privacy</LegalLink>
-              <LegalLink href="/terms">Terms</LegalLink>
-              <LegalLink href="/cookies">Cookies</LegalLink>
+              <LegalLink href="/legal/privacy-policy">Privacy</LegalLink>
+              <LegalLink href="/legal/terms-and-conditions">Terms</LegalLink>
+              <LegalLink href="/legal/cookie-policy">Cookies</LegalLink>
             </div>
           </div>
 
@@ -217,7 +225,7 @@ export default function Footer({ theme = "gold" }) {
               Secure Connection
             </span>
             <span
-              className="font-mono text-[9px] tracking-widest opacity-50"
+              className="font-mono text-[9px] tracking-widest opacity-50 transition-colors duration-1000"
               style={{ color: color }}
             >
               SYSTEM STATUS: ONLINE

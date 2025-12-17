@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useEffect } from "react";
+import React, { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useTheme } from "./ThemeContext";
 import * as THREE from "three";
@@ -46,39 +46,61 @@ export default function ParticleFx({
     else if (vector === "dual") secondaryColor = COLORS.pink;
     else secondaryColor = COLORS.white;
   }
-  // Duet Cinematic Override
+
   if (vector === "duet" && activeCinematic) {
     secondaryColor = COLORS.violet;
   }
 
-  // 2. Glow Logic
+  // 2. Glow Logic (The "Shine")
   let backgroundStyle = {};
-  let backdropClass = "";
 
   if (vector === "solo") {
-    backgroundStyle = {
-      background: `radial-gradient(circle at center, ${primaryColor}40 0%, transparent 65%)`,
-      opacity: 0.6,
-    };
+    if (activeCinematic) {
+      // 🟢 SOLO DRAMA: Gold-Violet Burst
+      backgroundStyle = {
+        background: `radial-gradient(circle at center, ${primaryColor}60 0%, ${COLORS.violet}50 40%, transparent 80%)`,
+        opacity: 0.85,
+      };
+    } else {
+      // Standard Gold
+      backgroundStyle = {
+        background: `radial-gradient(circle at center, ${primaryColor}50 0%, transparent 70%)`,
+        opacity: 0.8,
+      };
+    }
   } else if (vector === "dual") {
-    const glowColor = activeCinematic ? COLORS.violet : COLORS.pink;
-    backgroundStyle = {
-      background: `linear-gradient(to top, ${glowColor}90 0%, ${glowColor}20 40%, transparent 80%)`,
-      opacity: 0.9,
-    };
-    backdropClass = "backdrop-blur-[2px]";
+    if (activeCinematic) {
+      // 🟢 DUAL DRAMA: Pink-Violet Rise
+      backgroundStyle = {
+        background: `linear-gradient(to top, ${COLORS.pink}80 0%, ${COLORS.violet}60 30%, transparent 90%)`,
+        opacity: 0.9,
+      };
+    } else {
+      // Standard Pink
+      backgroundStyle = {
+        background: `linear-gradient(to top, ${COLORS.pink}90 0%, ${COLORS.pink}20 50%, transparent 90%)`,
+        opacity: 0.9,
+      };
+    }
   } else if (vector === "duet") {
-    const glowColor = activeCinematic ? COLORS.fireRed : COLORS.fireRed;
-    backgroundStyle = {
-      background: `linear-gradient(to top, ${glowColor}90 0%, ${
-        activeCinematic ? COLORS.violet : COLORS.fireOrange
-      }20 50%, transparent 90%)`,
-      opacity: 0.9,
-    };
+    if (activeCinematic) {
+      // 🟢 DUET DRAMA: Red-Violet Inferno
+      backgroundStyle = {
+        background: `linear-gradient(to top, ${COLORS.fireRed}90 0%, ${COLORS.violet}70 40%, transparent 95%)`,
+        opacity: 0.95,
+      };
+    } else {
+      // Standard Fire
+      backgroundStyle = {
+        background: `linear-gradient(to top, ${COLORS.fireRed}90 0%, ${COLORS.fireOrange}30 60%, transparent 95%)`,
+        opacity: 0.95,
+      };
+    }
   } else if (vector === "multi") {
+    // CYAN/SPACE (Unchanged)
     backgroundStyle = {
-      background: `radial-gradient(circle at center, transparent 20%, ${COLORS.deepSpace} 100%)`,
-      opacity: 0.8,
+      background: `radial-gradient(circle at center, transparent 10%, ${COLORS.deepSpace} 90%)`,
+      opacity: 0.9,
     };
   }
 
@@ -101,8 +123,9 @@ export default function ParticleFx({
           />
         </Canvas>
       </div>
+
       <div
-        className={`absolute inset-0 z-10 transition-all duration-1000 ease-in-out ${backdropClass}`}
+        className="absolute inset-0 z-10 transition-all duration-1000 ease-in-out"
         style={backgroundStyle}
       />
     </div>
@@ -121,17 +144,17 @@ function Scene({ vector, col1, col2, isCine }) {
 }
 
 // ------------------------------------------------------------------
-// 1. SOLO: Visible Dust (Icosahedrons, High Opacity, Slow)
+// 1. SOLO: Visible Dust
 // ------------------------------------------------------------------
 function SoloSwarm({ col1, col2, isCine }) {
   const particles = useMemo(() => {
     return new Array(COUNT_SOLO).fill().map(() => ({
       factor: Math.random() * 100,
-      speed: Math.random() * 0.1 + 0.05, // Slow
+      speed: Math.random() * 0.1 + 0.05,
       xFactor: Math.random() * 8 - 4,
       yFactor: Math.random() * 4 - 2,
       zFactor: Math.random() * 4 - 2,
-      scale: Math.random() * 0.03 + 0.01, // Small dust
+      scale: Math.random() * 0.03 + 0.01,
       color: isCine ? (Math.random() > 0.5 ? col1 : col2) : col1,
     }));
   }, [col1, col2, isCine]);
@@ -153,14 +176,13 @@ function Floater({ data }) {
   return (
     <mesh ref={ref} position={[data.xFactor, data.yFactor, 0]}>
       <icosahedronGeometry args={[data.scale, 0]} />
-      {/* 🟢 High opacity so they are clearly visible */}
       <meshBasicMaterial color={data.color} transparent opacity={0.8} />
     </mesh>
   );
 }
 
 // ------------------------------------------------------------------
-// 2. DUAL: Floating Hearts (Tiny, Sparse, Fade In/Out)
+// 2. DUAL: Floating Hearts
 // ------------------------------------------------------------------
 function DualHearts({ col1, col2 }) {
   const heartShape = useMemo(() => {
@@ -196,9 +218,9 @@ function DualHearts({ col1, col2 }) {
       x: (Math.random() - 0.5) * 16,
       y: -7 - Math.random() * 6,
       z: -5 - Math.random() * 10,
-      speed: Math.random() * 0.02 + 0.015, // Slightly faster spawn
+      speed: Math.random() * 0.02 + 0.015,
       color: Math.random() > 0.6 ? col2 : col1,
-      scale: Math.random() * 0.04 + 0.02, // 🟢 Tiny
+      scale: Math.random() * 0.04 + 0.02,
       rotZ: Math.random() * 0.5 - 0.25,
     }));
   }, [col1, col2]);
@@ -210,24 +232,17 @@ function DualHearts({ col1, col2 }) {
 
 function HeartMesh({ data, shape }) {
   const ref = useRef();
-  const initialY = -7; // Spawn point
-  const limitY = 5; // Despawn point
+  const initialY = -7;
+  const limitY = 5;
 
   useFrame(() => {
     ref.current.position.y += data.speed;
     ref.current.position.x += Math.sin(ref.current.position.y) * 0.005;
-
-    // 🟢 Fade Logic (0 -> 1 -> 0)
-    // Normalize Y position between 0 and 1
     const progress = (ref.current.position.y - initialY) / (limitY - initialY);
-
-    // Sine wave for opacity: starts at 0, peaks at 1, ends at 0
     let opacity = Math.sin(progress * Math.PI);
-    if (opacity < 0) opacity = 0; // Clamp
+    if (opacity < 0) opacity = 0;
+    ref.current.material.opacity = opacity * 0.8;
 
-    ref.current.material.opacity = opacity * 0.8; // Max opacity 0.8
-
-    // Reset loop
     if (ref.current.position.y > limitY) {
       ref.current.position.y = initialY;
     }
@@ -252,7 +267,7 @@ function HeartMesh({ data, shape }) {
 }
 
 // ------------------------------------------------------------------
-// 3. DUET: Inferno (Locked)
+// 3. DUET: Inferno
 // ------------------------------------------------------------------
 function DuetInferno({ col1, col2, isCine }) {
   const particles = useMemo(() => {
@@ -305,7 +320,7 @@ function Ember({ data }) {
 }
 
 // ------------------------------------------------------------------
-// 4. MULTI: Warp Tunnel (Locked)
+// 4. MULTI: Warp Tunnel
 // ------------------------------------------------------------------
 function MultiWarp({ col1, col2, isCine }) {
   const particles = useMemo(() => {

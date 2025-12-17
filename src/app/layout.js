@@ -1,6 +1,7 @@
 import { Cinzel, Lato } from "next/font/google";
 import "./globals.css";
-import ThemeWrapper from "@/src/components/ui/ThemeWrapper"; // Import the Controller
+// 🟢 CHANGE: Import the Context, not the Wrapper
+import { ThemeProvider } from "@/src/components/ui/ThemeContext";
 
 const cinzel = Cinzel({
   subsets: ["latin"],
@@ -25,15 +26,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${cinzel.variable} ${lato.variable}`}>
       <body
-        // Added base bg/text colors here to prevent white flash before theme loads
         className="font-sans antialiased overflow-x-hidden bg-[#020010] text-white"
         suppressHydrationWarning={true}
       >
-        {/* ThemeWrapper is a Client Component. 
-            It checks the URL (usePathname) and injects the correct 
-            Navbar/Footer Theme (Gold, Pink, Cyan, System) automatically.
-        */}
-        <ThemeWrapper>{children}</ThemeWrapper>
+        {/* 🟢 LOGIC ONLY: Provides 'theme', 'setTheme', etc. to the whole app.
+            But DOES NOT render a Navbar or Footer. */}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

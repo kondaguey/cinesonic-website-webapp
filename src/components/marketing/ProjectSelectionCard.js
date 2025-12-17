@@ -54,9 +54,7 @@ export default function ProjectSelectionCard({
           : undefined,
       }}
     >
-      {/* 🔴 BUG FIX 1: SIDE BAR OVERFLOW 
-          Added 'rounded-tl-2xl rounded-bl-2xl' to match the parent card's curvature.
-      */}
+      {/* 🔴 BUG FIX 1: SIDE BAR CURVE FIX */}
       {isDrama && isSelected && (
         <div
           className="absolute left-0 top-0 bottom-0 w-1.5 z-20 animate-pulse rounded-tl-2xl rounded-bl-2xl"
@@ -67,10 +65,14 @@ export default function ProjectSelectionCard({
         />
       )}
 
-      {/* VISUAL ENGINE */}
+      {/* 🔴 BUG FIX 2: GLOSS JUMP FIX */}
+      {/* We use 'opacity-[0.01]' instead of 'opacity-0' when unselected.
+         This keeps the backdrop-filter 'warm' in the GPU so it doesn't snap on/off.
+         We also add 'will-change-opacity' to hint the browser.
+      */}
       <div
-        className={`absolute inset-0 transition-opacity duration-1000 ${
-          isSelected ? "opacity-100" : "opacity-0"
+        className={`absolute inset-0 transition-opacity duration-1000 will-change-opacity pointer-events-none ${
+          isSelected ? "opacity-100" : "opacity-[0.01]"
         }`}
       >
         <ParticleFx
@@ -83,14 +85,14 @@ export default function ProjectSelectionCard({
               : baseType === "Dual"
               ? "pink"
               : baseType === "Duet"
-              ? "fire"
+              ? "fire" // Maps to "fireOrange" in ParticleFx logic usually, ensure map matches
               : "cyan"
           }
         />
       </div>
 
-      {/* TOP ROW */}
-      <div className="flex justify-between items-start relative z-10 pl-2">
+      {/* TOP ROW (Z-Index bumped to 20 to sit above gloss) */}
+      <div className="flex justify-between items-start relative z-20 pl-2">
         <div
           className="p-2 rounded-full bg-black/60 border border-white/10 backdrop-blur-md transition-colors duration-300"
           style={{
@@ -113,8 +115,8 @@ export default function ProjectSelectionCard({
         </span>
       </div>
 
-      {/* BOTTOM ROW */}
-      <div className="relative z-10 pl-2">
+      {/* BOTTOM ROW (Z-Index bumped to 20) */}
+      <div className="relative z-20 pl-2">
         <h3
           className={`text-sm font-bold uppercase tracking-wide transition-all duration-300 ${
             isSelected

@@ -106,7 +106,7 @@ export default function Navbar() {
               {/* 🟢 Headers use baseColor to stay readable */}
               <DropdownHeader label="Core Production" color={baseColor} />
               <DropdownItem
-                href="/production-services"
+                href="/audio-production-services-overview"
                 label="Production Services Overview"
                 color={activeColor}
               />

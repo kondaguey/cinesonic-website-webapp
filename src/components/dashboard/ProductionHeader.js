@@ -1,14 +1,12 @@
 import React, { useState } from "react";
 import { Save, Loader2, Calendar, User, Activity } from "lucide-react";
-
-// --- ATOMS ---
 import Button from "../ui/Button";
+import { getProjectTheme } from "../ui/ThemeContext";
 
-// 1. MASTER LIST (Matches your Dashboard)
 const MASTER_STATUSES = [
   { id: "NEW", label: "New / Incoming", color: "text-purple-400" },
   { id: "NEGOTIATING", label: "Negotiating", color: "text-pink-400" },
-  { id: "CASTING", label: "Casting", color: "text-[#d4af37]" },
+  { id: "CASTING", label: "Casting", color: "text-yellow-400" },
   { id: "PRE-PRODUCTION", label: "Pre-Production", color: "text-blue-400" },
   { id: "IN PRODUCTION", label: "In Production", color: "text-indigo-400" },
   { id: "POST-PRODUCTION", label: "Post-Production", color: "text-cyan-400" },
@@ -29,36 +27,44 @@ export default function ProjectHeader({
 
   if (!project) return null;
 
-  // 🟢 WRAPPER: Tracks changes to trigger the "Glow"
+  // 🟢 DETERMINE COLORS
+  const themeColor = getProjectTheme(project["Format"]);
+
   const handleFieldUpdate = (field, value) => {
     setHasChanges(true);
     updateField(field, value);
   };
 
-  // 🟢 WRAPPER: Resets glow on save
   const handleSave = () => {
     saveProject();
     setHasChanges(false);
   };
 
-  // 🟢 LOGIC: Robust Status Matcher
-  const rawData = project["Status"];
-  const currentStatusID = rawData
-    ? String(rawData).toUpperCase().trim()
+  const currentStatusID = project["Status"]
+    ? String(project["Status"]).toUpperCase().trim()
     : "NEW";
-
   const activeStatusConfig = MASTER_STATUSES.find(
     (s) => s.id === currentStatusID
   ) || { color: "text-white" };
 
   return (
     <div className="mb-8 animate-fade-in">
-      {/* --- TOP ROW: TITLE & SAVE --- */}
+      {/* --- TOP ROW --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div className="flex-1 w-full relative group">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-[10px] bg-[#d4af37]/20 text-[#d4af37] px-2 py-0.5 rounded border border-[#d4af37]/10 uppercase tracking-wider font-bold">
+            <span
+              className="text-[10px] px-2 py-0.5 rounded border uppercase tracking-wider font-bold"
+              style={{
+                color: themeColor,
+                backgroundColor: `${themeColor}20`,
+                borderColor: `${themeColor}30`,
+              }}
+            >
               {project["Project ID"]}
+            </span>
+            <span className="text-[10px] text-gray-500 uppercase tracking-widest">
+              {project["Format"] || "Standard"}
             </span>
             {hasChanges && (
               <span className="text-[9px] text-red-400 font-bold animate-pulse flex items-center gap-1">
@@ -72,23 +78,29 @@ export default function ProjectHeader({
             type="text"
             value={project["Title"] || ""}
             onChange={(e) => handleFieldUpdate("Title", e.target.value)}
-            className="text-3xl md:text-5xl font-serif text-white bg-transparent border-b border-transparent hover:border-white/10 focus:border-[#d4af37] outline-none transition-all w-full placeholder:text-gray-700 py-2"
+            className="text-3xl md:text-5xl font-serif text-white bg-transparent border-b border-transparent hover:border-white/10 outline-none transition-all w-full placeholder:text-gray-700 py-2"
+            style={{ caretColor: themeColor }}
+            onFocus={(e) => (e.target.style.borderColor = themeColor)}
+            onBlur={(e) => (e.target.style.borderColor = "transparent")}
             placeholder="Untitled Project"
           />
         </div>
 
-        {/* 🟢 SAVE BUTTON: Fixed Width Issue */}
+        {/* 🟢 SAVE BUTTON */}
         <Button
           onClick={handleSave}
           disabled={saving}
-          variant={hasChanges ? "glow" : "solid"}
-          color="#d4af37"
-          // Added 'w-full md:w-auto' to override the default full width on desktop
+          variant={hasChanges ? "solid" : "ghost"}
+          color={themeColor}
           className={`shrink-0 w-full md:w-auto min-w-[160px] ${
             hasChanges
-              ? "animate-pulse-slow shadow-[0_0_30px_rgba(212,175,55,0.4)]"
-              : "opacity-80 hover:opacity-100"
+              ? "animate-pulse-slow shadow-lg"
+              : "border border-white/10"
           }`}
+          style={{
+            boxShadow: hasChanges ? `0 0 30px ${themeColor}40` : "none",
+            borderColor: hasChanges ? themeColor : "rgba(255,255,255,0.1)",
+          }}
         >
           {saving ? (
             <>
@@ -105,7 +117,6 @@ export default function ProjectHeader({
 
       {/* --- META DATA ROW --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        {/* 1. COORDINATOR INPUT */}
         <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4 group hover:border-white/20 transition-colors">
           <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-gray-400 group-hover:text-white transition-colors">
             <User size={18} />
@@ -115,20 +126,19 @@ export default function ProjectHeader({
               Coordinator
             </label>
             <input
-              className="bg-transparent text-sm text-white font-bold outline-none w-full placeholder:text-gray-600 focus:text-[#d4af37] transition-colors"
+              className="bg-transparent text-sm text-white font-bold outline-none w-full placeholder:text-gray-600 transition-colors"
               placeholder="Unassigned"
               value={project["Coordinator"] || ""}
               onChange={(e) => handleFieldUpdate("Coordinator", e.target.value)}
+              onFocus={(e) => (e.target.style.color = themeColor)}
+              onBlur={(e) => (e.target.style.color = "white")}
             />
           </div>
         </div>
 
-        {/* 2. STATUS DROPDOWN */}
         <div
           className={`bg-white/5 border p-4 rounded-xl flex items-center gap-4 relative group transition-colors ${
-            hasChanges
-              ? "border-[#d4af37]/50 bg-[#d4af37]/5"
-              : "border-white/10 hover:border-white/20"
+            hasChanges ? "border-white/30 bg-white/10" : "border-white/10"
           }`}
         >
           <div
@@ -152,15 +162,14 @@ export default function ProjectHeader({
                   </option>
                 ))}
                 {!MASTER_STATUSES.some((s) => s.id === currentStatusID) && (
-                  <option value={currentStatusID}>{rawData}</option>
+                  <option value={currentStatusID}>{project["Status"]}</option>
                 )}
               </select>
             </div>
           </div>
         </div>
 
-        {/* 3. DATE DISPLAY */}
-        <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4 opacity-70 hover:opacity-100 transition-opacity cursor-default">
+        <div className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4 cursor-default">
           <div className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center text-gray-400">
             <Calendar size={18} />
           </div>
@@ -170,18 +179,14 @@ export default function ProjectHeader({
             </label>
             <div className="text-sm text-gray-300 font-bold font-mono">
               {project["Start Date"]
-                ? new Date(project["Start Date"]).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })
+                ? new Date(project["Start Date"]).toLocaleDateString()
                 : "TBD"}
             </div>
           </div>
         </div>
       </div>
 
-      {/* --- TABS NAVIGATION --- */}
+      {/* --- TABS --- */}
       <div className="flex gap-1 border-b border-white/10 overflow-x-auto pb-0 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -190,24 +195,28 @@ export default function ProjectHeader({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-wider transition-all relative rounded-t-lg ${
-                isActive
-                  ? "text-[#d4af37] bg-white/[0.02]"
-                  : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.01]"
-              }`}
+              className={`flex items-center gap-2 px-6 py-4 text-xs font-bold uppercase tracking-wider transition-all relative rounded-t-lg
+                ${
+                  isActive
+                    ? "bg-white/[0.02] text-white"
+                    : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.01]"
+                }
+              `}
+              style={{ color: isActive ? themeColor : undefined }}
             >
               <Icon
                 size={14}
-                className={`transition-colors ${
-                  isActive
-                    ? "text-[#d4af37]"
-                    : "text-gray-600 group-hover:text-gray-400"
-                }`}
+                style={{ color: isActive ? themeColor : "currentColor" }}
               />
               {tab.label}
-
               {isActive && (
-                <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#d4af37] shadow-[0_-2px_10px_rgba(212,175,55,0.5)]"></div>
+                <div
+                  className="absolute bottom-0 left-0 w-full h-[2px]"
+                  style={{
+                    backgroundColor: themeColor,
+                    boxShadow: `0 -2px 10px ${themeColor}50`,
+                  }}
+                />
               )}
             </button>
           );
