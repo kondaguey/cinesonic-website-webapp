@@ -2,89 +2,143 @@
 
 import React from "react";
 import { useTheme } from "./ThemeContext";
-import { Sparkles, Zap, Clapperboard } from "lucide-react";
+import {
+  Mic,
+  Music,
+  Users,
+  Flame,
+  Rocket,
+  Zap,
+  Heart,
+  Sparkles,
+} from "lucide-react";
 
 export default function CineSonicToggle() {
-  const { isCinematic, setIsCinematic } = useTheme();
+  const { theme, isCinematic, setIsCinematic, activeStyles } = useTheme();
 
-  const VIOLET = "#7c3aed";
+  // 1. DYNAMIC ICON MAPPING
+  const getIcons = () => {
+    switch (theme) {
+      case "pink":
+        return { Standard: Users, Cinematic: Heart };
+      case "fire":
+        return { Standard: Flame, Cinematic: Zap };
+      case "cyan":
+        return { Standard: Rocket, Cinematic: Sparkles };
+      case "gold":
+      default:
+        return { Standard: Mic, Cinematic: Music };
+    }
+  };
+
+  const Icons = getIcons();
+
+  // 2. COLOR LOGIC
+  const activeColor = isCinematic
+    ? "#7c3aed"
+    : activeStyles?.color || "#d4af37";
 
   return (
-    // 🟢 Z-INDEX 10000 ensures this is ALWAYS clickable, even if the world is exploding
-    <div className="relative z-[10000] flex flex-col items-center gap-4 py-8 animate-fade-in-up">
-      <div className="flex items-center gap-6">
-        {/* Label Left */}
-        <span
-          className={`text-[10px] md:text-xs font-bold tracking-[0.25em] uppercase transition-all duration-500 ${
-            !isCinematic
-              ? "text-white opacity-100"
-              : "text-white opacity-30 blur-[1px]"
-          }`}
-        >
-          Sonic
-        </span>
+    <div className="flex items-center gap-4 md:gap-6 pointer-events-auto">
+      {/* 🟢 LEFT LABEL: Sonic Mode (Solid Theme Color) */}
+      <span
+        className={`text-xs md:text-sm font-bold tracking-[0.2em] uppercase transition-all duration-500 cursor-pointer ${
+          !isCinematic
+            ? "opacity-100 scale-105"
+            : "opacity-40 scale-100 text-gray-500"
+        }`}
+        style={{
+          color: !isCinematic ? activeColor : undefined,
+          textShadow: !isCinematic ? `0 0 15px ${activeColor}60` : "none",
+        }}
+        onClick={() => setIsCinematic(false)}
+      >
+        Sonic Mode
+      </span>
 
-        {/* THE SWITCH */}
-        <button
-          // 🟢 Pointer Events Auto ensures it catches clicks
-          className="relative w-24 h-12 rounded-full border bg-black/50 transition-all duration-700 shadow-inner group overflow-hidden cursor-pointer"
-          onClick={(e) => {
-            // Prevent event bubbling just in case
-            e.stopPropagation();
-            setIsCinematic(!isCinematic);
-          }}
+      {/* 🟢 THE SWITCH */}
+      <button
+        onClick={() => setIsCinematic(!isCinematic)}
+        className="group relative inline-flex items-center justify-center cursor-pointer transition-transform active:scale-95"
+        aria-label="Toggle Cinematic Mode"
+      >
+        {/* Track */}
+        <div
+          className="w-20 h-10 rounded-full border transition-all duration-500 ease-out flex items-center justify-between px-2 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]"
           style={{
-            borderColor: isCinematic ? VIOLET : "rgba(255,255,255,0.1)",
-            boxShadow: isCinematic
-              ? `0 0 30px ${VIOLET}40, inset 0 0 20px ${VIOLET}20`
-              : "inset 0 0 10px rgba(0,0,0,0.8)",
+            borderColor: activeColor,
+            backgroundColor: isCinematic
+              ? "rgba(124, 58, 237, 0.2)"
+              : `${activeColor}20`,
+            boxShadow: `0 0 20px ${activeColor}40`,
           }}
         >
-          {/* Violet Energy Background */}
+          {/* Left Icon Placeholder */}
           <div
-            className="absolute inset-0 transition-opacity duration-700 pointer-events-none"
-            style={{
-              opacity: isCinematic ? 0.4 : 0,
-              background: `linear-gradient(90deg, transparent, ${VIOLET}, transparent)`,
-            }}
-          />
-
-          {/* The Knob */}
-          <div
-            className="absolute top-1 left-1 w-10 h-10 rounded-full bg-white shadow-lg transition-all duration-700 cubic-bezier(0.34, 1.56, 0.64, 1) flex items-center justify-center z-10 pointer-events-none"
-            style={{
-              transform: isCinematic ? "translateX(100%)" : "translateX(0)",
-              backgroundColor: isCinematic ? VIOLET : "white",
-              boxShadow: isCinematic
-                ? `0 0 20px ${VIOLET}`
-                : "0 2px 5px rgba(0,0,0,0.5)",
-            }}
+            className={`transition-opacity duration-300 ${
+              isCinematic ? "opacity-30 blur-[1px]" : "opacity-100"
+            }`}
           >
-            {isCinematic ? (
-              <Clapperboard size={16} className="text-white animate-pulse" />
-            ) : (
-              <Zap size={16} className="text-black/50" />
-            )}
+            <Icons.Standard
+              size={14}
+              color={isCinematic ? "#ffffff" : activeColor}
+            />
           </div>
-        </button>
 
-        {/* Label Right */}
-        <span
-          className={`text-[10px] md:text-xs font-bold tracking-[0.25em] uppercase transition-all duration-500 flex items-center gap-2 ${
-            isCinematic
-              ? "text-[#7c3aed] opacity-100"
-              : "text-white opacity-30 blur-[1px]"
-          }`}
-          style={{ textShadow: isCinematic ? `0 0 20px ${VIOLET}` : "none" }}
+          {/* Right Icon Placeholder */}
+          <div
+            className={`transition-opacity duration-300 ${
+              isCinematic ? "opacity-100" : "opacity-30 blur-[1px]"
+            }`}
+          >
+            <Icons.Cinematic
+              size={14}
+              color={isCinematic ? "#ffffff" : activeColor}
+            />
+          </div>
+        </div>
+
+        {/* Knob */}
+        <div
+          className="absolute left-1 top-1 w-8 h-8 rounded-full shadow-lg transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex items-center justify-center border border-white/20"
+          style={{
+            backgroundColor: activeColor,
+            transform: isCinematic ? "translateX(125%)" : "translateX(0%)",
+            boxShadow: `0 0 15px ${activeColor}`,
+          }}
         >
-          CineSonic
-        </span>
-      </div>
+          <div className="relative w-full h-full flex items-center justify-center">
+            <Icons.Standard
+              size={16}
+              className={`absolute transition-all duration-300 text-[#020010] ${
+                isCinematic
+                  ? "opacity-0 scale-50 rotate-[-90deg]"
+                  : "opacity-100 scale-100 rotate-0"
+              }`}
+            />
+            <Icons.Cinematic
+              size={16}
+              className={`absolute transition-all duration-300 text-white ${
+                isCinematic
+                  ? "opacity-100 scale-100 rotate-0"
+                  : "opacity-0 scale-50 rotate-[90deg]"
+              }`}
+            />
+          </div>
+        </div>
+      </button>
 
-      {/* Helper Text */}
-      <p className="text-[9px] text-white/30 uppercase tracking-widest font-mono select-none">
-        {isCinematic ? "Audio Drama Mode: ON" : "Standard Production"}
-      </p>
+      {/* 🟢 RIGHT LABEL: CineSonic Mode (The Shimmer!) */}
+      <span
+        className={`text-xs md:text-sm font-bold tracking-[0.2em] uppercase transition-all duration-500 cursor-pointer ${
+          isCinematic
+            ? `${activeStyles?.shimmer} opacity-100 scale-105` // Applies the oily flow class
+            : "opacity-40 scale-100 text-gray-500"
+        }`}
+        onClick={() => setIsCinematic(true)}
+      >
+        CineSonic Mode
+      </span>
     </div>
   );
 }

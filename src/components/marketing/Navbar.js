@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
-// 🟢 1. IMPORT THE CONTEXT HOOK
+import { Cinzel } from "next/font/google";
 import { useTheme } from "../ui/ThemeContext";
 import {
   Shield,
@@ -15,28 +14,25 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-export default function Navbar({ theme: propTheme }) {
-  // 🟢 2. CONSUME THE CONTEXT DIRECTLY
-  const context = useTheme();
-  // Fallback chain: Context -> Prop -> Default Gold
-  const activeThemeKey = context?.theme || propTheme || "gold";
+// FONT CONFIG
+const cinzel = Cinzel({
+  subsets: ["latin"],
+  weight: ["700"],
+  display: "swap",
+});
+
+export default function Navbar() {
+  // 🟢 1. GLOBAL STATE CONNECTION
+  const { activeStyles, isCinematic } = useTheme();
+
+  // Helper for "Solid" color mode
+  const activeColor = activeStyles?.color || "#d4af37";
+
+  // Helper for "Gloss" mode (The CSS Class)
+  const shimmerClass = activeStyles?.shimmer || "text-shimmer-gold";
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // 3. COLOR MAPPING
-  const themeConfig = {
-    gold: { hex: "#d4af37" },
-    silver: { hex: "#c0c0c0" },
-    pink: { hex: "#ff3399" },
-    fire: { hex: "#ff4500" },
-    cyan: { hex: "#00f0ff" },
-    system: { hex: "#3b82f6" },
-  };
-
-  const activeThemeConfig = themeConfig[activeThemeKey] || themeConfig.gold;
-  const color = activeThemeConfig.hex;
-
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -49,18 +45,19 @@ export default function Navbar({ theme: propTheme }) {
     <>
       <nav
         className="sticky top-0 left-0 right-0 h-20 md:h-24 lg:h-28 z-[100] select-none transition-colors duration-700 ease-out"
-        style={{ "--theme-color": color }}
+        style={{ "--theme-color": activeColor }}
       >
-        {/* --- NAVBAR BACKGROUND --- */}
+        {/* BACKGROUND */}
         <div className="absolute inset-0 bg-[#020010]/80 backdrop-blur-xl border-b border-white/5 transition-all duration-300">
           <div className="absolute inset-0 opacity-[0.05] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay pointer-events-none" />
-
-          {/* 🟢 DYNAMIC BOTTOM GLOW */}
+          {/* BOTTOM GLOW */}
           <div
-            className="absolute bottom-0 left-0 right-0 h-[1px] transition-all duration-700 opacity-50"
+            className="absolute bottom-0 left-0 right-0 h-[2px] transition-all duration-700 opacity-80"
             style={{
-              background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
-              boxShadow: `0 1px 15px ${color}`,
+              background:
+                activeStyles?.gradient ||
+                `linear-gradient(90deg, transparent, ${activeColor}, transparent)`,
+              boxShadow: `0 1px 15px ${activeColor}40`,
             }}
           />
         </div>
@@ -69,135 +66,189 @@ export default function Navbar({ theme: propTheme }) {
           {/* --- LEFT: LOGO --- */}
           <Link
             href="/"
-            className="flex items-center group relative z-50 mr-4 lg:mr-6 flex-shrink min-w-0"
+            className="flex items-center group relative z-50 mr-4 lg:mr-8 flex-shrink-0 transition-opacity duration-300 hover:opacity-80"
           >
-            <div className="relative h-12 w-40 md:h-14 md:w-48 lg:h-16 lg:w-56 xl:h-20 xl:w-72 transition-all duration-300 group-hover:opacity-80">
-              <Image
-                src="/images/homepage-navbar-hero-logo-cinesonic-audiobooks-transparent.png"
-                alt="CineSonic Audiobooks"
-                fill
-                className="object-contain object-left"
-                priority
-              />
-            </div>
+            <h1
+              // 🟢 LOGO LOGIC: If Cinematic, apply Gloss Class. If Standard, apply inline Color.
+              className={`${
+                cinzel.className
+              } text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider drop-shadow-lg 
+               ${isCinematic ? shimmerClass : ""}`}
+              style={{ color: isCinematic ? undefined : activeColor }}
+            >
+              CineSonic™
+              <span className="text-sm md:text-base lg:text-lg align-top ml-1 opacity-80 text-white"></span>
+            </h1>
           </Link>
 
           {/* --- CENTER: DESKTOP NAVIGATION --- */}
-          <div className="hidden lg:flex items-center gap-2 xl:gap-8 flex-1 justify-center flex-shrink-0 whitespace-nowrap">
-            {/* 1. START YOUR PROJECT TODAY */}
+          <div className="hidden lg:flex items-center gap-1 xl:gap-6 flex-1 justify-start flex-shrink-0 whitespace-nowrap pl-4">
+            {/* START BUTTON */}
             <Link
               href="/projectform"
-              className="text-xs xl:text-sm font-extrabold tracking-[0.2em] text-white uppercase py-2 border-b-2 border-transparent transition-all duration-300 flex-shrink-0"
-              style={{ "--hover-color": color }}
+              className={`text-[10px] xl:text-xs font-extrabold tracking-[0.2em] uppercase py-2 border-b-2 border-transparent flex-shrink-0 
+              ${isCinematic ? shimmerClass : ""}`}
+              style={{
+                "--hover-color": activeColor,
+                color: isCinematic ? undefined : "white",
+              }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = color;
-                e.currentTarget.style.color = color;
-                e.currentTarget.style.textShadow = `0 0 20px ${color}80`;
+                e.currentTarget.style.borderColor = activeColor;
+                if (!isCinematic) e.currentTarget.style.color = activeColor;
+                e.currentTarget.style.textShadow = `0 0 20px ${activeColor}80`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "transparent";
-                e.currentTarget.style.color = "white";
+                if (!isCinematic) e.currentTarget.style.color = "white";
                 e.currentTarget.style.textShadow = "none";
               }}
             >
               Start Your Project Today
             </Link>
 
-            {/* 2. SERVICES (Updated URLs) */}
+            {/* DROPDOWNS */}
             <DesktopDropdown
-              title="Audiobook/drama Production Services"
-              color={color}
+              title="Audiobook/Drama Production Services"
+              color={activeColor}
+              shimmerClass={shimmerClass}
+              isCinematic={isCinematic}
+              activeStyles={activeStyles}
             >
-              <DropdownHeader label="Core Production" color={color} />
+              <DropdownHeader label="Core Production" color={activeColor} />
               <DropdownItem
                 href="/production-services"
                 label="Production Services Overview"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/roster"
                 label="Our Elite Talent"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
-              <GlowingDivider color={color} />
-              <DropdownHeader label="Production Tiers" color={color} />
+              <GlowingDivider
+                color={activeColor}
+                activeStyles={activeStyles}
+                isCinematic={isCinematic}
+              />
+              <DropdownHeader label="Production Tiers" color={activeColor} />
               <DropdownItem
                 href="/solo-audio-production"
-                label="Solo Audiobook/drama Production"
-                color={color}
+                label="Solo Audiobook/Drama Production"
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/dual-audio-production"
-                label="Dual Audiobook/drama Production"
-                color={color}
+                label="Dual Audiobook/Drama Production"
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/duet-audio-production"
-                label="Duet Audiobook/drama Production"
-                color={color}
+                label="Duet Audiobook/Drama Production"
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/multicast-audio-production"
-                label="Multi-Cast Audiobook/drama Production"
-                color={color}
+                label="Multi-Cast Audiobook/Drama Production"
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
             </DesktopDropdown>
 
-            {/* 3. ABOUT CINESONIC */}
-            <DesktopDropdown title="About CineSonic" color={color}>
-              <DropdownHeader label="Our Philosophy" color={color} />
+            <DesktopDropdown
+              title="About CineSonic"
+              color={activeColor}
+              shimmerClass={shimmerClass}
+              isCinematic={isCinematic}
+              activeStyles={activeStyles}
+            >
+              <DropdownHeader label="Our Philosophy" color={activeColor} />
               <DropdownItem
                 href="/about-us/audiobook-production-process"
                 label="The Production Process"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/about-us/the-best-actors"
                 label="The Best Actors"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/about-us/uncompromising-work-ethic"
                 label="Uncompromising Work Ethic"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/about-us/true-artistic-collaboration"
                 label="True Artistic Collaboration"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/about-us/core-values"
                 label="Foundational Company Values"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
-              <GlowingDivider color={color} />
+              <GlowingDivider
+                color={activeColor}
+                activeStyles={activeStyles}
+                isCinematic={isCinematic}
+              />
               <DropdownItem
                 href="/about-us/author-partner-testimonials"
                 label="Author-Partner Testimonials"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
                 highlight
               />
             </DesktopDropdown>
 
-            {/* 4. INTEL */}
-            <DesktopDropdown title="Intel" color={color}>
+            <DesktopDropdown
+              title="Intel"
+              color={activeColor}
+              shimmerClass={shimmerClass}
+              isCinematic={isCinematic}
+              activeStyles={activeStyles}
+            >
               <DropdownItem
                 href="/blog"
                 label="The CineSonic Blog"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
               <DropdownItem
                 href="/frequently-asked-questions"
                 label="FAQ"
-                color={color}
+                color={activeColor}
+                shimmerClass={shimmerClass}
+                isCinematic={isCinematic}
               />
             </DesktopDropdown>
           </div>
 
           {/* --- RIGHT: UTILITIES --- */}
           <div className="flex items-center gap-6 pl-2 lg:pl-4 flex-shrink-0 min-w-fit">
-            {/* THE HUB (High Tech AF) */}
             <Link
               href="/dashboard"
               className="hidden md:flex group relative items-center gap-3 px-4 lg:px-6 py-2 lg:py-3 bg-black/40 border transition-all duration-300 overflow-hidden"
@@ -206,39 +257,37 @@ export default function Navbar({ theme: propTheme }) {
                 borderRadius: "4px",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = color;
-                e.currentTarget.style.boxShadow = `0 0 15px ${color}20`;
+                e.currentTarget.style.borderColor = activeColor;
+                e.currentTarget.style.boxShadow = `0 0 15px ${activeColor}20`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
-              {/* Tech Scan Line Effect */}
               <div
                 className="absolute inset-0 w-[200%] h-full opacity-0 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none"
                 style={{
-                  background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+                  background:
+                    activeStyles?.gradient ||
+                    `linear-gradient(90deg, transparent, ${activeColor}, transparent)`,
                   transform: "skewX(-20deg) translateX(-100%)",
                   animation: "scan 2s infinite linear",
                 }}
               />
-
-              {/* Status Light */}
               <div className="relative flex h-2 w-2">
                 <span
                   className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 duration-700"
-                  style={{ backgroundColor: color }}
-                ></span>
+                  style={{ backgroundColor: activeColor }}
+                />
                 <span
                   className="relative inline-flex rounded-full h-2 w-2"
                   style={{
-                    backgroundColor: color,
-                    boxShadow: `0 0 8px ${color}`,
+                    backgroundColor: activeColor,
+                    boxShadow: `0 0 8px ${activeColor}`,
                   }}
-                ></span>
+                />
               </div>
-
               <div className="flex flex-col items-start leading-none relative z-10">
                 <span className="text-[8px] lg:text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-0.5">
                   Cast & Crew
@@ -247,14 +296,12 @@ export default function Navbar({ theme: propTheme }) {
                   Production Hub
                 </span>
               </div>
-
               <Shield
                 size={14}
                 className="text-gray-600 transition-colors ml-1 group-hover:text-white"
               />
             </Link>
 
-            {/* Mobile Menu Toggle */}
             <button
               className="lg:hidden p-2 text-white transition-colors relative z-[60]"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -265,10 +312,9 @@ export default function Navbar({ theme: propTheme }) {
         </div>
       </nav>
 
-      {/* --- MOBILE MENU (Updated URLs) --- */}
+      {/* MOBILE MENU */}
       <div
-        className={`fixed inset-0 z-50 bg-[#050505] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] lg:hidden flex flex-col
-        ${
+        className={`fixed inset-0 z-50 bg-[#050505] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] lg:hidden flex flex-col ${
           isMobileMenuOpen
             ? "opacity-100 pointer-events-auto translate-y-0"
             : "opacity-0 pointer-events-none -translate-y-4"
@@ -279,37 +325,41 @@ export default function Navbar({ theme: propTheme }) {
           <div
             className="absolute bottom-0 left-0 right-0 h-2/3 opacity-20 blur-[120px] transition-colors duration-1000"
             style={{
-              background: `linear-gradient(to top, ${color}, transparent)`,
+              background: `linear-gradient(to top, ${activeColor}, transparent)`,
             }}
           />
         </div>
-
         <div className="flex-1 overflow-y-auto pt-32 pb-12 px-8 relative z-10 custom-scrollbar">
           <div className="max-w-md mx-auto space-y-12">
             <div className="space-y-6">
               <h4
                 className="text-xs font-bold uppercase tracking-[0.3em] border-b border-white/10 pb-4"
-                style={{ color: color }}
+                style={{ color: activeColor }}
               >
                 Production Services
               </h4>
               <div className="flex flex-col gap-4">
-                <MobileLink href="/projectform" color={color} isPrimary>
+                <MobileLink href="/projectform" color={activeColor} isPrimary>
                   Start Your Project Today
                 </MobileLink>
                 <MobileLink href="/production-services">
                   Production Services Overview
                 </MobileLink>
                 <MobileLink href="/roster">Our Elite Talent</MobileLink>
-                <MobileLink href="/solo-production">Solo Production</MobileLink>
-                <MobileLink href="/dual-production">Dual Production</MobileLink>
-                <MobileLink href="/duet-production">Duet Production</MobileLink>
-                <MobileLink href="/multicast-production">
+                <MobileLink href="/solo-audio-production">
+                  Solo Production
+                </MobileLink>
+                <MobileLink href="/dual-audio-production">
+                  Dual Production
+                </MobileLink>
+                <MobileLink href="/duet-audio-production">
+                  Duet Production
+                </MobileLink>
+                <MobileLink href="/multicast-audio-production">
                   Multi-Cast Production
                 </MobileLink>
               </div>
             </div>
-            {/* ... Other mobile sections ... */}
           </div>
         </div>
       </div>
@@ -328,20 +378,24 @@ export default function Navbar({ theme: propTheme }) {
   );
 }
 
-// ----------------------------------------
-// DROPDOWN COMPONENTS (Unchanged Logic)
-// ----------------------------------------
+// --- SUBCOMPONENTS (Now Theme Aware) ---
 
-function DesktopDropdown({ title, children, color }) {
+function DesktopDropdown({
+  title,
+  children,
+  color,
+  shimmerClass,
+  isCinematic,
+  activeStyles,
+}) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false); // 🟢 Track Hover State
+  const [isHovered, setIsHovered] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target))
         setIsOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -353,12 +407,19 @@ function DesktopDropdown({ title, children, color }) {
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="flex items-center gap-2 lg:gap-2 text-xs xl:text-xs font-bold tracking-widest transition-colors py-2 outline-none uppercase text-center whitespace-nowrap"
-        // 🟢 Text Color Reacts to Hover
-        style={{ color: isOpen ? "white" : isHovered ? color : "#9ca3af" }}
+        className={`flex items-center gap-2 text-xs font-bold tracking-widest transition-all duration-300 py-2 outline-none uppercase text-center whitespace-nowrap 
+          ${isHovered && isCinematic ? shimmerClass : ""}`}
+        style={{
+          color: isOpen
+            ? "white"
+            : isHovered && !isCinematic
+            ? color
+            : isHovered
+            ? undefined
+            : "#9ca3af",
+        }}
       >
         {title}
-        {/* 🟢 Chevron Color Reacts to Theme (Always) */}
         <ChevronDown
           size={14}
           className={`transition-transform duration-500 ${
@@ -367,7 +428,6 @@ function DesktopDropdown({ title, children, color }) {
           style={{ color: color }}
         />
       </button>
-
       <div
         className={`absolute top-full left-1/2 -translate-x-1/2 pt-6 w-[340px] transition-all duration-300 ease-out transform z-[100] ${
           isOpen
@@ -383,8 +443,8 @@ function DesktopDropdown({ title, children, color }) {
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="absolute top-0 left-0 right-0 h-1 transition-colors duration-500"
-            style={{ backgroundColor: color }}
+            className="absolute top-0 left-0 right-0 h-1 transition-all duration-500"
+            style={{ background: isCinematic ? activeStyles?.gradient : color }}
           />
           <div className="py-4 flex flex-col gap-1">{children}</div>
         </div>
@@ -406,7 +466,14 @@ function DropdownHeader({ label, color }) {
   );
 }
 
-function DropdownItem({ href, label, highlight = false, color }) {
+function DropdownItem({
+  href,
+  label,
+  highlight = false,
+  color,
+  shimmerClass,
+  isCinematic,
+}) {
   return (
     <Link
       href={href}
@@ -414,9 +481,9 @@ function DropdownItem({ href, label, highlight = false, color }) {
     >
       <div className="flex items-center justify-between relative z-10">
         <span
-          className={`transition-colors duration-300 ${
-            highlight ? "font-bold" : "text-gray-400 group-hover:text-white"
-          }`}
+          className={`transition-colors duration-300 
+            ${highlight ? "font-bold" : "text-gray-400 group-hover:text-white"}
+            ${!highlight && isCinematic ? `group-hover:${shimmerClass}` : ""}`}
           style={{ color: highlight ? color : undefined }}
         >
           <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">
@@ -429,22 +496,28 @@ function DropdownItem({ href, label, highlight = false, color }) {
           style={{ color: color }}
         />
       </div>
+      {/* Dynamic Underline */}
       <div
         className="absolute bottom-0 left-0 h-[1px] w-0 transition-all duration-300 ease-out group-hover:w-full"
-        style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
+        style={{
+          background: color,
+          boxShadow: `0 0 10px ${color}`,
+        }}
       />
     </Link>
   );
 }
 
-function GlowingDivider({ color }) {
+function GlowingDivider({ color, activeStyles, isCinematic }) {
   return (
     <div className="relative h-px w-full my-3">
       <div className="absolute inset-0 bg-white/5" />
       <div
         className="absolute inset-0 opacity-50 transition-colors duration-500"
         style={{
-          background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+          background: isCinematic
+            ? activeStyles?.gradient
+            : `linear-gradient(90deg, transparent, ${color}, transparent)`,
         }}
       />
     </div>

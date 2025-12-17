@@ -98,7 +98,7 @@ Copy this entire block. This is the source code for our brain.
 
 1. **`ThemeContext.js`:** **[CRITICAL]** The Brain. Manages `theme` and `isCinematic`.
 2. **`ThemeWrapper.js`:** The Body. Injects CSS variables and handles "Letterbox" classes.
-3. **`CineSonicToggle.js`:** The Switch. Activates the "Violet Virus."
+3. **`CineSonicToggle.js`:** The Switch. Activates the "Violet Vignette."
 4. **`Button.js`:** Theme-aware interactive element.
 5. **`ParticleFx.js`:** HTML5 Canvas backgrounds (Starfields, Embers, Hearts).
 

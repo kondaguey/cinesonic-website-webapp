@@ -1,11 +1,6 @@
 "use client";
 import React from "react";
 
-/**
- * THE BUTTON MATRIX (CSS Variable Edition)
- * Uses the Global CSS Variables defined in your stylesheet.
- */
-
 export default function Button({
   children,
   onClick,
@@ -17,13 +12,12 @@ export default function Button({
   type = "button",
 }) {
   // 1. MAP TO CSS VARIABLES
-  // We map the friendly prop name to the exact CSS variable name
   const themeMap = {
     gold: "var(--color-gold)",
     pink: "var(--color-pink-neon)",
     fire: "var(--color-fire)",
     cyan: "var(--color-cyan)",
-    danger: "#ef4444", // Fallback for system colors not in your CSS vars yet
+    danger: "#ef4444",
     system: "#3b82f6",
   };
 
@@ -33,44 +27,41 @@ export default function Button({
   const base =
     "relative inline-flex items-center justify-center font-bold uppercase tracking-[0.15em] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 group overflow-hidden z-10";
 
+  // Default size (can be overridden by className)
   const sizeStyles =
     variant === "icon"
       ? "w-10 h-10 rounded-lg"
       : "px-6 py-3 h-10 text-[10px] rounded-lg";
 
-  // 3. VARIANT STYLES (Dynamic)
+  // 3. VARIANT STYLES
   const getVariantStyles = () => {
     switch (variant) {
       case "solid":
         return {
           background: activeColor,
-          color: "#020010", // Always dark text on bright buttons
-          boxShadow: `0 4px 20px -5px ${activeColor}`, // Glow matches theme
+          color: "#020010",
+          boxShadow: `0 4px 20px -5px ${activeColor}`,
           border: "1px solid transparent",
         };
-
       case "outline":
         return {
           background: "transparent",
           color: activeColor,
           border: `1px solid ${activeColor}`,
         };
-
       case "ghost":
         return {
           background: "transparent",
           color: activeColor,
           border: "1px solid transparent",
         };
-
       case "glow":
         return {
           background: activeColor,
           color: "#020010",
-          boxShadow: `0 0 20px ${activeColor}`,
+          boxShadow: `0 0 30px ${activeColor}`, // Intense glow
           animation: "pulseSlow 4s ease-in-out infinite",
         };
-
       case "glass":
         return {
           background: "rgba(255, 255, 255, 0.05)",
@@ -78,7 +69,6 @@ export default function Button({
           border: "1px solid rgba(255, 255, 255, 0.1)",
           color: activeColor,
         };
-
       case "link":
         return {
           background: "transparent",
@@ -87,7 +77,6 @@ export default function Button({
           height: "auto",
           letterSpacing: "0.1em",
         };
-
       case "icon":
         return {
           background: "transparent",
@@ -95,30 +84,21 @@ export default function Button({
           color: activeColor,
           opacity: 0.8,
         };
-
       default:
         return {};
     }
   };
 
-  // 4. HOVER CLASSES
-  // Instead of calculating a hex color for hover, we use Filters (brightness/opacity).
-  // This works universally regardless of what color variable is passed in.
-
+  // 4. HOVER FILTERS
   let hoverClass = "";
   if (!disabled) {
     if (variant === "solid" || variant === "glow") {
-      // Lighten solid buttons slightly on hover + lift
       hoverClass =
         "hover:brightness-110 hover:shadow-2xl hover:-translate-y-0.5";
     } else if (variant === "outline" || variant === "icon") {
-      // Fill outline buttons with the color on hover
       hoverClass =
-        "hover:bg-[var(--btn-color)] hover:text-[#020010] hover:border-[var(--btn-color)] hover:shadow-[0_0_15px_var(--btn-color)]";
-    } else if (variant === "ghost") {
-      // Subtle background fade
-      hoverClass = "hover:bg-white/10";
-    } else if (variant === "glass") {
+        "hover:bg-[var(--btn-color)] hover:text-[#020010] hover:shadow-[0_0_15px_var(--btn-color)]";
+    } else if (variant === "ghost" || variant === "glass") {
       hoverClass = "hover:bg-white/10 hover:border-white/20";
     } else if (variant === "link") {
       hoverClass = "hover:underline underline-offset-4 hover:brightness-125";
@@ -131,19 +111,17 @@ export default function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
+      // 'className' comes last to allow you to override height/padding
       className={`${base} ${sizeStyles} ${hoverClass} ${className}`}
       style={{
         ...getVariantStyles(),
-        "--btn-color": activeColor, // Pass CSS var down to Tailwind hover classes
+        "--btn-color": activeColor,
       }}
     >
-      {/* SHINE EFFECT (Solid/Glow only) */}
       {(variant === "solid" || variant === "glow") && (
         <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent z-0 pointer-events-none" />
       )}
-
       <span className="relative z-10 flex items-center gap-2">{children}</span>
-
       <style jsx>{`
         @keyframes shimmer {
           100% {

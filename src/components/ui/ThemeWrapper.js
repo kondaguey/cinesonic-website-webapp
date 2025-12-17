@@ -26,7 +26,7 @@ function ThemeLayout({ children }) {
   return (
     <div className="relative min-h-screen overflow-x-hidden">
       {/* 🟢 3. THE PARTICLE LAYER (Background) */}
-      <ParticleFx />
+      <ParticleFx mode="ambient" vector="none" />
 
       {/* 🟢 4. UI LAYER (Foreground) */}
       {/* Navbar sits on top (z-100 in its own file) */}

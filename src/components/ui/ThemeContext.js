@@ -1,65 +1,71 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
 
 const ThemeContext = createContext();
 
-export function useTheme() {
-  return useContext(ThemeContext);
-}
-
 export function ThemeProvider({ children }) {
-  const pathname = usePathname();
+  // 1. STATE
+  const [theme, setTheme] = useState("gold"); // 'gold', 'pink', 'fire', 'cyan'
+  const [isCinematic, setIsCinematic] = useState(false); // true/false
 
-  // 1. STATE MANAGEMENT
-  const [manualTheme, setManualTheme] = useState(null);
+  // 2. THE STRICT 2-COLOR MATRIX
+  const getThemeStyles = () => {
+    const isDrama = isCinematic;
 
-  // 🟢 NEW: The "Cinematic Mode" Toggle (Standard vs. Audiodrama)
-  const [isCinematic, setIsCinematic] = useState(false);
+    // The fixed "Drama" accent color (Violet)
+    const VIOLET = "#7c3aed";
 
-  // 2. AUTOMATIC RULES (URL Based)
-  const getPathTheme = () => {
-    // DUAL (Romance)
-    if (pathname.includes("/dual")) return "pink";
+    // Define Base Colors
+    const COLORS = {
+      gold: "#d4af37",
+      pink: "#ff3399",
+      fire: "#ff4500",
+      cyan: "#00f0ff", // Pure Cyan now (No extra purple)
+    };
 
-    // DUET (High Heat/Thriller)
-    if (pathname.includes("/duet")) return "fire";
+    const baseHex = COLORS[theme] || COLORS.gold;
 
-    // MULTI (Sci-Fi/Full Cast)
-    if (pathname.includes("/multicast")) return "cyan";
+    // 🟢 GRADIENT LOGIC:
+    // If Drama: 70% Theme Color -> 30% Violet
+    // If Book:  100% Theme Color (Solid)
+    const activeGradient = isDrama
+      ? `linear-gradient(90deg, ${baseHex} 0%, ${baseHex} 70%, ${VIOLET} 100%)`
+      : `linear-gradient(90deg, ${baseHex}, ${baseHex})`; // Solid gradient
 
-    // DASHBOARD (System)
-    if (pathname.includes("/dashboard")) return "system";
+    return {
+      // 1. Class for Text (You still need these in your global.css)
+      shimmer: isDrama
+        ? `text-shimmer-${theme}-violet`
+        : `text-shimmer-${theme}`,
 
-    // TECH SPECS (Silver) - Optional if you add a tech page
-    if (pathname.includes("/specs")) return "silver";
+      // 2. Hex for Borders/Icons/Solids
+      color: isDrama ? VIOLET : baseHex,
 
-    return "gold"; // Default (Home, Solo, About, etc.)
+      // 3. Gradient for Lines/Bars (Strict 70/30)
+      gradient: activeGradient,
+    };
   };
 
-  // 3. SYNC LOGIC
-  useEffect(() => {
-    // When the user navigates to a new page:
-    setManualTheme(null); // Reset any manual color overrides
-    setIsCinematic(false); // Reset Cinematic Mode to "OFF"
-  }, [pathname]);
-
-  // 4. DETERMINE ACTIVE THEME
-  const activeTheme = manualTheme || getPathTheme();
+  const activeStyles = getThemeStyles();
 
   return (
     <ThemeContext.Provider
       value={{
-        theme: activeTheme,
-        setTheme: setManualTheme,
-        isCinematic, // The "Mode" State
-        setIsCinematic, // The Toggle Function
+        theme,
+        setTheme,
+        isCinematic,
+        setIsCinematic,
+        activeStyles,
       }}
     >
       {children}
     </ThemeContext.Provider>
   );
+}
+
+export function useTheme() {
+  return useContext(ThemeContext);
 }
 
 const FxSolo = () => (
