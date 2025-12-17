@@ -1,9 +1,27 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useMemo, useState, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { useTheme } from "./ThemeContext";
-// 🔴 BUG FIX 2: Removed unused icon imports so they don't get rendered
-import { Heart } from "lucide-react";
+import * as THREE from "three";
+
+// --- CONFIGURATION ---
+const COUNT_SOLO = 100; // Visible Dust
+const COUNT_DUAL = 15; // Sparse, tiny hearts
+const COUNT_FIRE = 150; // Dense Inferno (Locked)
+const COUNT_MULTI = 80; // Warp Tunnel (Locked)
+
+// --- COLORS ---
+const COLORS = {
+  gold: "#d4af37",
+  pink: "#ff3399",
+  fireRed: "#dc2626",
+  fireOrange: "#ea580c",
+  cyan: "#00f0ff",
+  violet: "#7c3aed",
+  white: "#ffffff",
+  deepSpace: "#020010",
+};
 
 export default function ParticleFx({
   mode = "ambient",
@@ -11,362 +29,327 @@ export default function ParticleFx({
   forceCinematic = null,
   forceTheme = null,
 }) {
-  const canvasRef = useRef(null);
   const { theme: globalTheme, isCinematic: globalCinematic } = useTheme();
 
-  // HYDRATION FIX
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Active State
   const activeCinematic =
     forceCinematic !== null ? forceCinematic : globalCinematic;
   const activeTheme = forceTheme !== null ? forceTheme : globalTheme;
 
-  // --- COLORS ---
-  const COLORS = {
-    gold: "#d4af37",
-    pink: "#ff3399",
-    fire: "#ff4500",
-    cyan: "#00f0ff",
-    silver: "#c0c0c0",
-    violet: "#7c3aed",
-  };
-  const themeHex = COLORS[activeTheme] || COLORS.gold;
-  const accentHex = activeCinematic ? COLORS.violet : themeHex;
+  const primaryColor = COLORS[activeTheme] || COLORS.gold;
 
-  // SET MOUNTED
-  useEffect(() => {
-    setIsMounted(true);
+  // 1. Secondary Color Logic
+  let secondaryColor;
+  if (activeCinematic) {
+    secondaryColor = COLORS.violet;
+  } else {
+    if (vector === "duet") secondaryColor = COLORS.fireOrange;
+    else if (vector === "dual") secondaryColor = COLORS.pink;
+    else secondaryColor = COLORS.white;
+  }
+  // Duet Cinematic Override
+  if (vector === "duet" && activeCinematic) {
+    secondaryColor = COLORS.violet;
+  }
+
+  // 2. Glow Logic
+  let backgroundStyle = {};
+  let backdropClass = "";
+
+  if (vector === "solo") {
+    backgroundStyle = {
+      background: `radial-gradient(circle at center, ${primaryColor}40 0%, transparent 65%)`,
+      opacity: 0.6,
+    };
+  } else if (vector === "dual") {
+    const glowColor = activeCinematic ? COLORS.violet : COLORS.pink;
+    backgroundStyle = {
+      background: `linear-gradient(to top, ${glowColor}90 0%, ${glowColor}20 40%, transparent 80%)`,
+      opacity: 0.9,
+    };
+    backdropClass = "backdrop-blur-[2px]";
+  } else if (vector === "duet") {
+    const glowColor = activeCinematic ? COLORS.fireRed : COLORS.fireRed;
+    backgroundStyle = {
+      background: `linear-gradient(to top, ${glowColor}90 0%, ${
+        activeCinematic ? COLORS.violet : COLORS.fireOrange
+      }20 50%, transparent 90%)`,
+      opacity: 0.9,
+    };
+  } else if (vector === "multi") {
+    backgroundStyle = {
+      background: `radial-gradient(circle at center, transparent 20%, ${COLORS.deepSpace} 100%)`,
+      opacity: 0.8,
+    };
+  }
+
+  return (
+    <div className="absolute inset-0 w-full h-full pointer-events-none">
+      <div className="absolute inset-0 z-0">
+        <Canvas
+          camera={{ position: [0, 0, 10], fov: 60 }}
+          gl={{ alpha: true, antialias: true }}
+          dpr={[1, 2]}
+        >
+          {vector === "multi" && (
+            <fog attach="fog" args={[COLORS.deepSpace, 5, 30]} />
+          )}
+          <Scene
+            vector={vector}
+            col1={primaryColor}
+            col2={secondaryColor}
+            isCine={activeCinematic}
+          />
+        </Canvas>
+      </div>
+      <div
+        className={`absolute inset-0 z-10 transition-all duration-1000 ease-in-out ${backdropClass}`}
+        style={backgroundStyle}
+      />
+    </div>
+  );
+}
+
+function Scene({ vector, col1, col2, isCine }) {
+  if (vector === "solo")
+    return <SoloSwarm col1={col1} col2={col2} isCine={isCine} />;
+  if (vector === "dual") return <DualHearts col1={col1} col2={col2} />;
+  if (vector === "duet")
+    return <DuetInferno col1={col1} col2={col2} isCine={isCine} />;
+  if (vector === "multi")
+    return <MultiWarp col1={col1} col2={col2} isCine={isCine} />;
+  return null;
+}
+
+// ------------------------------------------------------------------
+// 1. SOLO: Visible Dust (Icosahedrons, High Opacity, Slow)
+// ------------------------------------------------------------------
+function SoloSwarm({ col1, col2, isCine }) {
+  const particles = useMemo(() => {
+    return new Array(COUNT_SOLO).fill().map(() => ({
+      factor: Math.random() * 100,
+      speed: Math.random() * 0.1 + 0.05, // Slow
+      xFactor: Math.random() * 8 - 4,
+      yFactor: Math.random() * 4 - 2,
+      zFactor: Math.random() * 4 - 2,
+      scale: Math.random() * 0.03 + 0.01, // Small dust
+      color: isCine ? (Math.random() > 0.5 ? col1 : col2) : col1,
+    }));
+  }, [col1, col2, isCine]);
+
+  return particles.map((data, i) => <Floater key={i} data={data} />);
+}
+
+function Floater({ data }) {
+  const ref = useRef();
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    ref.current.position.x =
+      data.xFactor + Math.sin(t * data.speed + data.factor) * 0.5;
+    ref.current.position.y =
+      data.yFactor + Math.cos(t * data.speed + data.factor) * 0.5;
+    ref.current.rotation.z += 0.002;
+    ref.current.rotation.x += 0.002;
+  });
+  return (
+    <mesh ref={ref} position={[data.xFactor, data.yFactor, 0]}>
+      <icosahedronGeometry args={[data.scale, 0]} />
+      {/* 🟢 High opacity so they are clearly visible */}
+      <meshBasicMaterial color={data.color} transparent opacity={0.8} />
+    </mesh>
+  );
+}
+
+// ------------------------------------------------------------------
+// 2. DUAL: Floating Hearts (Tiny, Sparse, Fade In/Out)
+// ------------------------------------------------------------------
+function DualHearts({ col1, col2 }) {
+  const heartShape = useMemo(() => {
+    const x = 0,
+      y = 0;
+    const shape = new THREE.Shape();
+    shape.moveTo(x + 0.25, y + 0.25);
+    shape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.2, y, x, y);
+    shape.bezierCurveTo(x - 0.3, y, x - 0.3, y + 0.35, x - 0.3, y + 0.35);
+    shape.bezierCurveTo(
+      x - 0.3,
+      y + 0.55,
+      x - 0.1,
+      y + 0.77,
+      x + 0.25,
+      y + 0.95
+    );
+    shape.bezierCurveTo(
+      x + 0.6,
+      y + 0.77,
+      x + 0.8,
+      y + 0.55,
+      x + 0.8,
+      y + 0.35
+    );
+    shape.bezierCurveTo(x + 0.8, y + 0.35, x + 0.8, y, x + 0.5, y);
+    shape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+    return shape;
   }, []);
 
-  // --- CANVAS PHYSICS ---
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    let animationFrameId;
+  const particles = useMemo(() => {
+    return new Array(COUNT_DUAL).fill().map(() => ({
+      x: (Math.random() - 0.5) * 16,
+      y: -7 - Math.random() * 6,
+      z: -5 - Math.random() * 10,
+      speed: Math.random() * 0.02 + 0.015, // Slightly faster spawn
+      color: Math.random() > 0.6 ? col2 : col1,
+      scale: Math.random() * 0.04 + 0.02, // 🟢 Tiny
+      rotZ: Math.random() * 0.5 - 0.25,
+    }));
+  }, [col1, col2]);
 
-    const resizeCanvas = () => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        canvas.width =
-          mode === "button" ? parent.clientWidth : window.innerWidth;
-        canvas.height =
-          mode === "button" ? parent.clientHeight : window.innerHeight;
-      }
-    };
-    resizeCanvas();
-    if (mode !== "button") window.addEventListener("resize", resizeCanvas);
+  return particles.map((data, i) => (
+    <HeartMesh key={i} data={data} shape={heartShape} />
+  ));
+}
 
-    let pCount = mode === "hero" ? 60 : mode === "button" ? 15 : 30;
-    const particleCount = activeCinematic ? pCount + 10 : pCount;
+function HeartMesh({ data, shape }) {
+  const ref = useRef();
+  const initialY = -7; // Spawn point
+  const limitY = 5; // Despawn point
 
-    class Particle {
-      constructor() {
-        this.reset(true);
-      }
-      reset(initial = false) {
-        this.x = Math.random() * canvas.width;
-        this.y = initial ? Math.random() * canvas.height : canvas.height + 10;
+  useFrame(() => {
+    ref.current.position.y += data.speed;
+    ref.current.position.x += Math.sin(ref.current.position.y) * 0.005;
 
-        const speed = activeCinematic ? 1.5 : 0.8;
-        this.speedY = (Math.random() * 0.5 + 0.1) * speed;
-        this.speedX = (Math.random() * 0.4 - 0.2) * speed;
-        this.size =
-          mode === "button" ? Math.random() * 1.5 : Math.random() * 3 + 0.5;
+    // 🟢 Fade Logic (0 -> 1 -> 0)
+    // Normalize Y position between 0 and 1
+    const progress = (ref.current.position.y - initialY) / (limitY - initialY);
 
-        const rand = Math.random();
-        if (rand > 0.9) this.color = "#ffffff";
-        else if (rand > 0.5) this.color = accentHex;
-        else this.color = themeHex;
+    // Sine wave for opacity: starts at 0, peaks at 1, ends at 0
+    let opacity = Math.sin(progress * Math.PI);
+    if (opacity < 0) opacity = 0; // Clamp
 
-        this.opacity = Math.random() * 0.5 + 0.1;
-        this.fadeSpeed = Math.random() * 0.003 + 0.001;
-      }
-      update() {
-        this.y -= this.speedY;
-        this.x += this.speedX;
-        this.opacity -= this.fadeSpeed;
-        if (this.y < -10 || this.opacity <= 0) this.reset();
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${parseInt(
-          this.color.slice(1, 3),
-          16
-        )}, ${parseInt(this.color.slice(3, 5), 16)}, ${parseInt(
-          this.color.slice(5, 7),
-          16
-        )}, ${this.opacity})`;
-        ctx.fill();
-      }
+    ref.current.material.opacity = opacity * 0.8; // Max opacity 0.8
+
+    // Reset loop
+    if (ref.current.position.y > limitY) {
+      ref.current.position.y = initialY;
     }
+  });
 
-    const particles = Array.from(
-      { length: particleCount },
-      () => new Particle()
-    );
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.globalCompositeOperation = "lighter";
-      particles.forEach((p) => {
-        p.update();
-        p.draw();
-      });
-      animationFrameId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      if (mode !== "button") window.removeEventListener("resize", resizeCanvas);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [activeTheme, activeCinematic, mode, themeHex, accentHex]);
-
-  // --- RENDER ---
   return (
-    <div className="absolute inset-0 pointer-events-none select-none overflow-hidden rounded-inherit">
-      <style jsx>{`
-        @keyframes floatUp {
-          0% {
-            transform: translateY(0) scale(0.8);
-            opacity: 0;
-          }
-          20% {
-            opacity: 0.8;
-          }
-          100% {
-            transform: translateY(-60px) scale(1.2);
-            opacity: 0;
-          }
-        }
-        @keyframes riseFast {
-          0% {
-            transform: translateY(0) scale(0.8) rotate(0deg);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1.2) rotate(90deg);
-            opacity: 0;
-          }
-        }
-        @keyframes shootUp {
-          0% {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-150%);
-            opacity: 0;
-          }
-        }
-        @keyframes speckleFloat {
-          0%,
-          100% {
-            transform: translate(0, 0);
-            opacity: 0.4;
-          }
-          50% {
-            transform: translate(5px, -10px);
-            opacity: 1;
-          }
-        }
-      `}</style>
-
-      <canvas ref={canvasRef} className="absolute inset-0 z-0 opacity-60" />
-
-      {isMounted && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
-          {vector === "solo" && (
-            <SoloVector
-              base={themeHex}
-              accent={accentHex}
-              isCine={activeCinematic}
-            />
-          )}
-          {vector === "dual" && (
-            <DualVector
-              base={themeHex}
-              accent={accentHex}
-              isCine={activeCinematic}
-            />
-          )}
-          {vector === "duet" && (
-            <DuetVector
-              base={themeHex}
-              accent={accentHex}
-              isCine={activeCinematic}
-            />
-          )}
-          {vector === "multi" && (
-            <MultiVector
-              base={themeHex}
-              accent={accentHex}
-              isCine={activeCinematic}
-            />
-          )}
-        </div>
-      )}
-    </div>
+    <mesh
+      ref={ref}
+      position={[data.x, data.y, data.z]}
+      rotation={[0, 0, Math.PI + data.rotZ]}
+    >
+      <shapeGeometry args={[shape]} />
+      <meshBasicMaterial
+        color={data.color}
+        transparent
+        opacity={0}
+        side={THREE.DoubleSide}
+      />
+      <group scale={[data.scale, data.scale, 1]} />
+    </mesh>
   );
 }
 
-// ==================================================================================
-// 🟢 BUG FIX 2: REMOVED CENTRAL ICONS FROM ALL VECTORS BELOW
-// Now they just render the "Energy" (Glows, Lines, Specs, Hearts)
-// ==================================================================================
+// ------------------------------------------------------------------
+// 3. DUET: Inferno (Locked)
+// ------------------------------------------------------------------
+function DuetInferno({ col1, col2, isCine }) {
+  const particles = useMemo(() => {
+    return new Array(COUNT_FIRE).fill().map(() => {
+      let color;
+      if (isCine) {
+        color = Math.random() > 0.2 ? COLORS.fireRed : col2;
+      } else {
+        color = Math.random() > 0.5 ? COLORS.fireRed : col2;
+      }
+      return {
+        x: (Math.random() - 0.5) * 14,
+        y: -6 - Math.random() * 4,
+        z: (Math.random() - 0.5) * 4,
+        speed: Math.random() * 0.08 + 0.03,
+        scale: Math.random() * 0.08 + 0.02,
+        offset: Math.random() * 100,
+        color: color,
+      };
+    });
+  }, [col1, col2, isCine]);
 
-// 1. SOLO: Breathing Glow + Gold/Violet Specs
-function SoloVector({ base, accent, isCine }) {
+  return particles.map((data, i) => <Ember key={i} data={data} />);
+}
+
+function Ember({ data }) {
+  const ref = useRef();
+  const initialY = data.y;
+  const initialX = data.x;
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    ref.current.position.y += data.speed;
+    ref.current.position.x = initialX + Math.sin(t * 5 + data.offset) * 0.15;
+    ref.current.rotation.z += 0.05;
+    ref.current.rotation.x += 0.05;
+    let life = 1 - ref.current.position.y / 3;
+    if (life < 0) life = 0;
+    ref.current.scale.setScalar(data.scale * life);
+    if (ref.current.position.y > 3 || life <= 0) {
+      ref.current.position.y = initialY;
+      ref.current.scale.setScalar(data.scale);
+    }
+  });
   return (
-    <div className="relative w-full h-full flex items-center justify-center animate-fade-in">
-      {/* Central Glow (No Icon) */}
-      <div
-        className="absolute w-32 h-32 rounded-full opacity-30 blur-[40px] animate-pulse"
-        style={{ background: `radial-gradient(circle, ${base}, ${accent})` }}
-      />
-      <div
-        className="absolute w-20 h-20 border border-[var(--b)] rounded-full opacity-20 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]"
-        style={{ "--b": base }}
-      />
-      {isCine && (
-        <div
-          className="absolute w-28 h-28 border border-[var(--a)] rounded-full opacity-10 animate-[ping_3s_infinite]"
-          style={{ "--a": accent, animationDelay: "0.5s" }}
-        />
-      )}
-      {/* Speckles */}
-      {[...Array(12)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{
-            backgroundColor:
-              i % 4 === 0
-                ? "#ffffff"
-                : isCine
-                ? i % 2 === 0
-                  ? accent
-                  : base
-                : base,
-            width: i % 2 === 0 ? "3px" : "2px",
-            height: i % 2 === 0 ? "3px" : "2px",
-            top: `${Math.random() * 80 + 10}%`,
-            left: `${Math.random() * 80 + 10}%`,
-            animation: `speckleFloat ${
-              Math.random() * 3 + 2
-            }s ease-in-out infinite`,
-            animationDelay: `${Math.random()}s`,
-            boxShadow: `0 0 5px ${base}`,
-          }}
-        />
-      ))}
-    </div>
+    <mesh ref={ref} position={[data.x, data.y, data.z]}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshBasicMaterial color={data.color} transparent opacity={0.9} />
+    </mesh>
   );
 }
 
-// 2. DUAL: Romance Rising (Hearts + Soft Fade)
-function DualVector({ base, accent, isCine }) {
+// ------------------------------------------------------------------
+// 4. MULTI: Warp Tunnel (Locked)
+// ------------------------------------------------------------------
+function MultiWarp({ col1, col2, isCine }) {
+  const particles = useMemo(() => {
+    return new Array(COUNT_MULTI).fill().map(() => ({
+      x: (Math.random() - 0.5) * 25,
+      y: (Math.random() - 0.5) * 15,
+      z: -40 + Math.random() * 50,
+      speed: Math.random() * 0.5 + 0.2,
+      len: Math.random() * 5 + 2,
+      color: Math.random() > 0.5 ? col1 : col2,
+    }));
+  }, [col1, col2]);
+
+  const groupRef = useRef();
+  useFrame((state) => {
+    if (isCine && groupRef.current) {
+      groupRef.current.rotation.z += 0.002;
+    }
+  });
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center animate-fade-in overflow-hidden">
-      <div
-        className="absolute bottom-0 left-0 right-0 h-3/4 opacity-30"
-        style={{ background: `linear-gradient(to top, ${base}, transparent)` }}
-      />
-      {/* Floating Hearts only */}
-      {[...Array(6)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute text-[var(--c)]"
-          style={{
-            "--c": isCine ? accent : base,
-            left: `${15 + i * 15}%`,
-            bottom: "-20px",
-            animation: `floatUp ${3 + Math.random()}s ease-in-out infinite`,
-            animationDelay: `${Math.random() * 2}s`,
-            opacity: 0.6,
-          }}
-        >
-          <Heart
-            size={12 + Math.random() * 10}
-            fill="currentColor"
-            stroke="none"
-          />
-        </div>
+    <group ref={groupRef}>
+      {particles.map((data, i) => (
+        <WarpStreak key={i} data={data} isCine={isCine} />
       ))}
-    </div>
+    </group>
   );
 }
 
-// 3. DUET: Digital Fire (Squares + Red/Orange or Red/Violet)
-function DuetVector({ base, accent, isCine }) {
-  const RED = "#dc2626";
+function WarpStreak({ data, isCine }) {
+  const ref = useRef();
+  const initialZ = -40;
+  const cameraZ = 12;
+  useFrame(() => {
+    const speedMult = isCine ? 2.5 : 1;
+    ref.current.position.z += data.speed * speedMult;
+    if (ref.current.position.z > cameraZ) {
+      ref.current.position.z = initialZ;
+    }
+  });
   return (
-    <div className="relative w-full h-full flex items-center justify-center animate-fade-in overflow-hidden">
-      <div
-        className="absolute bottom-0 w-full h-3/4 opacity-40"
-        style={{
-          background: `linear-gradient(to top, ${base}40, transparent)`,
-        }}
-      />
-      {/* Rising Squares only */}
-      {[...Array(15)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute"
-          style={{
-            left: `${5 + Math.random() * 90}%`,
-            bottom: "-20px",
-            animation: `riseFast ${0.6 + Math.random()}s linear infinite`,
-            animationDelay: `${Math.random()}s`,
-            opacity: 0.9,
-          }}
-        >
-          <div
-            className="w-2 h-2"
-            style={{
-              backgroundColor: i % 2 === 0 ? RED : isCine ? accent : base,
-              boxShadow: `0 0 10px ${isCine ? accent : base}`,
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// 4. MULTI: Warp Speed (Galactic Lines)
-function MultiVector({ base, accent, isCine }) {
-  return (
-    <div className="relative w-full h-full flex items-center justify-center animate-fade-in overflow-hidden">
-      <div
-        className="absolute bottom-0 w-full h-full opacity-10"
-        style={{ background: `linear-gradient(to top, ${base}, transparent)` }}
-      />
-      {/* Warp Lines only */}
-      {[...Array(20)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-[2px] bg-gradient-to-t from-transparent via-[var(--c)] to-transparent"
-          style={{
-            "--c": isCine ? accent : base,
-            height: `${40 + Math.random() * 60}%`,
-            left: `${Math.random() * 100}%`,
-            bottom: "-100%",
-            animation: `shootUp ${0.5 + Math.random() * 0.8}s linear infinite`,
-            animationDelay: `${Math.random() * 2}s`,
-            opacity: Math.random() * 0.5 + 0.3,
-          }}
-        />
-      ))}
-    </div>
+    <mesh ref={ref} position={[data.x, data.y, data.z]}>
+      <boxGeometry args={[0.04, 0.04, data.len]} />
+      <meshBasicMaterial color={data.color} transparent opacity={0.7} />
+    </mesh>
   );
 }

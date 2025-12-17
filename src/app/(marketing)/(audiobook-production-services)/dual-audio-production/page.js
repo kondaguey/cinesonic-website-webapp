@@ -8,26 +8,28 @@ import {
   ChevronDown,
   ChevronUp,
   Mic,
-  User,
+  Users,
+  Heart,
   Headphones,
   Award,
   Shield,
   Music,
   Sparkles,
+  User,
 } from "lucide-react";
 import { useTheme } from "../../../../components/ui/ThemeContext";
 import ServiceHero from "../../../../components/marketing/ServiceHero";
 import RosterPreview from "../../../../components/marketing/RosterPreview";
+// Note: We don't need ParticleFx imported here anymore, ServiceHero handles it.
 
-export default function SoloAudioProductionPage() {
+export default function DualAudioProductionPage() {
   const { setTheme, isCinematic, activeStyles } = useTheme();
 
-  // 🟢 1. FORCE GOLD THEME
   useEffect(() => {
-    setTheme("gold");
+    setTheme("pink");
   }, []);
 
-  const activeIconColor = isCinematic ? "#7c3aed" : "#d4af37"; // Violet vs Gold
+  const activeIconColor = isCinematic ? "#7c3aed" : "#ff3399";
 
   const scrollTo = (id) => {
     const element = document.getElementById(id);
@@ -36,46 +38,41 @@ export default function SoloAudioProductionPage() {
 
   const content = {
     heroTitle: isCinematic ? (
-      // Cinematic Mode: Inherits parent header class (Gold -> Violet)
-      "Solo Audio Drama"
+      "Dual Audio Drama"
     ) : (
-      // 🟢 STANDARD MODE: Gold + Silver Split
       <>
-        <span className="text-shimmer-gold">Solo</span>{" "}
+        <span className="text-shimmer-pink">Dual</span>{" "}
         <span className="text-shimmer-silver">Audiobook</span>
       </>
     ),
     heroSubtitle: isCinematic
-      ? "The Sonic Monologue, Enhanced. Voice + Score + SFX."
-      : "The Classic Format. One distinct voice carrying your entire narrative.",
-    whyTitle: isCinematic ? "The Violet Vignette." : "Intimacy & Focus.",
+      ? "His & Her POV. Scored. Soundscaped. The Romance Movie."
+      : "Two Narrators. Two Perspectives. The industry standard for Romance.",
+    whyTitle: isCinematic ? "The Violet Chemistry." : "The Power of Two.",
     whyDesc: isCinematic
-      ? "In CineSonic Mode, we take the solo performance and wrap it in a bespoke soundscape. It isn't just a reading; it's a one-person movie for the ears."
-      : "A solo performance is the bedrock of the audiobook industry. It relies on a single, versatile actor to perform the narrative and character voices.",
-    priceTier: isCinematic ? "Cinematic Standard" : "Solo Standard",
+      ? "Romance requires atmosphere. In CineSonic Mode, we underscore the tension with subtle musical cues and ambient room tone that pulls the listener into the scene."
+      : "Dual Narration assigns a male narrator to the male POV and a female narrator to the female POV. It creates a distinct separation of voice that readers love.",
+    priceTier: isCinematic ? "Cinematic Dual" : "Dual Standard",
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white selection:bg-[#d4af37]/30 transition-colors duration-700 relative">
-      {/* 🟢 BACKGROUND LAYERS */}
+    <main className="min-h-screen bg-[#050505] text-white selection:bg-[#ff3399]/30 transition-colors duration-700 relative">
+      {/* 🟢 BACKGROUND GLOWS ONLY (Removed ParticleFx from here) */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-[#d4af37]/10 blur-[150px] rounded-full transition-opacity duration-1000"
-          style={{ opacity: isCinematic ? 0.3 : 0.6 }}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-[#ff3399]/10 blur-[150px] rounded-full transition-opacity duration-1000"
+          style={{ opacity: isCinematic ? 0.2 : 0.5 }}
         />
-      </div>
-      <div
-        className="absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out pointer-events-none"
-        style={{ opacity: isCinematic ? 0.4 : 0 }}
-      >
-        <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[70%] bg-[#7c3aed]/20 blur-[120px] rounded-full animate-pulse-slow" />
+        {/* Soft dark overlay to ensure text legibility down the page */}
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-[#050505]/80 to-[#050505] z-10" />
       </div>
 
       <div className="relative z-10">
+        {/* 🟢 UPDATED: Passed vector="dual" here so hearts stay in the Hero */}
         <ServiceHero
           title={content.heroTitle}
           subtitle={content.heroSubtitle}
-          vector="solo" // 🟢 FIXED: Uses ParticleFx instead of imagePath
+          vector="dual"
         />
 
         <nav className="sticky top-0 z-40 bg-[#050505]/80 backdrop-blur-md border-b border-white/10 py-4 transition-all">
@@ -104,31 +101,32 @@ export default function SoloAudioProductionPage() {
                   {content.whyTitle}
                 </span>{" "}
                 <br />
-                {isCinematic ? "Why go Cinematic?" : "Why go Solo?"}
+                {isCinematic ? "Why go Cinematic?" : "Why go Dual?"}
               </h2>
               <div className="space-y-6 text-white/70 leading-relaxed text-lg font-light">
                 <p>{content.whyDesc}</p>
                 <p>
-                  At CineSonic, quality is the constant. Whether you choose{" "}
+                  Perfect for Romantasy and Contemporary Romance. Hand-picked
+                  pairings ensure the{" "}
                   <span className={`font-bold ml-1 ${activeStyles?.shimmer}`}>
-                    {isCinematic ? "CineSonic Mode" : "Sonic Mode"}
-                  </span>
-                  , you get the industry's best ears on your project.
+                    chemistry
+                  </span>{" "}
+                  is palpable.
                 </p>
               </div>
               <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {(isCinematic
                   ? [
-                      "Full Musical Score",
-                      "Immersive SFX",
-                      "3D Spatial Audio",
+                      "Emotional Scoring",
+                      "Ambient Environments",
+                      "Heartbeat FX",
                       "Cinema Mixing",
                     ]
                   : [
-                      "Consistent Tone",
-                      "Cost-Effective",
-                      "Industry Standard",
-                      "Ideal for Non-Fiction",
+                      "Distinct POVs",
+                      "Gender Accurate",
+                      "Higher Engagement",
+                      "Genre Standard",
                     ]
                 ).map((bullet, i) => (
                   <div
@@ -140,7 +138,7 @@ export default function SoloAudioProductionPage() {
                     ) : (
                       <CheckCircle
                         size={18}
-                        className="text-[#d4af37] shrink-0"
+                        className="text-[#ff3399] shrink-0"
                       />
                     )}
                     <span className="text-sm font-medium text-white/80">
@@ -155,18 +153,18 @@ export default function SoloAudioProductionPage() {
                 className="absolute inset-0 opacity-40 transition-all duration-1000"
                 style={{
                   background: isCinematic
-                    ? `radial-gradient(circle at center, #7c3aed40, #d4af3710 70%)`
-                    : `radial-gradient(circle at center, #d4af3740, transparent 70%)`,
+                    ? `radial-gradient(circle at center, #7c3aed40, #ff339910 70%)`
+                    : `radial-gradient(circle at center, #ff339940, transparent 70%)`,
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 {isCinematic ? (
-                  <Headphones
+                  <Heart
                     size={100}
                     className="text-white/20 animate-pulse-slow"
                   />
                 ) : (
-                  <Mic size={100} className="text-white/20" />
+                  <Users size={100} className="text-white/20" />
                 )}
               </div>
             </div>
@@ -185,53 +183,53 @@ export default function SoloAudioProductionPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
               <PillarCard
-                icon={User}
-                title="Casting"
-                desc="Genre-perfect voices."
+                icon={Users}
+                title="Matching"
+                desc="Chemistry testing."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Mic}
                 title="Direction"
-                desc="Live acting coaching."
+                desc="Dual-booth coordination."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={isCinematic ? Music : Headphones}
                 title={isCinematic ? "Scoring" : "Mastering"}
-                desc={isCinematic ? "Bespoke composition." : "ACX Ready."}
+                desc={isCinematic ? "Romantic themes." : "Seamless stitching."}
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Shield}
                 title="Integrity"
-                desc="Accuracy is everything."
+                desc="Character consistency."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Award}
                 title="Delivery"
-                desc="On time, every time."
+                desc="Ready for retail."
                 color={activeIconColor}
               />
             </div>
           </div>
         </section>
 
-        <RosterPreview />
+        <RosterPreview theme="pink" />
 
         <section id="reviews" className="py-24 px-6 max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8">
             <TestimonialCard
-              quote="The narrator they picked was exactly the voice I heard in my head."
-              author="Sarah Jenkins"
-              role="Thriller Author"
+              quote="The chemistry between these two narrators was absolutely electric."
+              author="Jessica V."
+              role="Romance Author"
               color={activeIconColor}
             />
             <TestimonialCard
-              quote="CineSonic made the process invisible. I handed over the script and got back gold."
-              author="Mark D."
-              role="Indie Publisher"
+              quote="CineSonic found the perfect male lead to match my existing female narrator."
+              author="Emily R."
+              role="Self-Pub Bestseller"
               color={activeIconColor}
             />
           </div>
@@ -239,18 +237,18 @@ export default function SoloAudioProductionPage() {
 
         <section id="faq" className="py-24 px-6 max-w-3xl mx-auto space-y-4">
           <AccordionItem
-            q="What genres work best?"
-            a="Solo is the gold standard for Non-Fiction and First-Person POV."
+            q="How do you ensure the voices match?"
+            a="We conduct chemistry reads during the casting phase."
             color={activeIconColor}
           />
           <AccordionItem
-            q="Do you handle editing?"
-            a="Yes. Mastering to ACX standards is included."
+            q="Is this suitable for all romance?"
+            a="Yes, from sweet contemporary to dark romance."
             color={activeIconColor}
           />
           <AccordionItem
-            q="Can I choose the narrator?"
-            a="Absolutely. We provide a curated shortlist."
+            q="Do the narrators record together?"
+            a="Usually separately to ensure clean audio, then stitched flawlessly."
             color={activeIconColor}
           />
         </section>
@@ -260,21 +258,21 @@ export default function SoloAudioProductionPage() {
             className="max-w-5xl mx-auto rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden group transition-all duration-1000"
             style={{
               background: isCinematic
-                ? `linear-gradient(to right, #7c3aed, #d4af37)`
-                : `linear-gradient(to right, #d4af37, #b38728)`,
+                ? `linear-gradient(to right, #7c3aed, #ff3399)`
+                : `linear-gradient(to right, #ff3399, #cc0066)`,
             }}
           >
             <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-serif text-black mb-6">
-                Ready to find your voice?
+              <h2 className="text-4xl md:text-6xl font-serif text-white mb-6">
+                Find your perfect pair.
               </h2>
               <Link
                 href="/projectform"
-                className="inline-block px-12 py-5 bg-black font-bold rounded-full hover:scale-105 transition-transform shadow-2xl"
+                className="inline-block px-12 py-5 bg-black font-bold rounded-full hover:scale-105 transition-transform shadow-2xl text-white"
                 style={{ color: activeIconColor }}
               >
-                Get a Quote
+                Start Dual Project
               </Link>
             </div>
           </div>
@@ -284,7 +282,7 @@ export default function SoloAudioProductionPage() {
   );
 }
 
-// SHARED SUB-COMPONENTS
+// Reuse Sub-Components (PillarCard, TestimonialCard, AccordionItem) - No changes needed there.
 function PillarCard({ icon: Icon, title, desc, color }) {
   return (
     <div

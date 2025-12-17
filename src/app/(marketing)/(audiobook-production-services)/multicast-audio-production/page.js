@@ -8,26 +8,28 @@ import {
   ChevronDown,
   ChevronUp,
   Mic,
-  User,
+  Rocket,
+  Zap,
   Headphones,
   Award,
   Shield,
   Music,
   Sparkles,
+  User,
 } from "lucide-react";
 import { useTheme } from "../../../../components/ui/ThemeContext";
 import ServiceHero from "../../../../components/marketing/ServiceHero";
 import RosterPreview from "../../../../components/marketing/RosterPreview";
 
-export default function SoloAudioProductionPage() {
+export default function MultiCastAudioProductionPage() {
   const { setTheme, isCinematic, activeStyles } = useTheme();
 
-  // 🟢 1. FORCE GOLD THEME
+  // 🟢 1. FORCE CYAN THEME
   useEffect(() => {
-    setTheme("gold");
+    setTheme("cyan");
   }, []);
 
-  const activeIconColor = isCinematic ? "#7c3aed" : "#d4af37"; // Violet vs Gold
+  const activeIconColor = isCinematic ? "#7c3aed" : "#00f0ff";
 
   const scrollTo = (id) => {
     const element = document.getElementById(id);
@@ -36,32 +38,30 @@ export default function SoloAudioProductionPage() {
 
   const content = {
     heroTitle: isCinematic ? (
-      // Cinematic Mode: Inherits parent header class (Gold -> Violet)
-      "Solo Audio Drama"
+      "Full Cast Audio Drama"
     ) : (
-      // 🟢 STANDARD MODE: Gold + Silver Split
       <>
-        <span className="text-shimmer-gold">Solo</span>{" "}
+        <span className="text-shimmer-cyan">Multi-Cast</span>{" "}
         <span className="text-shimmer-silver">Audiobook</span>
       </>
     ),
     heroSubtitle: isCinematic
-      ? "The Sonic Monologue, Enhanced. Voice + Score + SFX."
-      : "The Classic Format. One distinct voice carrying your entire narrative.",
-    whyTitle: isCinematic ? "The Violet Vignette." : "Intimacy & Focus.",
+      ? "The Ensemble. 3D Audio. The Blockbuster Experience."
+      : "A distinct voice for every character. The ultimate immersive format.",
+    whyTitle: isCinematic ? "The Violet Horizon." : "The Epic Scale.",
     whyDesc: isCinematic
-      ? "In CineSonic Mode, we take the solo performance and wrap it in a bespoke soundscape. It isn't just a reading; it's a one-person movie for the ears."
-      : "A solo performance is the bedrock of the audiobook industry. It relies on a single, versatile actor to perform the narrative and character voices.",
-    priceTier: isCinematic ? "Cinematic Standard" : "Solo Standard",
+      ? "Full Cast requires a world to inhabit. In CineSonic Mode, we build that world from the ground up—foley, spatial mixing, and a score that rivals Hollywood."
+      : "Multi-Cast involves 3+ narrators. It creates a rich tapestry of voices, perfect for Sci-Fi, Fantasy, and large ensemble dramas.",
+    priceTier: isCinematic ? "Cinematic Ensemble" : "Multi-Cast Standard",
   };
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white selection:bg-[#d4af37]/30 transition-colors duration-700 relative">
+    <main className="min-h-screen bg-[#050505] text-white selection:bg-[#00f0ff]/30 transition-colors duration-700 relative">
       {/* 🟢 BACKGROUND LAYERS */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-[#d4af37]/10 blur-[150px] rounded-full transition-opacity duration-1000"
-          style={{ opacity: isCinematic ? 0.3 : 0.6 }}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] bg-[#00f0ff]/10 blur-[150px] rounded-full transition-opacity duration-1000"
+          style={{ opacity: isCinematic ? 0.2 : 0.5 }}
         />
       </div>
       <div
@@ -75,7 +75,7 @@ export default function SoloAudioProductionPage() {
         <ServiceHero
           title={content.heroTitle}
           subtitle={content.heroSubtitle}
-          vector="solo" // 🟢 FIXED: Uses ParticleFx instead of imagePath
+          vector="multi" // 🟢 Triggers Warp Speed
         />
 
         <nav className="sticky top-0 z-40 bg-[#050505]/80 backdrop-blur-md border-b border-white/10 py-4 transition-all">
@@ -104,31 +104,32 @@ export default function SoloAudioProductionPage() {
                   {content.whyTitle}
                 </span>{" "}
                 <br />
-                {isCinematic ? "Why go Cinematic?" : "Why go Solo?"}
+                {isCinematic ? "Why go Cinematic?" : "Why go Multi?"}
               </h2>
               <div className="space-y-6 text-white/70 leading-relaxed text-lg font-light">
                 <p>{content.whyDesc}</p>
                 <p>
-                  At CineSonic, quality is the constant. Whether you choose{" "}
+                  This is the summit of audio production. Complex, demanding,
+                  and{" "}
                   <span className={`font-bold ml-1 ${activeStyles?.shimmer}`}>
-                    {isCinematic ? "CineSonic Mode" : "Sonic Mode"}
+                    unforgettable
                   </span>
-                  , you get the industry's best ears on your project.
+                  .
                 </p>
               </div>
               <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {(isCinematic
                   ? [
-                      "Full Musical Score",
-                      "Immersive SFX",
-                      "3D Spatial Audio",
-                      "Cinema Mixing",
+                      "Epic Scoring",
+                      "Creature FX",
+                      "Binaural Mixing",
+                      "World Building",
                     ]
                   : [
-                      "Consistent Tone",
-                      "Cost-Effective",
-                      "Industry Standard",
-                      "Ideal for Non-Fiction",
+                      "Full Ensemble",
+                      "Character Specific",
+                      "Radio Play Style",
+                      "High Value",
                     ]
                 ).map((bullet, i) => (
                   <div
@@ -140,7 +141,7 @@ export default function SoloAudioProductionPage() {
                     ) : (
                       <CheckCircle
                         size={18}
-                        className="text-[#d4af37] shrink-0"
+                        className="text-[#00f0ff] shrink-0"
                       />
                     )}
                     <span className="text-sm font-medium text-white/80">
@@ -155,18 +156,18 @@ export default function SoloAudioProductionPage() {
                 className="absolute inset-0 opacity-40 transition-all duration-1000"
                 style={{
                   background: isCinematic
-                    ? `radial-gradient(circle at center, #7c3aed40, #d4af3710 70%)`
-                    : `radial-gradient(circle at center, #d4af3740, transparent 70%)`,
+                    ? `radial-gradient(circle at center, #7c3aed40, #00f0ff10 70%)`
+                    : `radial-gradient(circle at center, #00f0ff40, transparent 70%)`,
                 }}
               />
               <div className="absolute inset-0 flex items-center justify-center z-10">
                 {isCinematic ? (
-                  <Headphones
+                  <Zap
                     size={100}
                     className="text-white/20 animate-pulse-slow"
                   />
                 ) : (
-                  <Mic size={100} className="text-white/20" />
+                  <Rocket size={100} className="text-white/20" />
                 )}
               </div>
             </div>
@@ -185,33 +186,33 @@ export default function SoloAudioProductionPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
               <PillarCard
-                icon={User}
+                icon={Rocket}
                 title="Casting"
-                desc="Genre-perfect voices."
+                desc="Ensemble curation."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Mic}
                 title="Direction"
-                desc="Live acting coaching."
+                desc="Showrunning."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={isCinematic ? Music : Headphones}
-                title={isCinematic ? "Scoring" : "Mastering"}
-                desc={isCinematic ? "Bespoke composition." : "ACX Ready."}
+                title={isCinematic ? "Scoring" : "Mixing"}
+                desc={isCinematic ? "Orchestral." : "Multi-track blend."}
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Shield}
                 title="Integrity"
-                desc="Accuracy is everything."
+                desc="Continuity management."
                 color={activeIconColor}
               />
               <PillarCard
                 icon={Award}
                 title="Delivery"
-                desc="On time, every time."
+                desc="Masterpiece."
                 color={activeIconColor}
               />
             </div>
@@ -223,15 +224,15 @@ export default function SoloAudioProductionPage() {
         <section id="reviews" className="py-24 px-6 max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8">
             <TestimonialCard
-              quote="The narrator they picked was exactly the voice I heard in my head."
-              author="Sarah Jenkins"
-              role="Thriller Author"
+              quote="This isn't an audiobook. It's a Netflix series for your ears."
+              author="A.J. Smith"
+              role="Sci-Fi Author"
               color={activeIconColor}
             />
             <TestimonialCard
-              quote="CineSonic made the process invisible. I handed over the script and got back gold."
-              author="Mark D."
-              role="Indie Publisher"
+              quote="Managing 12 actors sounds like a nightmare, but CineSonic made it effortless."
+              author="Big 5 Publisher"
+              role="Production Head"
               color={activeIconColor}
             />
           </div>
@@ -239,18 +240,18 @@ export default function SoloAudioProductionPage() {
 
         <section id="faq" className="py-24 px-6 max-w-3xl mx-auto space-y-4">
           <AccordionItem
-            q="What genres work best?"
-            a="Solo is the gold standard for Non-Fiction and First-Person POV."
+            q="How many actors can I have?"
+            a="There is no hard limit. We scale to your script's needs."
             color={activeIconColor}
           />
           <AccordionItem
-            q="Do you handle editing?"
-            a="Yes. Mastering to ACX standards is included."
+            q="How long does production take?"
+            a="Typically 6-8 weeks for a full-length multi-cast novel."
             color={activeIconColor}
           />
           <AccordionItem
-            q="Can I choose the narrator?"
-            a="Absolutely. We provide a curated shortlist."
+            q="Is music included?"
+            a="Yes, in the Cinematic tier, full scoring is included."
             color={activeIconColor}
           />
         </section>
@@ -260,21 +261,21 @@ export default function SoloAudioProductionPage() {
             className="max-w-5xl mx-auto rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden group transition-all duration-1000"
             style={{
               background: isCinematic
-                ? `linear-gradient(to right, #7c3aed, #d4af37)`
-                : `linear-gradient(to right, #d4af37, #b38728)`,
+                ? `linear-gradient(to right, #7c3aed, #00f0ff)`
+                : `linear-gradient(to right, #00f0ff, #0099cc)`,
             }}
           >
             <div className="absolute inset-0 bg-black/10 mix-blend-overlay" />
             <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-serif text-black mb-6">
-                Ready to find your voice?
+              <h2 className="text-4xl md:text-6xl font-serif text-white mb-6">
+                Build your universe.
               </h2>
               <Link
                 href="/projectform"
-                className="inline-block px-12 py-5 bg-black font-bold rounded-full hover:scale-105 transition-transform shadow-2xl"
+                className="inline-block px-12 py-5 bg-black font-bold rounded-full hover:scale-105 transition-transform shadow-2xl text-white"
                 style={{ color: activeIconColor }}
               >
-                Get a Quote
+                Start Multi-Cast Project
               </Link>
             </div>
           </div>
@@ -284,7 +285,7 @@ export default function SoloAudioProductionPage() {
   );
 }
 
-// SHARED SUB-COMPONENTS
+// Reuse Sub-Components
 function PillarCard({ icon: Icon, title, desc, color }) {
   return (
     <div

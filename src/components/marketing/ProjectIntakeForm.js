@@ -300,7 +300,7 @@ export default function ProjectIntakeForm() {
     },
   ];
 
-  // --- SUCCESS VIEW ---
+  // --- SUCCESS VIEW (Still has particles!) ---
   if (submitStatus === "success") {
     return (
       <div className="min-h-screen bg-[#020010] flex items-center justify-center p-6 text-white text-center relative overflow-hidden">
@@ -325,13 +325,15 @@ export default function ProjectIntakeForm() {
 
   const HeaderTitle = ({ icon: Icon, title }) => (
     <h2
-      className={`text-xl md:text-2xl font-bold flex items-center gap-3 mb-6 ${
+      className={`text-xl md:text-2xl font-bold flex items-center gap-3 mb-6 transition-colors duration-500 ${
         isCinematic ? activeStyles?.shimmer : ""
       }`}
       style={{ color: !isCinematic ? activeColor : undefined }}
     >
       <Icon
-        className={isCinematic ? "text-white opacity-50" : ""}
+        className={`transition-all duration-500 ${
+          isCinematic ? "text-white opacity-50" : ""
+        }`}
         style={{ color: !isCinematic ? activeColor : undefined }}
         size={24}
       />
@@ -341,22 +343,23 @@ export default function ProjectIntakeForm() {
 
   return (
     <div
-      className="min-h-screen relative font-sans py-24 px-4 md:px-0 transition-colors duration-1000 overflow-hidden"
+      // 🟢 CHANGED: Reduced vertical padding (py-24 -> py-12)
+      className="min-h-screen relative font-sans py-12 px-4 md:px-0 transition-colors duration-1000 overflow-hidden"
       style={{ selectionBackgroundColor: `${activeColor}30` }}
     >
-      {/* 🟢 BACKGROUND LAYER */}
-      <div className="absolute inset-0 z-0 opacity-80 transition-opacity duration-1000">
-        <ParticleFx
-          mode="hero"
-          vector={
-            formData.base_format ? formData.base_format.toLowerCase() : "none"
-          }
-        />
-      </div>
+      {/* 🟢 CHANGED: REPLACED PARTICLE FX WITH PURE COLOR FADE */}
+      {/* This ensures the 'theme' feeling remains (color wash) without the distracting particles */}
+      <div
+        className="absolute inset-0 z-0 transition-all duration-1000 ease-in-out"
+        style={{
+          background: `radial-gradient(circle at 50% 0%, ${activeColor}15 0%, transparent 70%)`,
+        }}
+      />
 
-      {/* 🟢 MAIN CONTAINER: FULL WIDTH MOBILE, 5XL DESKTOP */}
+      {/* 🟢 MAIN CONTAINER */}
       <div className="w-full md:max-w-5xl mx-auto relative z-10 px-4 md:px-8">
-        <div className="text-center mb-12 md:mb-24 animate-fade-in-up">
+        {/* 🟢 CHANGED: Reduced Title Margin (mb-24 -> mb-12) */}
+        <div className="text-center mb-12 md:mb-12 animate-fade-in-up">
           <h1 className="text-3xl md:text-6xl lg:text-7xl font-serif mb-4 md:mb-6">
             Production{" "}
             <span
@@ -368,15 +371,15 @@ export default function ProjectIntakeForm() {
               Intake
             </span>
           </h1>
-          <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-xl leading-relaxed px-4">
+          <p className="text-gray-400 max-w-xl mx-auto text-sm md:text-xl leading-relaxed px-4 transition-colors duration-500">
             Select your specific format tier below to initialize the studio
             engine.
           </p>
         </div>
 
-        {/* 🟢 RESPONSIVE SPACING: Tighter on mobile (space-y-12) */}
-        <form onSubmit={handleSubmit} className="space-y-12 md:space-y-32">
-          {/* 1. SELECTION (Z-40) */}
+        {/* 🟢 CHANGED: Reduced Gap Between Sections (space-y-32 -> space-y-16) */}
+        <form onSubmit={handleSubmit} className="space-y-12 md:space-y-16">
+          {/* 1. SELECTION */}
           <section className="animate-fade-in-up relative z-40">
             <HeaderTitle icon={Mic} title="Select Production Format" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
@@ -388,6 +391,7 @@ export default function ProjectIntakeForm() {
                       <ProjectSelectionCard
                         key={opt.id}
                         {...opt}
+                        // The card handles its own internal particle animation when true
                         isSelected={formData.client_type === opt.id}
                         onSelect={(id, base, drama) =>
                           handleServiceSelect(id, base, drama, opt.price)
@@ -399,9 +403,10 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* 2. CORE DATA (Z-30) */}
+          {/* 2. CORE DATA */}
           <section
-            className="bg-[#050510]/80 border rounded-3xl p-6 md:p-14 backdrop-blur-md transition-colors duration-500 relative z-30 shadow-2xl"
+            // 🟢 CHANGED: Reduced Inner Padding (p-14 -> p-10)
+            className="bg-[#050510]/80 border rounded-3xl p-6 md:p-10 backdrop-blur-md transition-all duration-500 relative z-30 shadow-2xl"
             style={{ borderColor: `${activeColor}30` }}
           >
             <HeaderTitle icon={BookOpen} title="Core Data" />
@@ -415,8 +420,7 @@ export default function ProjectIntakeForm() {
                     <input
                       required
                       type={label.includes("Email") ? "email" : "text"}
-                      // Smaller padding on mobile (py-3)
-                      className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 md:py-4 px-4 md:px-6 focus:outline-none transition-all text-white hover:border-white/30 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] text-sm md:text-base"
+                      className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 md:py-4 px-4 md:px-6 focus:outline-none transition-all duration-300 text-white hover:border-white/30 focus:shadow-[0_0_20px_rgba(255,255,255,0.05)] text-sm md:text-base"
                       style={{ caretColor: activeColor }}
                       onFocus={(e) =>
                         (e.target.style.borderColor = activeColor)
@@ -441,7 +445,7 @@ export default function ProjectIntakeForm() {
                 </label>
                 <div className="relative">
                   <select
-                    className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 md:py-4 px-4 md:px-6 appearance-none focus:outline-none text-white cursor-pointer hover:border-white/30 text-sm md:text-base"
+                    className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 md:py-4 px-4 md:px-6 appearance-none focus:outline-none text-white cursor-pointer hover:border-white/30 text-sm md:text-base transition-all duration-300"
                     onFocus={(e) => (e.target.style.borderColor = activeColor)}
                     onBlur={(e) =>
                       (e.target.style.borderColor = "rgba(255,255,255,0.1)")
@@ -459,7 +463,7 @@ export default function ProjectIntakeForm() {
                     ))}
                   </select>
                   <ChevronDown
-                    className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500"
+                    className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 transition-colors duration-300"
                     size={16}
                   />
                 </div>
@@ -467,10 +471,11 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* 3. CHARACTERS (Z-20) */}
+          {/* 3. CHARACTERS */}
           {formData.client_type && (
             <section
-              className="bg-[#050510]/80 border rounded-3xl p-6 md:p-14 backdrop-blur-md transition-colors duration-500 relative z-20 shadow-2xl"
+              // 🟢 CHANGED: Reduced Inner Padding
+              className="bg-[#050510]/80 border rounded-3xl p-6 md:p-10 backdrop-blur-md transition-all duration-500 relative z-20 shadow-2xl"
               style={{ borderColor: `${activeColor}30` }}
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-10 gap-4">
@@ -485,15 +490,16 @@ export default function ProjectIntakeForm() {
                 {characters.map((char, index) => (
                   <div
                     key={index}
-                    className="p-6 md:p-8 border border-white/10 rounded-2xl bg-[#0a0a15] relative group hover:border-white/20 transition-colors"
+                    className="p-6 md:p-8 border border-white/10 rounded-2xl bg-[#0a0a15] relative group hover:border-white/20 transition-all duration-300"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 md:mb-8">
+                      {/* --- FORM FIELDS --- */}
                       <div className="space-y-2">
                         <label className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">
                           Name
                         </label>
                         <input
-                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-white text-sm transition-colors"
+                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-white text-sm transition-all duration-300"
                           style={{ caretColor: activeColor }}
                           onFocus={(e) =>
                             (e.target.style.borderColor = activeColor)
@@ -514,7 +520,7 @@ export default function ProjectIntakeForm() {
                           Gender
                         </label>
                         <select
-                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-all duration-300"
                           value={char.gender}
                           onChange={(e) =>
                             updateCharacter(index, "gender", e.target.value)
@@ -531,7 +537,7 @@ export default function ProjectIntakeForm() {
                           Age
                         </label>
                         <select
-                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-all duration-300"
                           value={char.age}
                           onChange={(e) =>
                             updateCharacter(index, "age", e.target.value)
@@ -551,7 +557,7 @@ export default function ProjectIntakeForm() {
                           Style
                         </label>
                         <select
-                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+                          className="w-full bg-transparent border-b border-white/10 py-2 focus:outline-none text-gray-400 text-sm cursor-pointer hover:text-white transition-all duration-300"
                           value={char.style}
                           onChange={(e) =>
                             updateCharacter(index, "style", e.target.value)
@@ -567,9 +573,10 @@ export default function ProjectIntakeForm() {
                       </div>
                     </div>
 
+                    {/* --- ACTOR SELECTION DROPDOWN --- */}
                     <div className="relative">
                       <div
-                        className={`w-full bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-white/10 hover:border-white/20 group/roster ${
+                        className={`w-full bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between cursor-pointer transition-all duration-300 hover:bg-white/10 hover:border-white/20 group/roster ${
                           !char.gender && "opacity-50 cursor-not-allowed"
                         }`}
                         onClick={() =>
@@ -603,10 +610,10 @@ export default function ProjectIntakeForm() {
                             </div>
                           </div>
                         ) : (
-                          <span className="text-gray-400 italic text-xs md:text-sm flex items-center gap-2 group-hover/roster:text-white transition-colors">
+                          <span className="text-gray-400 italic text-xs md:text-sm flex items-center gap-2 group-hover/roster:text-white transition-colors duration-300">
                             <Star
                               size={16}
-                              className="text-gray-600 group-hover/roster:text-[#d4af37]"
+                              className="text-gray-600 group-hover/roster:text-[#d4af37] transition-colors duration-300"
                             />
                             {char.gender
                               ? `Select ${char.gender} Actor...`
@@ -622,7 +629,7 @@ export default function ProjectIntakeForm() {
                       </div>
 
                       {activeDropdownIndex === index && (
-                        <div className="absolute z-50 top-full left-0 right-0 mt-3 bg-[#080810] border border-white/10 rounded-2xl max-h-80 overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-xl ring-1 ring-white/5 custom-scrollbar">
+                        <div className="absolute z-50 top-full left-0 right-0 mt-3 bg-[#080810] border border-white/10 rounded-2xl max-h-80 overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-xl ring-1 ring-white/5 custom-scrollbar animate-fade-in-up">
                           {roster
                             .filter(
                               (a) =>
@@ -632,7 +639,7 @@ export default function ProjectIntakeForm() {
                             .map((a) => (
                               <div
                                 key={a.id}
-                                className="p-4 border-b border-white/5 hover:bg-white/[0.05] flex justify-between items-center group/item transition-colors cursor-pointer"
+                                className="p-4 border-b border-white/5 hover:bg-white/[0.05] flex justify-between items-center group/item transition-all duration-200 cursor-pointer"
                                 onClick={() =>
                                   updateCharacter(
                                     index,
@@ -645,7 +652,7 @@ export default function ProjectIntakeForm() {
                                   <div className="relative">
                                     <img
                                       src={a.headshot_url}
-                                      className="w-14 h-14 rounded-full object-cover border-2 border-white/10 group-hover/item:border-white/30 transition-all"
+                                      className="w-14 h-14 rounded-full object-cover border-2 border-white/10 group-hover/item:border-white/30 transition-all duration-300"
                                     />
                                     {a.union_status && (
                                       <span className="absolute -bottom-1 -right-1 bg-blue-500/20 text-blue-300 text-[8px] px-1.5 py-0.5 rounded border border-blue-500/30 uppercase tracking-wide">
@@ -655,7 +662,7 @@ export default function ProjectIntakeForm() {
                                   </div>
                                   <div>
                                     <span
-                                      className="text-white font-bold text-sm block mb-1 group-hover/item:text-[var(--c)] transition-colors"
+                                      className="text-white font-bold text-sm block mb-1 group-hover/item:text-[var(--c)] transition-colors duration-300"
                                       style={{ "--c": activeColor }}
                                     >
                                       {a.name}
@@ -679,7 +686,7 @@ export default function ProjectIntakeForm() {
                                       e.stopPropagation();
                                       toggleAudio(a.demo_url);
                                     }}
-                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all group-hover/item:scale-105 group-hover/item:border-[var(--c)] group-hover/item:text-[var(--c)]"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-300 group-hover/item:scale-105 group-hover/item:border-[var(--c)] group-hover/item:text-[var(--c)]"
                                     style={{ "--c": activeColor }}
                                   >
                                     {playingUrl === a.demo_url ? (
@@ -702,7 +709,7 @@ export default function ProjectIntakeForm() {
                       <button
                         type="button"
                         onClick={() => removeCharacter(index)}
-                        className="absolute top-4 right-4 text-red-500/50 hover:text-red-500 transition-colors"
+                        className="absolute top-4 right-4 text-red-500/50 hover:text-red-500 transition-colors duration-300"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -711,13 +718,13 @@ export default function ProjectIntakeForm() {
                 ))}
               </div>
 
-              {/* 🟢 FIXED BUTTON: Add Character Slot (High Contrast) */}
+              {/* 🟢 ADD CHAR BUTTON */}
               {formData.client_type.includes("Multi") &&
                 characters.length < 6 && (
                   <button
                     type="button"
                     onClick={addCharacter}
-                    className="mt-10 w-full py-5 rounded-xl border-2 bg-black flex items-center justify-center font-bold uppercase tracking-[0.2em] transition-all hover:bg-gray-900 hover:scale-[1.01] hover:shadow-2xl group"
+                    className="mt-10 w-full py-5 rounded-xl border-2 bg-black flex items-center justify-center font-bold uppercase tracking-[0.2em] transition-all duration-300 hover:bg-gray-900 hover:scale-[1.01] hover:shadow-2xl group"
                     style={{
                       borderColor: activeColor,
                       color: activeColor,
@@ -736,7 +743,8 @@ export default function ProjectIntakeForm() {
 
           {/* 4. TIMELINE */}
           <section
-            className="bg-[#050510]/80 border rounded-3xl p-6 md:p-14 backdrop-blur-md transition-colors duration-500 relative z-10 shadow-2xl"
+            // 🟢 CHANGED: Reduced Inner Padding
+            className="bg-[#050510]/80 border rounded-3xl p-6 md:p-10 backdrop-blur-md transition-all duration-500 relative z-10 shadow-2xl"
             style={{ borderColor: `${activeColor}30` }}
           >
             <HeaderTitle icon={Calendar} title="Production Timeline" />
@@ -788,7 +796,11 @@ export default function ProjectIntakeForm() {
                     </span>
                     <Calendar
                       size={18}
-                      className={dates[idx] ? "text-white" : "text-gray-600"}
+                      className={
+                        dates[idx]
+                          ? "text-white transition-colors duration-300"
+                          : "text-gray-600"
+                      }
                       style={{ color: dates[idx] ? activeColor : undefined }}
                     />
                   </button>
@@ -814,7 +826,7 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* DISCLAIMER (Z-0) */}
+          {/* DISCLAIMER */}
           <div className="bg-red-900/10 border border-red-500/20 p-6 md:p-8 rounded-2xl flex gap-5 text-left backdrop-blur-sm relative z-0 mt-8 md:mt-12 items-start">
             <AlertTriangle
               className="text-red-500 flex-shrink-0 mt-1"
@@ -831,12 +843,13 @@ export default function ProjectIntakeForm() {
               </p>
             </div>
           </div>
-          {/* 🟢 FINAL SUBMIT BUTTON: Solid Category Color, Pill Shape, Lighter Hover */}
+
+          {/* FINAL SUBMIT */}
           <div className="pt-12 pb-24 text-center border-t border-white/10 relative z-0 flex justify-center">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full max-w-sm py-4 rounded-full text-[#020010] font-bold uppercase tracking-[0.2em] text-sm shadow-xl transition-all hover:brightness-125 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full max-w-sm py-4 rounded-full text-[#020010] font-bold uppercase tracking-[0.2em] text-sm shadow-xl transition-all duration-300 hover:brightness-125 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor:
                   formData.base_format === "Dual"
@@ -845,7 +858,7 @@ export default function ProjectIntakeForm() {
                     ? "#ff4500"
                     : formData.base_format === "Multi"
                     ? "#00f0ff"
-                    : "#d4af37", // Default (Solo)
+                    : "#d4af37",
               }}
             >
               {isSubmitting ? "Transmitting..." : "Submit Request"}
@@ -853,11 +866,26 @@ export default function ProjectIntakeForm() {
           </div>
         </form>
       </div>
+
+      {/* 🟢 GLOBAL STYLE OVERRIDES FOR THIS PAGE ONLY */}
+      <style jsx global>{`
+        /* 1. Hide Letterboxing on this specific page */
+        body.cinesonic-active::before,
+        body.cinesonic-active::after {
+          display: none !important;
+        }
+
+        /* 2. Force Dropdown Options to be visible (Dark BG / White Text) */
+        option {
+          background-color: #050510;
+          color: white;
+        }
+      `}</style>
     </div>
   );
 }
 
-// 🟢 COMPACT CALENDAR (Same as before)
+// 🟢 COMPACT CALENDAR (Helper Component)
 function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
   const [viewDate, setViewDate] = useState(
     selectedDate ? new Date(selectedDate) : minDate || new Date()
@@ -891,7 +919,7 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
         <button
           type="button"
           onClick={handlePrev}
-          className="p-1 hover:text-white text-gray-500 transition-colors"
+          className="p-1 hover:text-white text-gray-500 transition-colors duration-300"
         >
           <ChevronLeft size={14} />
         </button>
@@ -904,7 +932,7 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
         <button
           type="button"
           onClick={handleNext}
-          className="p-1 hover:text-white text-gray-500 transition-colors"
+          className="p-1 hover:text-white text-gray-500 transition-colors duration-300"
         >
           <ChevronRight size={14} />
         </button>
@@ -935,7 +963,7 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
               onClick={() =>
                 onSelect(currentDayDate.toISOString().split("T")[0])
               }
-              className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] transition-all duration-200 ${
+              className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] transition-all duration-300 ${
                 disabled
                   ? "text-gray-800 cursor-not-allowed"
                   : "hover:bg-white/10 text-gray-300 cursor-pointer"
