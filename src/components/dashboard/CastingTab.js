@@ -7,7 +7,14 @@ import {
   Check,
   CalendarArrowUp,
   Info,
+  User,
+  Clock,
+  Star,
 } from "lucide-react";
+
+// --- ATOMS ---
+import Button from "../ui/Button";
+import Badge from "../ui/Badge";
 
 export default function CastingTab({
   project,
@@ -26,6 +33,7 @@ export default function CastingTab({
   // --- 1. THE MATCHMAKER ---
   const handleRunMatchmaker = () => {
     setIsMatching(true);
+    // Simulating the heavy lifting of the AI matching process
     setTimeout(() => {
       const results = {};
       if (!roster || roster.length === 0) {
@@ -33,7 +41,6 @@ export default function CastingTab({
         return;
       }
       roles.forEach((role) => {
-        // Safety check inside the loop
         if (role && role["Role ID"]) {
           const matches = runCreativeMatch(role, roster);
           results[role["Role ID"]] = matches;
@@ -63,13 +70,13 @@ export default function CastingTab({
         [roleId]: {
           ...roleSel,
           [type]: actor,
-          [otherType]: isActorInOtherSlot ? null : roleSel[otherType], // Clear other slot if moving
+          [otherType]: isActorInOtherSlot ? null : roleSel[otherType],
         },
       };
     });
   };
 
-  // --- 3. CONFIRM / MOVE TO SCHEDULE ---
+  // --- 3. CONFIRM HANDLER ---
   const handleConfirmCasting = () => {
     if (onConfirmSelections) {
       onConfirmSelections(selections);
@@ -80,84 +87,93 @@ export default function CastingTab({
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
-      {/* HEADER & ACTIONS */}
-      <div className="bg-white/5 p-4 rounded-xl border border-white/10 space-y-4">
-        <div className="flex justify-between items-center">
+      {/* --- HEADER & ACTIONS --- */}
+      <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className="text-xl font-serif text-gold flex items-center gap-2">
-              <Mic className="w-5 h-5" /> Casting Breakdown
+            <h2 className="text-2xl font-serif text-white flex items-center gap-3">
+              <span className="bg-[#d4af37]/20 p-2 rounded-full border border-[#d4af37]/30">
+                <Mic className="w-5 h-5 text-[#d4af37]" />
+              </span>
+              Casting Breakdown
             </h2>
-            <p className="text-xs text-gray-400 mt-1">
-              {roles.length} Roles • {roster.length} Talent Available
+            <p className="text-sm text-gray-400 mt-2 ml-1">
+              Active Roster:{" "}
+              <span className="text-white">{roster.length} Talent</span> • Roles
+              to Cast: <span className="text-white">{roles.length}</span>
             </p>
           </div>
 
-          <div className="flex gap-3">
-            <button
+          <div className="flex gap-3 w-full md:w-auto">
+            <Button
               onClick={handleRunMatchmaker}
               disabled={isMatching || roles.length === 0}
-              className="bg-black/40 border border-gold/30 hover:bg-gold/10 text-gold font-bold px-4 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 transition-all disabled:opacity-50"
+              variant="ghost"
+              color="#d4af37"
+              className="border border-[#d4af37]/30 hover:bg-[#d4af37]/10"
             >
               {isMatching ? (
-                <Loader2 className="animate-spin w-4 h-4" />
+                <>
+                  <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                  Running AI...
+                </>
               ) : (
-                <Sparkles className="w-4 h-4" />
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {matchResults && Object.keys(matchResults).length > 0
+                    ? "Re-Run Auto-Cast"
+                    : "Run Auto-Cast"}
+                </>
               )}
-              {matchResults && Object.keys(matchResults).length > 0
-                ? "Re-Run Auto-Cast"
-                : "Run Auto-Cast"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               onClick={handleConfirmCasting}
               disabled={!hasSelections}
-              className={`font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                hasSelections
-                  ? "bg-gold hover:bg-gold-light text-midnight shadow-gold/20 animate-pulse-slow"
-                  : "bg-gray-700 text-gray-400"
-              }`}
+              variant={hasSelections ? "solid" : "glow"}
+              color="#d4af37"
+              className={hasSelections ? "animate-pulse-slow" : "opacity-50"}
             >
-              <CalendarArrowUp className="w-4 h-4" /> Confirm & Schedule
-            </button>
+              <CalendarArrowUp className="w-4 h-4 mr-2" />
+              Confirm & Schedule
+            </Button>
           </div>
         </div>
 
         {/* DRAFT MODE WARNING */}
         {hasSelections && (
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start gap-3 animate-fade-in">
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 flex items-start gap-3 animate-fade-in">
             <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-blue-200 leading-relaxed">
-              <strong className="text-blue-100 uppercase tracking-wide">
-                Selection Draft Active:
+            <div className="text-sm text-blue-200 leading-relaxed">
+              <strong className="text-blue-100 uppercase tracking-wide text-xs">
+                Draft Mode Active:
               </strong>{" "}
-              Your "1st" and "2nd" choices are currently <u>unsaved</u>. The
-              global "Save Changes" button (top right) <strong>will not</strong>{" "}
-              save these picks.
-              <br />
-              You must click{" "}
-              <strong className="text-gold">Confirm & Schedule</strong> above to
-              lock them in.
+              Your selections are staged but <u>not yet locked</u>. The global
+              save button will not capture these. Please click{" "}
+              <strong className="text-[#d4af37]">Confirm & Schedule</strong>{" "}
+              above to finalize the cast list.
             </div>
           </div>
         )}
       </div>
 
-      {/* ROLES GRID */}
+      {/* --- ROLES GRID --- */}
       {roles.length === 0 ? (
-        <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
-          <Users className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-          <h3 className="text-gray-400 font-bold uppercase tracking-widest">
-            No Roles Found
+        <div className="text-center py-20 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
+          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Users className="w-8 h-8 text-gray-600" />
+          </div>
+          <h3 className="text-white font-serif text-xl mb-2">
+            No Roles Detected
           </h3>
-          <p className="text-gray-600 text-sm mt-2">
-            Run the intake Exploder first.
+          <p className="text-gray-500 text-sm max-w-md mx-auto">
+            It looks like this project has no character breakdown yet. Run the
+            Intake Exploder to generate roles.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {roles.map((role, idx) => {
-            // 🟢 CRASH FIX: Guard Clause
-            // If 'role' is undefined or doesn't have an ID, skip rendering this box
             if (!role || !role["Role ID"]) return null;
 
             const roleMatches = matchResults[role["Role ID"]] || [];
@@ -169,58 +185,87 @@ export default function CastingTab({
             return (
               <div
                 key={role["Role ID"] || idx}
-                className={`bg-black/40 border rounded-xl overflow-hidden flex flex-col transition-all duration-300 ${
+                className={`bg-[#0a0a0a] border rounded-xl overflow-hidden flex flex-col transition-all duration-300 group hover:border-white/20 ${
                   activeSel.primary
-                    ? "border-gold shadow-[0_0_15px_rgba(212,175,55,0.15)]"
+                    ? "border-[#d4af37] shadow-[0_0_20px_rgba(212,175,55,0.1)]"
                     : "border-white/10"
                 }`}
               >
                 {/* ROLE HEADER */}
-                <div className="p-4 bg-white/5 border-b border-white/5 relative overflow-hidden">
+                <div className="p-5 bg-white/5 border-b border-white/5 relative">
                   <div className="flex justify-between items-start relative z-10">
                     <div>
-                      <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                      <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 font-serif">
                         {role["Character Name"]}
                         {activeSel.primary && (
-                          <Check className="w-4 h-4 text-gold" />
+                          <Check className="w-5 h-5 text-[#d4af37]" />
                         )}
                       </h3>
-                      <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wider text-gray-400">
-                        <span className="bg-white/10 px-2 py-0.5 rounded">
-                          {role["Gender"]}
-                        </span>
-                        <span className="bg-white/10 px-2 py-0.5 rounded">
-                          {role["Age Range"]}
-                        </span>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge
+                          icon={User}
+                          label={role["Gender"]}
+                          color="text-white/60"
+                          bg="bg-white/5"
+                          border="border-white/10"
+                        />
+                        <Badge
+                          icon={Clock}
+                          label={role["Age Range"]}
+                          color="text-white/60"
+                          bg="bg-white/5"
+                          border="border-white/10"
+                        />
                       </div>
                     </div>
-                    {/* SELECTION SUMMARY */}
-                    <div className="text-right text-[10px] space-y-1">
+
+                    {/* SELECTION SUMMARY PILLS */}
+                    <div className="text-right space-y-2">
                       {activeSel.primary && (
-                        <div className="text-gold font-bold bg-gold/10 px-2 py-1 rounded border border-gold/20">
-                          1st: {activeSel.primary.name}
+                        <div className="inline-flex items-center px-2 py-1 rounded bg-[#d4af37]/20 border border-[#d4af37]/40">
+                          <span className="text-[#d4af37] text-[10px] font-bold uppercase tracking-wider mr-2">
+                            1st Pick
+                          </span>
+                          <span className="text-white text-xs font-bold">
+                            {activeSel.primary.name}
+                          </span>
                         </div>
                       )}
                       {activeSel.backup && (
-                        <div className="text-blue-300 font-bold bg-blue-900/20 px-2 py-1 rounded border border-blue-500/20">
-                          2nd: {activeSel.backup.name}
+                        <div className="flex justify-end">
+                          <div className="inline-flex items-center px-2 py-1 rounded bg-blue-500/10 border border-blue-500/20">
+                            <span className="text-blue-400 text-[10px] font-bold uppercase tracking-wider mr-2">
+                              Backup
+                            </span>
+                            <span className="text-white/80 text-xs">
+                              {activeSel.backup.name}
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 text-xs text-gray-300 italic line-clamp-2">
-                    "{role["Vocal Specs"] || "No specs."}"
+
+                  <div className="mt-1 p-3 bg-black/20 rounded border border-white/5">
+                    <p className="text-xs text-gray-400 italic line-clamp-2 leading-relaxed">
+                      "
+                      {role["Vocal Specs"] ||
+                        "No specific vocal instructions provided."}
+                      "
+                    </p>
                   </div>
                 </div>
 
                 {/* MATCHES LIST */}
-                <div className="flex-1 bg-black/20 p-4 min-h-[250px] max-h-[400px] overflow-y-auto custom-scrollbar">
+                <div className="flex-1 bg-black/40 p-2 min-h-[300px] max-h-[500px] overflow-y-auto custom-scrollbar">
                   {roleMatches.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-bold flex items-center gap-1">
-                        <Sparkles size={10} className="text-gold" /> Suggested
-                        Talent
-                      </p>
+                    <div className="space-y-1">
+                      {/* List Header */}
+                      <div className="px-3 py-2 flex items-center justify-between text-[10px] uppercase tracking-widest text-gray-600 font-bold">
+                        <span>Candidate</span>
+                        <span>Selection</span>
+                      </div>
+
                       {roleMatches.map((match, i) => {
                         if (!match || !match.actor) return null;
                         const actor = match.actor;
@@ -230,46 +275,58 @@ export default function CastingTab({
                         return (
                           <div
                             key={actor.id || i}
-                            className={`flex items-center justify-between p-2 rounded border transition-all group ${
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all duration-200 group/item ${
                               isPrimary
-                                ? "bg-gold/20 border-gold/50"
+                                ? "bg-[#d4af37]/10 border-[#d4af37]/40"
                                 : isBackup
                                 ? "bg-blue-900/20 border-blue-500/30"
-                                : "bg-white/5 border-transparent hover:border-white/20 hover:bg-white/10"
+                                : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/10"
                             }`}
                           >
                             {/* ACTOR INFO */}
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4">
+                              {/* Score Bubble */}
                               <div
-                                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                                className={`w-10 h-10 rounded-full flex flex-col items-center justify-center border ${
                                   isPrimary
-                                    ? "bg-gold text-midnight border-gold"
-                                    : "bg-white/10 text-gray-400 border-white/10"
+                                    ? "bg-[#d4af37] text-black border-[#d4af37]"
+                                    : "bg-black text-gray-500 border-white/10 group-hover/item:border-white/30"
                                 }`}
                               >
-                                {match.score}%
+                                <span className="text-xs font-bold leading-none">
+                                  {match.score}
+                                </span>
+                                <span className="text-[8px] uppercase leading-none opacity-80">
+                                  %
+                                </span>
                               </div>
+
                               <div>
                                 <div
-                                  className={`text-sm font-bold ${
-                                    isPrimary ? "text-gold" : "text-gray-200"
+                                  className={`text-sm font-bold mb-0.5 ${
+                                    isPrimary
+                                      ? "text-[#d4af37]"
+                                      : "text-gray-200"
                                   }`}
                                 >
                                   {actor.name}
                                 </div>
-                                <div className="text-[10px] text-gray-500 flex gap-1">
+                                <div className="flex items-center gap-2 text-[10px] text-gray-500 uppercase tracking-wider">
                                   <span>{actor.gender}</span>
                                   {actor.sag === "SAG-AFTRA" && (
-                                    <span className="text-yellow-600 font-bold">
-                                      • SAG
-                                    </span>
+                                    <>
+                                      <span className="w-1 h-1 rounded-full bg-gray-600" />
+                                      <span className="text-yellow-600 font-bold">
+                                        SAG
+                                      </span>
+                                    </>
                                   )}
                                 </div>
                               </div>
                             </div>
 
-                            {/* SELECTION BUTTONS */}
-                            <div className="flex gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                            {/* SELECTION BUTTONS (Using Base HTML buttons for specific styling needs here, or Custom Tiny Variants) */}
+                            <div className="flex gap-2 opacity-40 group-hover/item:opacity-100 transition-opacity">
                               <button
                                 onClick={() =>
                                   toggleSelection(
@@ -278,10 +335,10 @@ export default function CastingTab({
                                     "primary"
                                   )
                                 }
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-colors ${
+                                className={`h-8 px-3 rounded text-[10px] font-bold uppercase tracking-wider border transition-all ${
                                   isPrimary
-                                    ? "bg-gold text-midnight border-gold shadow-glow"
-                                    : "border-gray-600 text-gray-500 hover:border-gold hover:text-gold"
+                                    ? "bg-[#d4af37] text-black border-[#d4af37] shadow-[0_0_10px_rgba(212,175,55,0.4)]"
+                                    : "bg-transparent border-white/20 text-gray-400 hover:border-[#d4af37] hover:text-[#d4af37]"
                                 }`}
                               >
                                 1st
@@ -294,10 +351,10 @@ export default function CastingTab({
                                     "backup"
                                   )
                                 }
-                                className={`px-2 py-1 rounded text-[10px] font-bold uppercase border transition-colors ${
+                                className={`h-8 px-3 rounded text-[10px] font-bold uppercase tracking-wider border transition-all ${
                                   isBackup
-                                    ? "bg-blue-600 text-white border-blue-500 shadow-lg"
-                                    : "border-gray-600 text-gray-500 hover:border-blue-400 hover:text-blue-400"
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                                    : "bg-transparent border-white/20 text-gray-400 hover:border-blue-400 hover:text-blue-400"
                                 }`}
                               >
                                 2nd
@@ -308,10 +365,10 @@ export default function CastingTab({
                       })}
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-2 opacity-50">
-                      <Users className="w-8 h-8" />
-                      <span className="text-xs uppercase tracking-wide">
-                        Run Auto-Cast to find talent
+                    <div className="h-full flex flex-col items-center justify-center text-gray-700 space-y-4 opacity-50 py-12">
+                      <Sparkles className="w-12 h-12" />
+                      <span className="text-xs uppercase tracking-widest font-bold">
+                        Awaiting Auto-Cast
                       </span>
                     </div>
                   )}

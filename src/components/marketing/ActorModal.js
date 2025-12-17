@@ -1,10 +1,9 @@
 "use client";
-
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { X, Play, Pause, Download, Share2, Sparkles, Mic2 } from "lucide-react";
 
-export default function ActorModal({ actor, onClose }) {
+export default function ActorModal({ actor, onClose, color = "#d4af37" }) {
   // 1. Prevent body scroll when modal is open
   useEffect(() => {
     if (actor) {
@@ -20,12 +19,10 @@ export default function ActorModal({ actor, onClose }) {
   if (!actor) return null;
 
   // --- HELPER: CLEAN VOICE TYPE ---
-  // Handles if voice_type is stored as a JSON string array like "['Deep', 'Raspy']"
   const getTags = (raw) => {
     if (!raw) return [];
     if (Array.isArray(raw)) return raw;
     try {
-      // Try to parse if it looks like an array string
       if (typeof raw === "string" && raw.startsWith("[")) {
         return JSON.parse(raw.replace(/'/g, '"'));
       }
@@ -62,6 +59,7 @@ export default function ActorModal({ actor, onClose }) {
               src={actor.headshot_url}
               alt={actor.name}
               fill
+              unoptimized={true}
               className="object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"
             />
           ) : (
@@ -82,7 +80,8 @@ export default function ActorModal({ actor, onClose }) {
               {tags.slice(0, 2).map((tag, i) => (
                 <span
                   key={i}
-                  className="text-[10px] uppercase tracking-wider bg-[#d4af37] text-black px-2 py-0.5 rounded font-bold"
+                  className="text-[10px] uppercase tracking-wider text-black px-2 py-0.5 rounded font-bold"
+                  style={{ backgroundColor: color }}
                 >
                   {tag}
                 </span>
@@ -92,11 +91,14 @@ export default function ActorModal({ actor, onClose }) {
         </div>
 
         {/* --- RIGHT: INFO COLUMN --- */}
-        <div className="flex-1 p-6 md:p-10 flex flex-col overflow-y-auto">
+        <div className="flex-1 p-6 md:p-10 flex flex-col overflow-y-auto custom-scrollbar">
           {/* Desktop Header */}
           <div className="hidden md:flex justify-between items-start mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-2 text-[#d4af37]">
+              <div
+                className="flex items-center gap-2 mb-2"
+                style={{ color: color }}
+              >
                 <Sparkles size={14} />
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em]">
                   Talent Profile
@@ -134,13 +136,23 @@ export default function ActorModal({ actor, onClose }) {
             </p>
 
             <div className="grid grid-cols-2 gap-4">
+              {/* 🟢 Refactored StatBox to use Dynamic Color */}
               <StatBox
                 label="Accent"
                 value={actor.accent || "Standard American"}
+                color={color}
               />
-              <StatBox label="Gender" value={actor.gender || "Not Listed"} />
-              <StatBox label="Age Range" value="Adult / Young Adult" />
-              <StatBox label="Studio" value="Home Studio (Pro)" />
+              <StatBox
+                label="Gender"
+                value={actor.gender || "Not Listed"}
+                color={color}
+              />
+              <StatBox
+                label="Age Range"
+                value="Adult / Young Adult"
+                color={color}
+              />
+              <StatBox label="Studio" value="Home Studio (Pro)" color={color} />
             </div>
           </div>
 
@@ -150,7 +162,7 @@ export default function ActorModal({ actor, onClose }) {
               Audio Demonstration
             </h4>
             {actor.demo_url ? (
-              <InlinePlayer src={actor.demo_url} />
+              <InlinePlayer src={actor.demo_url} color={color} />
             ) : (
               <div className="p-4 rounded border border-dashed border-white/10 text-center text-white/30 text-xs italic">
                 No demo reel available.
@@ -160,7 +172,10 @@ export default function ActorModal({ actor, onClose }) {
 
           {/* Actions */}
           <div className="flex gap-4 mt-8">
-            <button className="flex-1 py-4 bg-[#d4af37] hover:bg-white text-black font-bold text-xs uppercase tracking-[0.2em] transition-colors rounded">
+            <button
+              className="flex-1 py-4 hover:bg-white text-black font-bold text-xs uppercase tracking-[0.2em] transition-colors rounded shadow-lg"
+              style={{ backgroundColor: color }}
+            >
               Request Audition
             </button>
             <button className="px-4 border border-white/10 rounded hover:bg-white/5 text-white/50 hover:text-white transition-colors">
@@ -196,14 +211,28 @@ export default function ActorModal({ actor, onClose }) {
         .animate-scale-in {
           animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
+        /* Custom scrollbar for modal content */
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.4);
+        }
       `}</style>
     </div>
   );
 }
 
 // --- SUB-COMPONENT: INLINE PLAYER ---
-// Defined *outside* the main component to prevent re-creation on render
-function InlinePlayer({ src }) {
+function InlinePlayer({ src, color }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -232,7 +261,10 @@ function InlinePlayer({ src }) {
   };
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 group hover:border-[#d4af37]/30 transition-colors">
+    <div
+      className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-4 group transition-colors hover:bg-white/10"
+      style={{ borderColor: `${color}20` }}
+    >
       <audio
         ref={audioRef}
         src={src}
@@ -243,7 +275,11 @@ function InlinePlayer({ src }) {
 
       <button
         onClick={togglePlay}
-        className="w-12 h-12 rounded-full bg-[#d4af37] flex items-center justify-center text-black hover:scale-105 transition-transform shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+        className="w-12 h-12 rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform"
+        style={{
+          backgroundColor: color,
+          boxShadow: `0 0 20px ${color}40`,
+        }}
       >
         {isPlaying ? (
           <Pause size={18} fill="currentColor" />
@@ -258,9 +294,10 @@ function InlinePlayer({ src }) {
           {[...Array(30)].map((_, i) => (
             <div
               key={i}
-              className="w-1 bg-[#d4af37] rounded-full transition-all duration-300"
+              className="w-1 rounded-full transition-all duration-300"
               style={{
-                height: isPlaying ? `${Math.random() * 100}%` : "20%",
+                backgroundColor: color,
+                height: isPlaying ? `${Math.random() * 80 + 20}%` : "20%",
                 opacity: i / 30 < progress / 100 ? 1 : 0.2,
               }}
             />
@@ -270,8 +307,8 @@ function InlinePlayer({ src }) {
         {/* Progress Bar */}
         <div className="h-1 bg-white/10 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#d4af37] transition-all duration-100 ease-linear"
-            style={{ width: `${progress}%` }}
+            className="h-full transition-all duration-100 ease-linear"
+            style={{ width: `${progress}%`, backgroundColor: color }}
           />
         </div>
       </div>
@@ -283,10 +320,13 @@ function InlinePlayer({ src }) {
   );
 }
 
-function StatBox({ label, value }) {
+function StatBox({ label, value, color }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-widest text-white/30 mb-1">
+      <div
+        className="text-[10px] uppercase tracking-widest mb-1 font-bold"
+        style={{ color: `${color}80` }} // 50% opacity of the theme color
+      >
         {label}
       </div>
       <div className="text-white/80 font-medium text-sm">{value}</div>

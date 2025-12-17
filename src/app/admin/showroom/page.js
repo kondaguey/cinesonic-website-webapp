@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabaseClient.js";
+import { createClient } from "@supabase/supabase-js";
 
 // ICONS
 import {
-  ArrowRight,
   Mic,
   Heart,
   Flame,
@@ -16,7 +15,15 @@ import {
   Droplet,
   Sparkles,
   Zap,
+  Settings,
+  ChevronDown,
 } from "lucide-react";
+
+// --- 1. UI ATOMS ---
+import Badge from "../../../components/ui/Badge";
+import SectionHeader from "../../../components/ui/SectionHeader";
+import ParticleFx from "../../../components/ui/ParticleFx";
+import Button from "../../../components/ui/Button";
 
 // --- 2. ROSTER COMPONENTS ---
 import ActorCard from "../../../components/marketing/ActorCard";
@@ -35,8 +42,21 @@ import Navbar from "../../../components/marketing/Navbar";
 import ProductionPipeline from "../../../components/marketing/ProductionPipeline";
 import ServiceComparisonMatrix from "../../../components/marketing/ServiceComparisonMatrix";
 import ServiceHero from "../../../components/marketing/ServiceHero";
-import SonicVisualizer from "../../../components/marketing/SonicVisualizer";
 import TestimonialsFeed from "../../../components/marketing/TestimonialsFeed";
+
+// INITIALIZE SUPABASE
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// 🟢 THEME DEFINITIONS
+const THEMES = {
+  gold: { label: "Classic Gold", hex: "#d4af37", var: "gold" },
+  pink: { label: "Romance Pink", hex: "#ff3399", var: "pink" },
+  fire: { label: "High Heat", hex: "#ff4500", var: "fire" },
+  cyan: { label: "Sci-Fi Cyan", hex: "#00f0ff", var: "cyan" },
+  system: { label: "System Blue", hex: "#3b82f6", var: "system" },
+};
 
 export default function ComponentShowroom() {
   // --- STATE ---
@@ -44,6 +64,10 @@ export default function ComponentShowroom() {
   const [keyInput, setKeyInput] = useState("");
   const [actors, setActors] = useState([]);
   const [selectedActor, setSelectedActor] = useState(null);
+
+  // 🟢 NEW: GLOBAL THEME STATE FOR TESTING
+  const [demoTheme, setDemoTheme] = useState("gold"); // Default to gold
+  const activeColor = THEMES[demoTheme].hex;
 
   // --- MOCK LOGIN ---
   const handleLogin = (e) => {
@@ -104,7 +128,13 @@ export default function ComponentShowroom() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        <div className="relative z-10 w-full max-w-md border-t-4 border-[#d4af37] bg-[#0a0a0a] p-10 text-center rounded-xl shadow-2xl">
+        {/* Background FX */}
+        <ParticleFx variant="solo" color="#d4af37" />
+
+        <div className="relative z-10 w-full max-w-md border border-[#d4af37]/30 bg-[#0a0a0a]/90 backdrop-blur-xl p-10 text-center rounded-2xl shadow-2xl animate-fade-in-up">
+          <div className="w-16 h-16 bg-[#d4af37]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#d4af37]/30">
+            <Shield className="w-8 h-8 text-[#d4af37]" />
+          </div>
           <h2 className="text-3xl text-white mb-2 font-serif">System Access</h2>
           <p className="text-[#d4af37] font-bold uppercase tracking-widest text-xs mb-8">
             Authorized Personnel Only
@@ -112,18 +142,19 @@ export default function ComponentShowroom() {
           <form onSubmit={handleLogin} className="space-y-6">
             <input
               type="password"
-              className="w-full text-center text-3xl font-bold p-4 rounded-xl border border-white/10 bg-black/40 text-white focus:border-[#d4af37] outline-none tracking-widest"
+              className="w-full text-center text-3xl font-bold p-4 rounded-xl border border-white/10 bg-black/40 text-white focus:border-[#d4af37] outline-none tracking-widest transition-all focus:shadow-[0_0_20px_rgba(212,175,55,0.2)]"
               placeholder="KEY"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
               autoFocus
             />
-            <button
-              type="submit"
-              className="w-full py-4 rounded-xl bg-[#d4af37] text-black font-bold uppercase tracking-wider hover:bg-white transition-all"
+            <Button
+              variant="solid"
+              theme="gold"
+              className="w-full py-4 text-lg"
             >
               Unlock
-            </button>
+            </Button>
           </form>
         </div>
       </div>
@@ -132,8 +163,42 @@ export default function ComponentShowroom() {
 
   // --- MAIN SHOWROOM ---
   return (
-    <div className="min-h-screen font-sans text-white pb-24 bg-[#050505]">
-      {/* 🟢 GLOBAL STYLE DEFINITIONS (The Source of Truth) */}
+    <div className="min-h-screen font-sans text-white pb-24 bg-[#050505] selection:bg-[#d4af37] selection:text-black">
+      {/* 🟢 FLOATY THEME SWITCHER */}
+      <div className="fixed bottom-6 right-6 z-[100] animate-fade-in-up">
+        <div className="bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl p-4 shadow-2xl flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 mb-1">
+            <Settings size={12} /> Test Palette
+          </div>
+          <div className="grid grid-cols-5 gap-2">
+            {Object.entries(THEMES).map(([key, config]) => (
+              <button
+                key={key}
+                onClick={() => setDemoTheme(key)}
+                title={config.label}
+                className={`w-8 h-8 rounded-full border-2 transition-all duration-300 ${
+                  demoTheme === key
+                    ? "scale-110 shadow-[0_0_15px_currentColor]"
+                    : "opacity-50 hover:opacity-100 hover:scale-105"
+                }`}
+                style={{
+                  backgroundColor: config.hex,
+                  borderColor: demoTheme === key ? "white" : "transparent",
+                  color: config.hex,
+                }}
+              />
+            ))}
+          </div>
+          <div className="text-[10px] text-center text-gray-500 font-mono mt-1">
+            Active:{" "}
+            <span style={{ color: activeColor }}>
+              {THEMES[demoTheme].label}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 🟢 GLOBAL STYLE DEFINITIONS */}
       <style jsx global>{`
         /* --- SHIMMERS --- */
         .shimmer-text {
@@ -148,43 +213,6 @@ export default function ComponentShowroom() {
             background-position: 200% center;
           }
         }
-
-        .text-shimmer-gold {
-          background-image: linear-gradient(
-            to right,
-            #bf953f,
-            #fcf6ba,
-            #b38728,
-            #fbf5b7,
-            #aa771c
-          );
-        }
-        .text-shimmer-silver {
-          background-image: linear-gradient(
-            to right,
-            #9ca3af,
-            #f3f4f6,
-            #d1d5db,
-            #f9fafb,
-            #9ca3af
-          );
-        }
-        .text-shimmer-pink {
-          background-image: linear-gradient(
-            to right,
-            #ff3399,
-            #ffb3d9,
-            #ff3399
-          );
-        }
-        .text-shimmer-fire {
-          background-image: linear-gradient(
-            to right,
-            #ff4500,
-            #ffaa00,
-            #ff4500
-          );
-        }
         .text-shimmer-galaxy {
           background-image: linear-gradient(
             to right,
@@ -192,58 +220,6 @@ export default function ComponentShowroom() {
             #bd00ff,
             #00f0ff
           );
-        }
-
-        /* --- FX ANIMATIONS --- */
-        @keyframes riseFast {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 0;
-          }
-          20% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-400px) scale(0);
-            opacity: 0;
-          }
-        }
-        @keyframes floatUp {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 0;
-          }
-          30% {
-            opacity: 0.6;
-          }
-          100% {
-            transform: translateY(-300px) rotate(20deg);
-            opacity: 0;
-          }
-        }
-        @keyframes warpDown {
-          0% {
-            transform: translateY(0);
-            opacity: 0;
-          }
-          20% {
-            opacity: 0.8;
-          }
-          100% {
-            transform: translateY(600px);
-            opacity: 0;
-          }
-        }
-        @keyframes pulseGlow {
-          0%,
-          100% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 0.15;
-          }
-          50% {
-            transform: translate(-50%, -50%) scale(1.5);
-            opacity: 0.3;
-          }
         }
       `}</style>
 
@@ -255,7 +231,7 @@ export default function ComponentShowroom() {
       <div className="max-w-7xl mx-auto px-6 space-y-24 mt-12">
         {/* HEADER */}
         <div className="text-center space-y-6">
-          <h1 className="shimmer-text text-shimmer-galaxy text-4xl font-serif">
+          <h1 className="shimmer-text text-shimmer-galaxy text-4xl font-serif font-bold">
             Style System v3.1
           </h1>
           <div className="inline-flex items-center gap-4 bg-white/5 px-6 py-2 rounded-full border border-white/10">
@@ -263,9 +239,9 @@ export default function ComponentShowroom() {
             <span className="text-xs font-mono text-green-400">ONLINE</span>
             <button
               onClick={() => setIsAuthenticated(false)}
-              className="text-xs text-red-400 hover:text-white ml-4"
+              className="text-xs text-red-400 hover:text-white ml-4 uppercase tracking-wider font-bold"
             >
-              LOCK
+              Lock System
             </button>
           </div>
         </div>
@@ -313,295 +289,75 @@ export default function ComponentShowroom() {
         </section>
 
         {/* ==================================================
-            0.1 VISUAL THEMES
-        ================================================== */}
-        <section className="space-y-10">
-          <SectionHeader
-            icon={Palette}
-            title="0.1 Visual Themes"
-            color="text-[#d4af37]"
-          />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <ThemeCard
-              title="Classic / Solo"
-              icon={Mic}
-              borderColor="border-[#d4af37]"
-              hex="#d4af37"
-              description="Elegant. Timeless. Used for main branding."
-            />
-            <ThemeCard
-              title="Romance / Dual"
-              icon={Heart}
-              borderColor="border-[#ff3399]"
-              hex="#ff3399"
-              description="Neon & Rose Gold. Passionate."
-            />
-            <ThemeCard
-              title="High Heat / Duet"
-              icon={Flame}
-              borderColor="border-[#ff4500]"
-              hex="#ff4500"
-              description="Magma Orange. Intense. Dynamic."
-            />
-            <ThemeCard
-              title="Sci-Fi / Multi"
-              icon={Rocket}
-              borderColor="border-[#00f0ff]"
-              hex="#00f0ff"
-              description="Cyan & Purple. Holographic. Tech."
-            />
-          </div>
-        </section>
-
-        {/* ==================================================
-            0.2 SHIMMER EFFECTS
-        ================================================== */}
-        <section className="space-y-10">
-          <SectionHeader
-            icon={Sparkles}
-            title="0.2 Text Shimmers"
-            color="text-white"
-          />
-          <div className="bg-white/5 border border-white/10 rounded-xl p-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <ShimmerDemo label="Gold (Base)" className="text-shimmer-gold" />
-              <ShimmerDemo
-                label="Silver (Secondary)"
-                className="text-shimmer-silver"
-              />
-              <ShimmerDemo label="Romance Pink" className="text-shimmer-pink" />
-              <ShimmerDemo
-                label="High Heat Fire"
-                className="text-shimmer-fire"
-              />
-              <ShimmerDemo
-                label="Sci-Fi Galaxy"
-                className="text-shimmer-galaxy"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* ==================================================
-            0.3 ANIMATION LAB (HIGH FIDELITY)
-        ================================================== */}
-        <section className="space-y-10">
-          <SectionHeader
-            icon={Zap}
-            title="0.3 Animation FX Lab"
-            color="text-yellow-400"
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* 1. SOLO */}
-            <AnimationBox title="Pulse Glow (Solo)" color="#d4af37">
-              <div className="absolute inset-0 overflow-hidden">
-                {/* Pulsing Center Aura */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#d4af37] rounded-full blur-[50px] animate-[pulseGlow_4s_ease-in-out_infinite]" />
-                {/* Particles */}
-                {[...Array(8)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full animate-pulse"
-                    style={{
-                      width: Math.random() * 4 + 1 + "px",
-                      height: Math.random() * 4 + 1 + "px",
-                      backgroundColor: "#d4af37",
-                      top: Math.random() * 100 + "%",
-                      left: Math.random() * 100 + "%",
-                      opacity: Math.random() * 0.5 + 0.3,
-                      animationDuration: Math.random() * 2 + 1 + "s",
-                    }}
-                  />
-                ))}
-              </div>
-            </AnimationBox>
-
-            {/* 2. DUAL */}
-            <AnimationBox title="Floating Hearts (Romance)" color="#ff3399">
-              <div className="absolute inset-0 overflow-hidden">
-                {/* Hearts */}
-                {[...Array(6)].map((_, i) => (
-                  <Heart
-                    key={i}
-                    size={10 + Math.random() * 16}
-                    fill="#ff3399"
-                    stroke="none"
-                    className="absolute animate-[floatUp_6s_ease-in-out_infinite]"
-                    style={{
-                      color: "#ff3399",
-                      left: Math.random() * 80 + 10 + "%",
-                      bottom: "-30px",
-                      opacity: 0,
-                      animationDelay: Math.random() * 4 + "s",
-                    }}
-                  />
-                ))}
-                {/* Bottom Blur Tint */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full blur-[70px] bg-[#ff3399] opacity-[0.25]" />
-              </div>
-            </AnimationBox>
-
-            {/* 3. DUET (INTENSIFIED) */}
-            <AnimationBox title="Rising Embers (Heat)" color="#ff4500">
-              <div className="absolute inset-0 overflow-hidden">
-                {/* Embers */}
-                {[...Array(25)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full animate-[riseFast_3s_linear_infinite]"
-                    style={{
-                      width: Math.random() * 3 + 1 + "px",
-                      height: Math.random() * 3 + 1 + "px",
-                      backgroundColor: "#ff4500",
-                      left: Math.random() * 100 + "%",
-                      bottom: "-20px",
-                      opacity: 0,
-                      animationDelay: Math.random() * 3 + "s",
-                      animationDuration: Math.random() * 1.5 + 1.5 + "s",
-                    }}
-                  />
-                ))}
-                {/* Bottom Gradient Tint */}
-                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#ff4500]/40 to-transparent" />
-              </div>
-            </AnimationBox>
-
-            {/* 4. MULTI (WARP DOWN) */}
-            <AnimationBox title="Warp Speed (Sci-Fi)" color="#00f0ff">
-              <div className="absolute inset-0 overflow-hidden">
-                {/* Stars */}
-                {[...Array(10)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-[1px] bg-[#00f0ff] animate-[warpDown_2s_linear_infinite]"
-                    style={{
-                      height: Math.random() * 40 + 20 + "px",
-                      left: Math.random() * 100 + "%",
-                      top: "-60px",
-                      opacity: 0,
-                      animationDelay: Math.random() * 2 + "s",
-                    }}
-                  />
-                ))}
-                {/* No Bottom Tint (Space is dark) */}
-              </div>
-            </AnimationBox>
-          </div>
-        </section>
-
-        {/* ==================================================
-            1. TYPOGRAPHY & COLORS
-        ================================================== */}
-        <section className="space-y-10">
-          <SectionHeader
-            icon={Type}
-            title="1.0 Typography & Contrast"
-            color="text-white"
-          />
-          <div className="bg-white/5 border border-white/10 rounded-xl p-10 space-y-12">
-            {/* Font Colors */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-white/10">
-              <div className="space-y-2">
-                <p className="text-xs text-white/30 font-mono">
-                  White (Headlines)
-                </p>
-                <p className="text-3xl text-white font-serif">#FFFFFF</p>
-                <p className="text-white text-sm">
-                  Used for h1, h2, h3. Maximum contrast.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-white/30 font-mono">
-                  Off-White (Body)
-                </p>
-                <p className="text-3xl text-white/70 font-sans">
-                  #FFFFFF / 70%
-                </p>
-                <p className="text-white/70 text-sm">
-                  Used for paragraphs. Reduces eye strain on black.
-                </p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-white/30 font-mono">Gold (Accent)</p>
-                <p className="text-3xl text-[#d4af37] font-serif">#D4AF37</p>
-                <p className="text-[#d4af37] text-sm">
-                  Used for links, buttons, and highlights.
-                </p>
-              </div>
-            </div>
-
-            {/* Font Hierarchy */}
-            <div className="space-y-8">
-              <TypeRow
-                label="h1 (Cinzel)"
-                className="text-4xl md:text-5xl font-serif text-white"
-              >
-                Cinematic Headline
-              </TypeRow>
-              <TypeRow
-                label="h2 (Cinzel)"
-                className="text-3xl md:text-4xl font-serif text-white"
-              >
-                Section Title
-              </TypeRow>
-              <TypeRow
-                label="h3 (Cinzel)"
-                className="text-2xl font-serif text-white"
-              >
-                Card or Object Title
-              </TypeRow>
-              <TypeRow
-                label="Body (Sans)"
-                className="text-base text-white/70 font-light"
-              >
-                Standard body text designed for readability. Note how this
-                off-white color sits comfortably on the deep background without
-                vibrating.
-              </TypeRow>
-            </div>
-          </div>
-        </section>
-
-        {/* ==================================================
-            2. UI PRIMITIVES
+            2. UI PRIMITIVES (TEST AREA)
         ================================================== */}
         <section className="space-y-10">
           <SectionHeader
             icon={Shield}
-            title="2.0 UI Primitives"
-            color="text-white"
+            title="2.0 UI Primitives (Live Test)"
+            color={activeColor} // Header color matches theme
           />
-          <div className="bg-white/5 border border-white/10 rounded-xl p-8 space-y-8">
-            <h5 className="text-white/50 mb-4">Badges & Pills</h5>
-            <div className="flex flex-wrap gap-4">
-              <Badge
-                icon={Mic}
-                label="Production"
-                color="text-[#d4af37]"
-                bg="bg-[#d4af37]/10"
-                border="border-[#d4af37]/30"
-              />
-              <Badge
-                icon={Heart}
-                label="Romance"
-                color="text-[#ff3399]"
-                bg="bg-[#ff3399]/10"
-                border="border-[#ff3399]/30"
-              />
-              <Badge
-                icon={Flame}
-                label="High Heat"
-                color="text-[#ff4500]"
-                bg="bg-[#ff4500]/10"
-                border="border-[#ff4500]/30"
-              />
-              <Badge
-                icon={Rocket}
-                label="Sci-Fi"
-                color="text-[#00f0ff]"
-                bg="bg-[#00f0ff]/10"
-                border="border-[#00f0ff]/30"
-              />
+          <div
+            className="bg-white/5 border border-white/10 rounded-xl p-10 space-y-10 transition-colors duration-500"
+            style={{ borderColor: `${activeColor}30` }}
+          >
+            {/* BADGES */}
+            <div>
+              <h5 className="text-white/50 mb-6 text-sm font-mono uppercase tracking-widest">
+                Status Badges
+              </h5>
+              <div className="flex flex-wrap gap-6">
+                <div className="flex items-center gap-3">
+                  <Mic size={16} style={{ color: activeColor }} />
+                  {/* Manually constructing badge styles for demo, or update Badge atom to accept hex */}
+                  <div
+                    className={`inline-flex items-center gap-2 px-3 py-1 border rounded-full`}
+                    style={{
+                      borderColor: `${activeColor}40`,
+                      backgroundColor: `${activeColor}10`,
+                    }}
+                  >
+                    <span
+                      className="text-[10px] tracking-[0.2em] uppercase font-bold"
+                      style={{ color: activeColor }}
+                    >
+                      Active Theme
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-px bg-white/10" />
+
+            {/* BUTTONS */}
+            <div>
+              <h5 className="text-white/50 mb-6 text-sm font-mono uppercase tracking-widest">
+                Interactive Buttons (Testing: {THEMES[demoTheme].label})
+              </h5>
+              <div className="flex flex-wrap gap-4 items-center">
+                {/* 🟢 THESE BUTTONS NOW RESPOND TO THEME STATE */}
+                <Button variant="solid" theme={demoTheme}>
+                  Solid Action
+                </Button>
+
+                <Button variant="outline" theme={demoTheme}>
+                  Outline
+                </Button>
+
+                <Button variant="ghost" theme={demoTheme}>
+                  Ghost / Icon
+                </Button>
+
+                <Button variant="glow" theme={demoTheme}>
+                  <Sparkles size={16} className="mr-2" />
+                  Pulse Glow
+                </Button>
+
+                <Button variant="icon" theme={demoTheme}>
+                  <Zap size={16} />
+                </Button>
+              </div>
             </div>
           </div>
         </section>
@@ -616,10 +372,24 @@ export default function ComponentShowroom() {
             color="text-[#d4af37]"
           />
 
-          <ShowcaseBlock title="ActorCard (Single)">
+          <div className="p-4 bg-white/5 border border-white/10 rounded-lg mb-4 text-xs text-gray-400">
+            <span className="text-white font-bold mr-2">NOTE:</span>
+            The cards below act as individual instances. We are injecting the{" "}
+            <span style={{ color: activeColor }}>
+              {THEMES[demoTheme].label}
+            </span>{" "}
+            into the first card via props.
+          </div>
+
+          <ShowcaseBlock title="ActorCard (Single - Themed)">
             <div className="w-full max-w-xs mx-auto md:mx-0">
               {actors.length > 0 && (
-                <ActorCard actor={actors[0]} onClick={() => {}} />
+                // 🟢 INJECTING THE ACTIVE COLOR INTO THE CARD
+                <ActorCard
+                  actor={actors[0]}
+                  color={activeColor}
+                  onClick={() => {}}
+                />
               )}
             </div>
           </ShowcaseBlock>
@@ -644,44 +414,32 @@ export default function ComponentShowroom() {
           />
 
           <ShowcaseBlock title="Service Hero">
-            {" "}
-            <ServiceHero />{" "}
+            <ServiceHero />
           </ShowcaseBlock>
           <ShowcaseBlock title="Logo Cloud">
-            {" "}
-            <LogoCloud />{" "}
+            <LogoCloud />
           </ShowcaseBlock>
-          <ShowcaseBlock title="Sonic Visualizer">
-            {" "}
-            <SonicVisualizer />{" "}
-          </ShowcaseBlock>
+
           <ShowcaseBlock title="Indie Audio Guide">
-            {" "}
-            <IndieAudioGuide />{" "}
+            <IndieAudioGuide />
           </ShowcaseBlock>
           <ShowcaseBlock title="Comparison Matrix">
-            {" "}
-            <ServiceComparisonMatrix />{" "}
+            <ServiceComparisonMatrix />
           </ShowcaseBlock>
           <ShowcaseBlock title="Production Pipeline">
-            {" "}
-            <ProductionPipeline />{" "}
+            <ProductionPipeline />
           </ShowcaseBlock>
           <ShowcaseBlock title="Cost Estimator">
-            {" "}
-            <CostEstimator />{" "}
+            <CostEstimator />
           </ShowcaseBlock>
           <ShowcaseBlock title="Testimonials">
-            {" "}
-            <TestimonialsFeed />{" "}
+            <TestimonialsFeed />
           </ShowcaseBlock>
           <ShowcaseBlock title="FAQ Section">
-            {" "}
-            <FAQSection />{" "}
+            <FAQSection />
           </ShowcaseBlock>
           <ShowcaseBlock title="CTA Section">
-            {" "}
-            <CTASection />{" "}
+            <CTASection />
           </ShowcaseBlock>
         </section>
       </div>
@@ -701,14 +459,7 @@ export default function ComponentShowroom() {
   );
 }
 
-// --- HELPER COMPONENTS ---
-
-const SectionHeader = ({ icon: Icon, title, color }) => (
-  <div className="flex items-center gap-4 pb-4 border-b border-white/10">
-    <Icon className={color} size={28} />
-    <h2 className="text-3xl md:text-4xl text-white font-serif">{title}</h2>
-  </div>
-);
+// --- HELPER COMPONENTS (Local to Showroom) ---
 
 const ShowcaseBlock = ({ title, children }) => (
   <div className="border border-white/10 rounded-xl overflow-hidden shadow-lg bg-black/20 backdrop-blur-sm">
@@ -777,21 +528,6 @@ function ThemeCard({ title, icon: Icon, borderColor, hex, description }) {
           <p className="text-sm text-white/50 leading-relaxed">{description}</p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Badge({ icon: Icon, label, color, bg, border }) {
-  return (
-    <div
-      className={`inline-flex items-center gap-2 px-3 py-1 border ${border} ${bg} rounded-full`}
-    >
-      <Icon size={12} className={color} />
-      <span
-        className={`text-[10px] tracking-[0.2em] uppercase font-bold ${color}`}
-      >
-        {label}
-      </span>
     </div>
   );
 }

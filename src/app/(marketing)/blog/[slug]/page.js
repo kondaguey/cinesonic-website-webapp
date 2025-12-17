@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { supabase } from "../../../../lib/supabaseClient";
+import { supabase } from "../../../../lib/supabaseClient"; // Check your relative path
 import { Calendar, User, ArrowLeft, Share2, Clock } from "lucide-react";
 import Link from "next/link";
-import Navbar from "../../../../components/marketing/Navbar";
-import Footer from "../../../../components/marketing/Footer";
 import { useParams } from "next/navigation";
+
+// ATOMS (Optional if you want consistent buttons, but standard HTML is fine here)
 
 export default function BlogPost() {
   const { slug } = useParams();
@@ -70,14 +70,14 @@ export default function BlogPost() {
 
   return (
     <div className="min-h-screen bg-[#020010] text-white font-sans selection:bg-[#d4af37]/30">
-      <Navbar />
+      {/* Note: Navbar is handled by Layout/ThemeWrapper */}
 
       <main className="pt-32 pb-24">
         {/* HEADER SECTION */}
-        <div className="max-w-4xl mx-auto px-6 mb-16 text-center">
+        <div className="max-w-4xl mx-auto px-6 mb-16 text-center animate-fade-in-up">
           <Link
             href="/blog"
-            className="inline-flex items-center text-gray-500 hover:text-[#00f0ff] mb-8 transition-colors text-xs uppercase tracking-widest group"
+            className="inline-flex items-center text-gray-500 hover:text-[#d4af37] mb-8 transition-colors text-xs uppercase tracking-widest group"
           >
             <ArrowLeft
               size={14}
@@ -86,34 +86,39 @@ export default function BlogPost() {
             Back to Log
           </Link>
 
-          {/* 1. COVER IMAGE (NOW FIRST) */}
+          {/* 1. COVER IMAGE */}
           <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] group mb-10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={coverImage}
               alt={post.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#020010] via-transparent to-transparent opacity-60" />
+
+            {/* Image Grain Overlay */}
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.05] mix-blend-overlay" />
           </div>
 
-          {/* 2. TITLE (BELOW IMAGE, SMALLER, GRADIENT GOLD) */}
-          <h1 className="text-3xl md:text-5xl font-sans font-bold leading-tight mb-6 bg-gradient-to-br from-[#ffeebb] via-[#d4af37] to-[#b8860b] text-transparent bg-clip-text drop-shadow-sm">
+          {/* 2. TITLE */}
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-medium leading-tight mb-8 text-transparent bg-clip-text bg-gradient-to-br from-[#ffeebb] via-[#d4af37] to-[#b8860b] drop-shadow-sm">
             {post.title}
           </h1>
 
-          {/* 3. META BADGES (LAST) */}
-          <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-bold opacity-80">
+          {/* 3. META BADGES */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] uppercase tracking-widest font-bold opacity-70">
             <span className="flex items-center gap-2 text-gray-400">
-              <Calendar size={12} />{" "}
+              <Calendar size={12} className="text-[#d4af37]" />{" "}
               {new Date(post.created_at).toLocaleDateString()}
             </span>
             <span className="w-1 h-1 bg-white/20 rounded-full" />
             <span className="flex items-center gap-2 text-gray-400">
-              <User size={12} /> {post.author || "CineSonic Team"}
+              <User size={12} className="text-[#d4af37]" />{" "}
+              {post.author || "CineSonic Team"}
             </span>
             <span className="w-1 h-1 bg-white/20 rounded-full" />
-            <span className="flex items-center gap-2 text-[#00f0ff]">
-              <Clock size={12} /> {readTime} Min Read
+            <span className="flex items-center gap-2 text-white">
+              <Clock size={12} className="text-[#d4af37]" /> {readTime} Min Read
             </span>
           </div>
 
@@ -123,7 +128,7 @@ export default function BlogPost() {
               {post.tags.map((tag, i) => (
                 <span
                   key={i}
-                  className="px-3 py-1 border border-white/10 bg-white/5 rounded-full text-[10px] text-gray-500 uppercase tracking-widest"
+                  className="px-3 py-1 border border-white/10 bg-white/5 rounded-full text-[10px] text-gray-400 uppercase tracking-widest hover:border-[#d4af37]/50 hover:text-white transition-colors cursor-default"
                 >
                   {tag}
                 </span>
@@ -133,29 +138,38 @@ export default function BlogPost() {
         </div>
 
         {/* CONTENT SECTION */}
-        <div className="max-w-3xl mx-auto px-6">
+        <div
+          className="max-w-3xl mx-auto px-6 animate-fade-in-up"
+          style={{ animationDelay: "0.2s" }}
+        >
+          {/* This class 'blog-content' is now powered by your globals.css */}
           <article className="blog-content">
             <div dangerouslySetInnerHTML={{ __html: post.content }} />
           </article>
 
           {/* FOOTER OF POST */}
-          <div className="mt-16 pt-8 border-t border-white/10 flex justify-between items-center">
-            <div className="text-gray-500 text-sm italic">
-              End of Transmission
-            </div>
+          <div className="mt-20 pt-10 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div className="text-gray-500 text-sm font-mono tracking-widest uppercase"></div>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
                 alert("Link copied to clipboard!");
               }}
-              className="flex items-center gap-2 text-xs uppercase tracking-widest text-[#d4af37] hover:text-white transition-colors"
+              className="group flex items-center gap-3 px-6 py-3 rounded-full bg-white/5 border border-white/10 hover:border-[#d4af37] transition-all"
             >
-              <Share2 size={16} /> Share Signal
+              <Share2
+                size={16}
+                className="text-gray-400 group-hover:text-[#d4af37] transition-colors"
+              />
+              <span className="text-xs uppercase tracking-widest text-white group-hover:text-[#d4af37] transition-colors">
+                Share Signal
+              </span>
             </button>
           </div>
         </div>
       </main>
-      <Footer />
+
+      {/* Note: Footer is handled by Layout/ThemeWrapper */}
     </div>
   );
 }

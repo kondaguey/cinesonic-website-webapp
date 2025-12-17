@@ -11,6 +11,9 @@ import {
   Check,
 } from "lucide-react";
 
+// --- ATOMS ---
+import Button from "../ui/Button";
+
 // Helper: Clean Date Display
 const formatDate = (dateString) => {
   if (!dateString) return "No Date Set";
@@ -70,71 +73,75 @@ export default function ScheduleHub({
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       {/* HEADER */}
-      <div className="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h2 className="text-xl font-serif text-gold flex items-center gap-2">
+      <div className="bg-white/5 p-6 rounded-xl border border-white/10 flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
+        <div className="w-full md:w-auto">
+          <h2 className="text-xl font-serif text-[#d4af37] flex items-center gap-2 mb-3">
             <Calendar className="w-5 h-5" /> Scheduling Matrix
           </h2>
-          <div className="flex flex-wrap gap-2 mt-2 text-xs">
+          <div className="flex flex-wrap gap-2 text-xs">
             {dates.map((d, i) => (
               <div
                 key={i}
-                className={`px-3 py-1 rounded border ${
+                className={`px-3 py-1.5 rounded-lg border flex items-center gap-2 ${
                   d.val
-                    ? "bg-white/10 border-white/20 text-white"
+                    ? "bg-[#d4af37]/10 border-[#d4af37]/30 text-white"
                     : "bg-black/20 border-white/5 text-gray-500"
                 }`}
               >
-                <span className="text-gold font-bold uppercase mr-1">
-                  {d.label}:
+                <span className="text-[#d4af37] font-bold uppercase text-[10px] tracking-wider">
+                  {d.label}
                 </span>
-                {d.val ? formatDate(d.val) : "None"}
+                <span className="font-mono">
+                  {d.val ? formatDate(d.val) : "None"}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-3">
-            {/* BUTTON 1: THE RE-RUNNER (Database Sync) */}
-            <button
+        <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            {/* 🟢 FIXED: Explicit Label & Fixed Size */}
+            <Button
               onClick={handleDeepSync}
               disabled={isChecking}
-              className="group border border-gold/30 hover:bg-gold/10 text-gold p-3 rounded-lg transition-colors flex items-center justify-center shadow-lg relative disabled:opacity-50"
-              title="Refresh Data & Re-Run"
+              variant="ghost"
+              color="#d4af37"
+              className="!w-auto border border-[#d4af37]/30 hover:bg-[#d4af37]/10 text-xs px-4"
+              title="Pull fresh data from Roster"
             >
               {isChecking ? (
-                <RefreshCcw className="w-4 h-4 animate-spin" />
+                <RefreshCcw className="w-3 h-3 animate-spin mr-2" />
               ) : (
-                <Database className="w-4 h-4" />
+                <Database className="w-3 h-3 mr-2" />
               )}
-            </button>
+              {isChecking ? "Syncing..." : "Sync Roster Data"}
+            </Button>
 
             {/* BUTTON 2: THE INITIAL RUNNER */}
-            <button
+            <Button
               onClick={runLocalCheck}
-              // Gray out if checking OR if already run
               disabled={isChecking || analysisRun}
-              className={`font-bold px-6 py-3 rounded-lg uppercase tracking-widest text-xs flex items-center gap-2 shadow-lg transition-all ${
-                analysisRun
-                  ? "bg-white/5 text-gray-500 border border-white/5 cursor-default" // Grayed out state
-                  : "bg-gold hover:bg-gold-light text-midnight shadow-gold/10 active:scale-95" // Active state
+              variant={analysisRun ? "solid" : "glow"}
+              color="#d4af37"
+              className={`!w-auto min-w-[180px] ${
+                analysisRun ? "opacity-50 cursor-default" : "animate-pulse-slow"
               }`}
             >
               {analysisRun ? (
                 <>
-                  <Check size={16} /> Matrix Active
+                  <Check size={16} className="mr-2" /> Matrix Active
                 </>
               ) : (
                 <>
-                  <PlayCircle size={16} /> Run Schedule Matrix
+                  <PlayCircle size={16} className="mr-2" /> Run Schedule Matrix
                 </>
               )}
-            </button>
+            </Button>
           </div>
 
           {/* SYNC FEEDBACK TEXT */}
-          <div className="text-[10px] text-gray-500 h-4">
+          <div className="text-[10px] text-gray-500 h-4 flex justify-end">
             {lastSyncTime ? (
               <span className="text-green-400 flex items-center gap-1 animate-fade-in">
                 <CheckCircle size={10} /> Data Updated: {lastSyncTime}
@@ -157,15 +164,20 @@ export default function ScheduleHub({
           return (
             <div
               key={role["Role ID"]}
-              className="bg-black/40 border border-gold/10 rounded-lg p-4 flex flex-col md:flex-row gap-6 items-start md:items-center"
+              className="bg-[#0a0a0a] border border-white/10 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-start md:items-center hover:border-[#d4af37]/20 transition-colors"
             >
               {/* ROLE INFO */}
-              <div className="w-full md:w-1/5">
-                <h3 className="font-bold text-white text-sm">
+              <div className="w-full md:w-1/5 min-w-[180px]">
+                <h3 className="font-bold text-white text-sm mb-1 font-serif">
                   {role["Character Name"]}
                 </h3>
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider">
-                  {role["Gender"]} • {role["Age Range"]}
+                <div className="flex gap-2">
+                  <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-gray-300 uppercase tracking-wider">
+                    {role["Gender"]}
+                  </span>
+                  <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-gray-300 uppercase tracking-wider">
+                    {role["Age Range"]}
+                  </span>
                 </div>
               </div>
 
@@ -191,7 +203,11 @@ export default function ScheduleHub({
         })}
 
         {roles.length === 0 && (
-          <div className="text-center py-12 text-gray-500">No roles found.</div>
+          <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
+            <p className="text-gray-500 text-sm">
+              No roles found for this project.
+            </p>
+          </div>
         )}
       </div>
     </div>
@@ -202,9 +218,9 @@ export default function ScheduleHub({
 function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
   if (!selectedActor) {
     return (
-      <div className="bg-white/5 border border-dashed border-white/10 rounded p-3 flex items-center justify-center gap-2 text-gray-600 h-24">
+      <div className="bg-white/5 border border-dashed border-white/10 rounded-lg p-4 flex items-center justify-center gap-2 text-gray-600 h-28">
         <User size={16} />
-        <span className="text-xs uppercase tracking-wide">
+        <span className="text-[10px] uppercase tracking-widest font-bold">
           No {type} Selected
         </span>
       </div>
@@ -216,27 +232,27 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
     selectedActor;
 
   return (
-    <div className="relative p-3 rounded border bg-white/5 border-white/10 flex gap-3 transition-colors">
+    <div className="relative p-4 rounded-lg border bg-[#0c0442]/30 border-white/10 flex gap-4 transition-colors group hover:border-white/20">
       <div
-        className={`absolute -top-2 -left-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded shadow-sm ${
+        className={`absolute -top-2.5 -left-2 text-[9px] font-bold uppercase px-2 py-0.5 rounded shadow-lg tracking-widest ${
           type === "Primary"
-            ? "bg-gold text-midnight"
+            ? "bg-[#d4af37] text-black"
             : "bg-blue-600 text-white"
         }`}
       >
         {type}
       </div>
 
-      <div className="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center text-sm font-bold text-gray-300 shrink-0">
+      <div className="w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-sm font-bold text-gray-300 shrink-0">
         {(liveActor.name || "?").charAt(0)}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-bold text-white truncate mb-2">
+        <div className="text-sm font-bold text-white truncate mb-3">
           {liveActor.name}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {dates.map((dateObj, i) => {
             if (!dateObj.val) return null;
 
@@ -246,14 +262,17 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
             }
 
             let colorClass = "text-gray-500";
+            let bgClass = "bg-black/20";
             let icon = <Clock size={10} />;
 
             if (showResult) {
               if (result.status === "CLEAR") {
                 colorClass = "text-green-400";
+                bgClass = "bg-green-900/20";
                 icon = <CheckCircle size={10} />;
               } else {
                 colorClass = "text-red-400";
+                bgClass = "bg-red-900/20";
                 icon = <XCircle size={10} />;
               }
             }
@@ -261,14 +280,14 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
             return (
               <div
                 key={i}
-                className="flex justify-between items-center text-[10px] bg-black/20 px-2 py-1 rounded"
+                className={`flex justify-between items-center text-[10px] px-2 py-1.5 rounded transition-colors ${bgClass}`}
               >
-                <span className="text-gray-400 font-bold w-16">
+                <span className="text-gray-400 font-bold w-16 uppercase tracking-wider text-[9px]">
                   {dateObj.label}
                 </span>
-                <div className={`flex items-center gap-1 ${colorClass}`}>
+                <div className={`flex items-center gap-1.5 ${colorClass}`}>
                   {icon}
-                  <span className="uppercase font-bold">
+                  <span className="uppercase font-bold tracking-wide">
                     {showResult && result.status === "CLEAR"
                       ? "OPEN"
                       : result.reason || "PENDING"}
@@ -279,8 +298,8 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
           })}
 
           {!dates.some((d) => d.val) && (
-            <div className="text-[10px] text-gray-500 italic">
-              No dates set.
+            <div className="text-[10px] text-gray-500 italic text-center py-2">
+              No start dates set in project details.
             </div>
           )}
         </div>

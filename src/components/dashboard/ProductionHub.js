@@ -8,7 +8,14 @@ import {
   Send,
   FileAudio,
   AlertTriangle,
+  AlertCircle,
+  X,
 } from "lucide-react";
+
+// --- ATOMS ---
+import Button from "../ui/Button";
+import SectionHeader from "../ui/SectionHeader";
+import Badge from "../ui/Badge";
 
 const PROGRESS_STEPS = [
   "Cast and Crew Confirmed",
@@ -23,6 +30,7 @@ const PROGRESS_STEPS = [
 
 const ProductionHub = ({ project, updateField, user, saveProject }) => {
   const [newNote, setNewNote] = useState("");
+  const [pendingStep, setPendingStep] = useState(null); // 🟢 NEW: Tracks step awaiting confirmation
   const chatEndRef = useRef(null);
 
   if (!project) return null;
@@ -52,21 +60,38 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
   const currentProductionStep =
     contractStatus.production_step || PROGRESS_STEPS[0];
 
-  // 🟢 FIXED: Updates State AND Database instantly
-  const setProductionStep = (step) => {
-    const newContracts = { ...contractStatus, production_step: step };
-
-    // 1. Prepare new object
-    const updatedProject = { ...project, "Contract Data": newContracts };
-
-    // 2. Update UI
-    updateField("Contract Data", newContracts);
-
-    // 3. Save to DB Immediately
-    saveProject(updatedProject);
+  // 🟢 LOGIC: 1. Request Change (Opens Modal)
+  const requestStepChange = (step) => {
+    if (step === currentProductionStep) return;
+    setPendingStep(step);
   };
 
-  // 🟢 FIXED: Updates State AND Database instantly
+  // 🟢 LOGIC: 2. Confirm Change (Executes DB Update)
+  const confirmStepChange = () => {
+    if (!pendingStep) return;
+
+    const now = new Date().toISOString();
+    const currentTimestamps = contractStatus.step_timestamps || {};
+
+    const newContracts = {
+      ...contractStatus,
+      production_step: pendingStep,
+      step_timestamps: {
+        ...currentTimestamps,
+        [pendingStep]: now, // Locks in the time
+      },
+    };
+
+    // Save to DB
+    const updatedProject = { ...project, "Contract Data": newContracts };
+    updateField("Contract Data", newContracts);
+    saveProject(updatedProject);
+
+    // Close Modal
+    setPendingStep(null);
+  };
+
+  // 🟢 LOGIC: Post Note
   const handlePostNote = () => {
     if (!newNote.trim()) return;
 
@@ -78,18 +103,13 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
     };
 
     const newLog = [...correspondenceLog, entry];
-
-    // 1. Prepare new object
     const updatedProject = { ...project, "Project Correspondence": newLog };
-
-    // 2. Update UI
     updateField("Project Correspondence", newLog);
     setNewNote("");
-
-    // 3. Save to DB Immediately (No timeout needed)
     saveProject(updatedProject);
   };
 
+  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -97,6 +117,7 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
     });
   }, [correspondenceLog]);
 
+  // 🟢 LOGIC: Email Team
   const handleEmailTeam = () => {
     let emails = [];
     [
@@ -119,23 +140,17 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
     )}&subject=Project Update: ${project["Title"]}`;
   };
 
-  // 🟢 FIXED: Updates State AND Database instantly
+  // 🟢 LOGIC: Toggle Files
   const toggleFilesReceived = (key) => {
     const statusKey = `${key}_files_received`;
     const currentVal = contractStatus[statusKey] || false;
-
     const newContracts = { ...contractStatus, [statusKey]: !currentVal };
-
-    // 1. Prepare new object
     const updatedProject = { ...project, "Contract Data": newContracts };
-
-    // 2. Update UI
     updateField("Contract Data", newContracts);
-
-    // 3. Save to DB Immediately
     saveProject(updatedProject);
   };
 
+  // 🟢 LOGIC: Status Check
   const getOverdueStatus = (received) => {
     if (received) return { status: "complete", label: "Files In" };
     if (!project["Confirmed End"])
@@ -166,23 +181,26 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
   ].filter((k) => contractStatus[k] === true && project[k]).length;
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* WORKFLOW TRACKER */}
-      <div className="relative bg-gradient-to-r from-[#0A0A1F] to-[#1a1a3a] border border-gold/20 rounded-2xl overflow-hidden shadow-2xl group">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gold/5 rounded-full blur-[80px] group-hover:bg-gold/10 transition-colors pointer-events-none"></div>
+    <div className="space-y-8 pb-20 animate-fade-in relative">
+      {/* 1. WORKFLOW TRACKER */}
+      <div className="relative bg-[#0c0442] border border-[#d4af37]/20 rounded-2xl overflow-hidden shadow-2xl group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-[#d4af37]/5 rounded-full blur-[80px] group-hover:bg-[#d4af37]/10 transition-colors pointer-events-none"></div>
 
-        <div className="relative z-10 p-5">
-          <h3 className="text-gold text-sm font-bold uppercase tracking-[0.2em] mb-2 flex items-center gap-3">
-            <LayoutDashboard className="w-5 h-5 text-gold" />
-            Active Workflow
-          </h3>
-          <p className="text-xs text-gray-500 mb-6">
-            Click a step to update the project status.
+        <div className="relative z-10 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <LayoutDashboard className="w-5 h-5 text-[#d4af37]" />
+            <h3 className="text-[#d4af37] text-sm font-bold uppercase tracking-[0.2em]">
+              Active Workflow
+            </h3>
+          </div>
+          <p className="text-xs text-gray-400 mb-8">
+            Click a step to update status. Action requires confirmation.
           </p>
 
-          <div className="overflow-x-auto pb-32 pt-12 px-2 custom-scrollbar">
-            <div className="flex items-center min-w-[1200px] relative px-4">
-              <div className="absolute left-4 right-16 top-[50%] -translate-y-1/2 h-0.5 bg-white/10 -z-0"></div>
+          <div className="overflow-x-auto pb-12 pt-4 px-2 custom-scrollbar">
+            <div className="flex items-center min-w-[1000px] relative px-4">
+              {/* Progress Line Background */}
+              <div className="absolute left-4 right-16 top-[20px] h-0.5 bg-white/10 -z-0"></div>
 
               {PROGRESS_STEPS.map((step, idx) => {
                 const currentIdx = PROGRESS_STEPS.indexOf(
@@ -191,49 +209,76 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                 const isCompleted = idx < currentIdx;
                 const isActive = currentProductionStep === step;
 
+                // 🟢 RETRIEVE TIMESTAMP
+                const stepTimestamp = contractStatus.step_timestamps?.[step];
+
                 return (
                   <div
                     key={idx}
                     className="flex-1 last:flex-none relative flex flex-col items-center justify-center group/step cursor-pointer"
-                    onClick={() => setProductionStep(step)}
+                    onClick={() => requestStepChange(step)} // 🟢 UPDATED CLICK HANDLER
                   >
+                    {/* Active Line Fill */}
                     {idx > 0 && (
                       <div
-                        className={`absolute right-[50%] top-[50%] -translate-y-1/2 h-0.5 w-full -z-0 transition-all duration-700 ${
+                        className={`absolute right-[50%] top-[20px] h-0.5 w-full -z-0 transition-all duration-700 ${
                           idx <= currentIdx
-                            ? "bg-gradient-to-r from-gold to-gold-light"
+                            ? "bg-gradient-to-r from-[#d4af37] to-[#fcf6ba]"
                             : "bg-transparent"
                         }`}
                         style={{ left: "-50%" }}
                       />
                     )}
+
+                    {/* Step Circle */}
                     <button
                       className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300 border-2 ${
                         isActive
-                          ? "bg-midnight border-gold text-gold scale-125 shadow-[0_0_20px_rgba(212,175,55,0.6)] ring-4 ring-gold/10"
+                          ? "bg-[#0c0442] border-[#d4af37] text-[#d4af37] scale-125 shadow-[0_0_20px_rgba(212,175,55,0.6)] ring-4 ring-[#d4af37]/10"
                           : isCompleted
-                          ? "bg-gold border-gold text-midnight scale-100"
-                          : "bg-midnight border-white/20 text-gray-600 hover:border-white/50 hover:bg-white/5"
+                          ? "bg-[#d4af37] border-[#d4af37] text-[#0c0442] scale-100"
+                          : "bg-[#0c0442] border-white/20 text-gray-600 hover:border-white/50 hover:bg-white/5"
                       }`}
                     >
                       {isCompleted ? (
                         <Check className="w-5 h-5" />
                       ) : isActive ? (
-                        <div className="w-2.5 h-2.5 bg-gold rounded-full animate-pulse" />
+                        <div className="w-2.5 h-2.5 bg-[#d4af37] rounded-full animate-pulse" />
                       ) : (
                         idx + 1
                       )}
                     </button>
+
+                    {/* Label & Timestamp */}
                     <div
-                      className={`absolute top-16 w-32 text-center text-[10px] font-bold uppercase tracking-wider leading-tight transition-colors duration-300 ${
+                      className={`mt-4 w-32 text-center flex flex-col items-center transition-all duration-300 ${
                         isActive
-                          ? "text-gold translate-y-0 opacity-100"
+                          ? "opacity-100 transform translate-y-0"
                           : isCompleted
-                          ? "text-gray-400"
-                          : "text-gray-600 group-hover/step:text-gray-400"
+                          ? "opacity-90"
+                          : "opacity-50 group-hover/step:opacity-100"
                       }`}
                     >
-                      {step}
+                      <span
+                        className={`text-[10px] font-bold uppercase tracking-wider leading-tight mb-1 ${
+                          isActive ? "text-[#d4af37]" : "text-gray-400"
+                        }`}
+                      >
+                        {step}
+                      </span>
+
+                      {/* 🟢 TIMESTAMP DISPLAY */}
+                      {stepTimestamp && (
+                        <span className="text-[9px] font-mono text-gray-500 bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
+                          {new Date(stepTimestamp).toLocaleDateString(
+                            undefined,
+                            {
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -245,7 +290,7 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
         {/* LOG SECTION */}
         <div className="bg-black/40 border-t border-white/5 grid grid-cols-1 md:grid-cols-3">
           <div className="p-6 border-b md:border-b-0 md:border-r border-white/5 flex flex-col justify-center">
-            <h4 className="text-gold font-bold uppercase tracking-widest text-xs mb-2 flex items-center gap-2">
+            <h4 className="text-[#d4af37] font-bold uppercase tracking-widest text-xs mb-2 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Production Log
             </h4>
             <p className="text-[10px] text-gray-400 leading-relaxed">
@@ -265,13 +310,13 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     className="flex gap-3 text-sm group animate-fade-in"
                   >
                     <div className="shrink-0 mt-1">
-                      <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-gold font-bold border border-white/5">
+                      <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] text-[#d4af37] font-bold border border-white/5">
                         {msg.author ? msg.author.charAt(0) : "?"}
                       </div>
                     </div>
                     <div>
                       <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className="text-gold font-bold text-xs">
+                        <span className="text-[#d4af37] font-bold text-xs">
                           {msg.author}
                         </span>
                         <span className="text-[9px] text-gray-500 opacity-60">
@@ -292,19 +337,22 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
               )}
               <div ref={chatEndRef} />
             </div>
-            <div className="flex gap-2">
+
+            {/* Chat Input & Button */}
+            <div className="flex items-center gap-2 h-10">
               <input
                 type="text"
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handlePostNote()}
                 placeholder="Type a status update..."
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:border-gold outline-none transition-all placeholder:text-gray-600"
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 text-sm text-white focus:border-[#d4af37] outline-none transition-all placeholder:text-gray-600 h-full"
               />
+
               <button
                 onClick={handlePostNote}
                 disabled={!newNote.trim()}
-                className="bg-gold hover:bg-gold-light text-midnight p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gold/10"
+                className="h-10 w-10 shrink-0 rounded-lg bg-[#d4af37] text-[#0c0442] flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(212,175,55,0.2)]"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -313,29 +361,34 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
         </div>
       </div>
 
-      {/* LOCKED ROSTER */}
+      {/* 2. LOCKED ROSTER HEADER */}
       <header className="flex justify-between items-end border-b border-white/10 pb-4">
         <div>
-          <h3 className="text-white font-bold text-xl flex items-center gap-2">
-            <Lock className="w-5 h-5 text-gold" /> Locked Production Roster
-          </h3>
-          <p className="text-gray-400 text-xs mt-1 tracking-wide">
+          <SectionHeader
+            icon={Lock}
+            title="Locked Production Roster"
+            color="text-[#d4af37]"
+          />
+          <p className="text-gray-400 text-xs mt-1 tracking-wide pl-1">
             {lockedCount > 0
               ? `${lockedCount} team members confirmed.`
               : "Awaiting signed contracts."}
           </p>
         </div>
+
         {lockedCount > 0 && (
-          <button
+          <Button
             onClick={handleEmailTeam}
-            className="px-5 py-2.5 bg-gold hover:bg-white text-midnight font-bold rounded-lg text-[10px] uppercase tracking-widest flex items-center gap-2 shadow-glow transition-all hover:-translate-y-0.5"
+            variant="solid"
+            color="#d4af37"
+            className="w-auto px-4 py-2 text-[10px]"
           >
-            <Mail className="w-3 h-3" /> Email All Team
-          </button>
+            <Mail className="w-3 h-3 mr-2" /> Email All Team
+          </Button>
         )}
       </header>
 
-      {/* TRACKING GRID */}
+      {/* 3. TRACKING GRID */}
       {lockedCount === 0 ? (
         <div className="bg-white/5 border border-white/10 border-dashed rounded-2xl p-12 text-center flex flex-col items-center justify-center gap-4">
           <AlertCircle className="w-12 h-12 text-gray-600 opacity-50" />
@@ -344,8 +397,8 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
               Roster Empty
             </h4>
             <p className="text-gray-500 text-xs mt-1">
-              Visit <strong className="text-gold">Contracts Tab</strong> to lock
-              Crew.
+              Visit <strong className="text-[#d4af37]">Contracts Tab</strong> to
+              lock Crew.
             </p>
           </div>
         </div>
@@ -370,9 +423,10 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
             const timeline = getOverdueStatus(filesReceived);
             const isLate = timeline.status === "late";
             const isDone = timeline.status === "complete";
-            const btnColor = isLate
-              ? "bg-red-500 hover:bg-red-600 text-white border-red-500"
-              : "bg-black/40 border-white/10 text-gray-300 hover:bg-gold hover:text-midnight hover:border-gold";
+
+            // Dynamic Button Config
+            const btnColor = isLate ? "#ef4444" : "#d4af37";
+            const btnVariant = isLate ? "solid" : "ghost";
 
             return (
               <div
@@ -382,47 +436,60 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     ? "bg-green-900/10 border-green-500/50"
                     : isLate
                     ? "bg-red-900/10 border-red-500/50"
-                    : "bg-white/5 border-gold/10 hover:border-gold/30"
+                    : "bg-[#0a0a0a] border-white/10 hover:border-[#d4af37]/30"
                 }`}
               >
+                {/* Header */}
                 <div className="flex justify-between items-start">
                   <div>
-                    <div
-                      className={`text-[9px] uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5 ${
-                        isLate
-                          ? "text-red-400"
-                          : isDone
-                          ? "text-green-400"
-                          : "text-gray-400"
-                      }`}
-                    >
+                    <div className="flex items-center gap-2 mb-1">
+                      {/* Status Dot */}
                       <div
                         className={`w-1.5 h-1.5 rounded-full ${
                           isLate
                             ? "bg-red-500 animate-pulse"
                             : isDone
                             ? "bg-green-500"
-                            : "bg-gold"
+                            : "bg-[#d4af37]"
                         }`}
-                      ></div>{" "}
-                      {item.role}
+                      />
+                      <span className="text-[9px] uppercase tracking-widest font-bold text-gray-400">
+                        {item.role}
+                      </span>
                     </div>
                     <div className="text-white font-serif font-bold text-lg leading-tight truncate">
                       {name}
                     </div>
                   </div>
-                  <div
-                    className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider border ${
+
+                  {/* Status Badge */}
+                  <Badge
+                    label={timeline.label}
+                    color={
                       isLate
-                        ? "bg-red-500 text-white border-red-400"
+                        ? "text-white"
                         : isDone
-                        ? "bg-green-500 text-midnight border-green-400"
-                        : "bg-white/5 text-gray-500 border-white/10"
-                    }`}
-                  >
-                    {timeline.label}
-                  </div>
+                        ? "text-[#0c0442]"
+                        : "text-gray-400"
+                    }
+                    bg={
+                      isLate
+                        ? "bg-red-500"
+                        : isDone
+                        ? "bg-green-500"
+                        : "bg-white/5"
+                    }
+                    border={
+                      isLate
+                        ? "border-red-400"
+                        : isDone
+                        ? "border-green-400"
+                        : "border-white/10"
+                    }
+                  />
                 </div>
+
+                {/* File Status Toggle */}
                 <div
                   onClick={() => toggleFilesReceived(item.key)}
                   className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${
@@ -432,9 +499,9 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                   }`}
                 >
                   <div
-                    className={`w-5 h-5 rounded flex items-center justify-center border ${
+                    className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
                       filesReceived
-                        ? "bg-green-500 border-green-500 text-midnight"
+                        ? "bg-green-500 border-green-500 text-black"
                         : "border-gray-600"
                     }`}
                   >
@@ -457,16 +524,65 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                     }
                   />
                 </div>
-                <button
+
+                {/* Action Button */}
+                <Button
                   onClick={() => (window.location.href = `mailto:${email}`)}
-                  className={`w-full py-2.5 mt-auto rounded-lg text-[10px] font-bold uppercase border flex items-center justify-center gap-2 transition-all shadow-lg ${btnColor}`}
+                  variant={btnVariant}
+                  color={btnColor}
+                  className="w-full mt-auto py-2 text-[10px]"
                 >
-                  {isLate ? <AlertTriangle size={12} /> : <Mail size={12} />}
+                  {isLate ? (
+                    <AlertTriangle size={12} className="mr-2" />
+                  ) : (
+                    <Mail size={12} className="mr-2" />
+                  )}
                   {isLate ? "Send Late Notice" : "Email Individual"}
-                </button>
+                </Button>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 🟢 CUSTOM CONFIRMATION MODAL */}
+      {pendingStep && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+          <div className="bg-[#0c0442] border border-[#d4af37]/30 w-full max-w-sm rounded-xl shadow-[0_0_50px_rgba(212,175,55,0.2)] animate-scale-in p-6">
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-12 h-12 rounded-full bg-[#d4af37]/20 flex items-center justify-center text-[#d4af37] mb-4 border border-[#d4af37]/30">
+                <LayoutDashboard size={24} />
+              </div>
+              <h3 className="text-xl font-serif text-white mb-2">
+                Update Status?
+              </h3>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                You are about to move this project to:
+              </p>
+              <div className="mt-2 px-3 py-1 bg-[#d4af37]/10 border border-[#d4af37]/20 rounded text-[#d4af37] font-bold text-sm uppercase tracking-wider">
+                {pendingStep}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => setPendingStep(null)}
+                variant="ghost"
+                color="#9ca3af"
+                className="justify-center"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmStepChange}
+                variant="solid"
+                color="#d4af37"
+                className="justify-center"
+              >
+                Confirm Update
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

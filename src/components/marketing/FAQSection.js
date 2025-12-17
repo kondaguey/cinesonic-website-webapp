@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { Minus, Plus, Search, Sparkles } from "lucide-react";
+import ParticleFx from "../ui/ParticleFx";
 
 const DEFAULT_FAQS = [
   {
@@ -28,9 +29,22 @@ const DEFAULT_FAQS = [
 export default function FAQSection({
   title = "Curiosities",
   data = DEFAULT_FAQS,
+  theme = "gold", // Accepts theme name
 }) {
   const [openIndex, setOpenIndex] = useState(0);
   const [query, setQuery] = useState("");
+
+  // 1. LOCAL COLOR MAP
+  const themeConfig = {
+    gold: { hex: "#d4af37", glow: "from-[#d4af37]/20" },
+    pink: { hex: "#ff3399", glow: "from-[#ff3399]/20" },
+    fire: { hex: "#ff4500", glow: "from-[#ff4500]/20" },
+    cyan: { hex: "#00f0ff", glow: "from-[#00f0ff]/20" },
+    system: { hex: "#3b82f6", glow: "from-[#3b82f6]/20" },
+  };
+
+  const activeTheme = themeConfig[theme] || themeConfig.gold;
+  const color = activeTheme.hex;
 
   const filteredData = useMemo(() => {
     if (!query) return data;
@@ -53,7 +67,7 @@ export default function FAQSection({
   };
 
   return (
-    <section className="relative py-32 px-6 bg-[#030303] overflow-hidden">
+    <section className="relative py-32 px-6 bg-[#030303] overflow-hidden group">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -61,26 +75,47 @@ export default function FAQSection({
 
       {/* --- AMBIENCE --- */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* Subtle top light leak */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[200px] bg-gradient-to-b from-white/5 to-transparent blur-3xl opacity-30" />
-        {/* Grain */}
+        {/* 1. Subtle Background Particles */}
+        <div className="opacity-30">
+          <ParticleFx variant="solo" count={8} color={color} />
+        </div>
+
+        {/* 2. Top Light Leak - Tinted with Theme */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] blur-[100px] opacity-20 transition-colors duration-1000"
+          style={{
+            backgroundImage: `linear-gradient(to bottom, ${color}, transparent)`,
+          }}
+        />
+
+        {/* 3. Grain */}
         <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay" />
       </div>
 
       <div className="max-w-2xl mx-auto relative z-10">
         {/* HEADER AREA */}
-        <div className="text-center mb-20">
+        <div className="text-center mb-20 animate-fade-in-up">
           <div className="inline-flex justify-center mb-6">
-            <Sparkles className="w-5 h-5 text-[#d4af37]/50" strokeWidth={1} />
+            <Sparkles
+              className="w-5 h-5 opacity-60 transition-colors duration-500"
+              style={{ color: color }}
+              strokeWidth={1}
+            />
           </div>
 
-          <h2 className="text-3xl md:text-5xl font-serif text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-white/20 mb-10 tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-serif text-transparent bg-clip-text bg-gradient-to-b from-white via-white/80 to-white/20 mb-10 tracking-tight drop-shadow-lg">
             {title}
           </h2>
 
           {/* Minimalist Search */}
-          <div className="relative group max-w-sm mx-auto">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-transparent via-[#d4af37]/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-700 blur-md" />
+          <div className="relative group/search max-w-sm mx-auto">
+            {/* Dynamic Glow on Hover */}
+            <div
+              className="absolute -inset-0.5 opacity-0 group-hover/search:opacity-100 transition duration-700 blur-md rounded-full"
+              style={{
+                background: `linear-gradient(to right, transparent, ${color}33, transparent)`,
+              }}
+            />
             <div className="relative flex items-center bg-white/[0.03] border border-white/5 rounded-full px-5 py-3 transition-colors focus-within:bg-white/[0.05] focus-within:border-white/10">
               <Search size={16} className="text-white/20 mr-4" />
               <input
@@ -104,6 +139,7 @@ export default function FAQSection({
                   key={index}
                   item={item}
                   isOpen={isOpen}
+                  color={color}
                   onClick={() =>
                     !query && setOpenIndex(openIndex === index ? null : index)
                   }
@@ -121,9 +157,9 @@ export default function FAQSection({
   );
 }
 
-function FAQItem({ item, isOpen, onClick }) {
+function FAQItem({ item, isOpen, onClick, color }) {
   return (
-    <div className="group border-b border-white/[0.06] last:border-0">
+    <div className="group/item border-b border-white/[0.06] last:border-0 animate-fade-in-up">
       <button
         onClick={onClick}
         className="w-full py-8 flex items-center justify-between gap-6 text-left focus:outline-none"
@@ -132,18 +168,25 @@ function FAQItem({ item, isOpen, onClick }) {
           className={`text-lg md:text-xl font-serif tracking-wide transition-all duration-500 ease-out
             ${
               isOpen
-                ? "text-[#d4af37] text-shadow-sm" // Active state color
-                : "text-white/60 group-hover:text-white/90" // Inactive state
+                ? "text-shadow-sm scale-[1.01]"
+                : "text-white/60 group-hover/item:text-white/90"
             }`}
+          style={{
+            color: isOpen ? color : undefined,
+            // If closed, let Tailwind handle the gray/white colors
+          }}
         >
           {item.q}
         </h3>
 
         {/* Minimalist Icon */}
         <div
-          className={`shrink-0 text-white/20 transition-all duration-500 ${
-            isOpen ? "rotate-180 text-[#d4af37]" : "group-hover:text-white/50"
+          className={`shrink-0 transition-all duration-500 ${
+            isOpen
+              ? "rotate-180"
+              : "group-hover/item:text-white/50 text-white/20"
           }`}
+          style={{ color: isOpen ? color : undefined }}
         >
           {isOpen ? (
             <Minus size={14} strokeWidth={1} />

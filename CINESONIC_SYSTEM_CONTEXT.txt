@@ -1,0 +1,160 @@
+Here is the **Ultimate "Save Game" State**.
+
+This document merges your **System Architecture (V4.2)** with the **Global Expansion Protocol (Italy/Korea)** and the **New Studio Identity**.
+
+Copy this entire block. This is the source code for our brain.
+
+---
+
+# 🎬 PROJECT CINESONIC: MASTER ARCHITECTURE & STRATEGY (V4.3)
+
+## 1. STUDIO IDENTITY
+
+* **Legal Name:** CineSonic Productions
+* **Primary Domain:** `cinesonicproductions.com`
+* **Mission:** "Filmmakers for the Ears." We produce **Auditory Cinema**.
+* **Core Metaphor:** **The Cinema.** (NOT a Cathedral).
+* *Visuals:* Dark mode, letterboxing, lens flares, film grain, deep immersion.
+* *Vibe:* High-stakes, premium, immersive.
+
+
+* **The Ecosystem:**
+1. **The Showroom (Public):** High-performance marketing site (Next.js).
+2. **The Engine (Private):** Production OS for crew/talent (Dashboard).
+
+
+
+---
+
+## 2. THE "LIVING UI" ENGINE
+
+**Architecture:** Hybrid System (CSS Variables + React Context).
+
+### A. The Brain (`ThemeContext.js`)
+
+* **Role:** Holds Global State.
+* **State 1: `theme` (Color):** Gold, Pink, Fire, Cyan, Silver, System.
+* **State 2: `isCinematic` (Mode):** Boolean toggle for "Audiodrama Mode."
+
+### B. The Modes (Dimension 1)
+
+* **Sonic Mode (Standard):** The default professional view. Clean, crisp.
+* **CineSonic Mode (Cinematic):**
+* **Trigger:** User clicks the `CineSonicToggle` switch.
+* **Visuals:** 10vh Letterbox bars slide in (CSS Class `.cinesonic-active`). Violet (`#7c3aed`) bleeds into the theme.
+* **Content:** Pricing matrix upgrades to "Audio Drama" tiers. Background particles intensify.
+
+
+
+### C. The Color Palette (Dimension 2)
+
+* **`gold`** (`#d4af37`) → **Solo Production** (The Classic)
+* **`pink`** (`#ff3399`) → **Dual Production** (Romance/POV)
+* **`fire`** (`#ff4500`) → **Duet Production** (Thriller/High-Heat)
+* **`cyan`** (`#00f0ff`) → **Multi-Cast** (Sci-Fi/Epic)
+* **`silver`** (`#c0c0c0`) → **Technical Specs** (The Machine)
+* **`system`** (`#3b82f6`) → **Dashboard** (Mission Control)
+
+---
+
+## 3. GLOBAL EXPANSION PROTOCOL (FUTURE OPS)
+
+*Strategy for market entry into Italy (EU) and South Korea (APAC).*
+
+### A. Legal Infrastructure (Trademark Protection)
+
+* **The Mechanism:** **The Madrid Protocol** (via WIPO).
+* **Region: Italy (European Union)**
+* *Filing:* **EUTM (European Union Trade Mark)**.
+* *Benefit:* Single filing protects the brand in Italy + 26 other countries.
+
+
+* **Region: South Korea**
+* *Filing:* Direct WIPO extension to KR.
+* *Critical Note:* **"First-to-File"** jurisdiction. File immediately upon market entry decision.
+
+
+
+### B. Technical Infrastructure (Next.js i18n)
+
+* **Routing Strategy:** **Sub-path Routing** (Preserves SEO Authority).
+* 🇺🇸 **USA (Global):** `cinesonicproductions.com`
+* 🇮🇹 **Italy:** `cinesonicproductions.com/it`
+* 🇰🇷 **Korea:** `cinesonicproductions.com/kr`
+
+
+* **Domain Management:**
+* Purchase `cinesonicproductions.it` and `cinesonicproductions.co.kr`.
+* **Action:** **301 Permanent Redirect** these domains to their respective sub-paths on the main `.com`. Do NOT build separate sites.
+
+
+* **Automation:** Use Next.js Middleware to detect IP/Language headers and route traffic automatically.
+
+---
+
+## 4. COMPONENT ATLAS (FILE MAP)
+
+### 🧬 UI ATOMS (`src/components/ui/`)
+
+1. **`ThemeContext.js`:** **[CRITICAL]** The Brain. Manages `theme` and `isCinematic`.
+2. **`ThemeWrapper.js`:** The Body. Injects CSS variables and handles "Letterbox" classes.
+3. **`CineSonicToggle.js`:** The Switch. Activates the "Violet Virus."
+4. **`Button.js`:** Theme-aware interactive element.
+5. **`ParticleFx.js`:** HTML5 Canvas backgrounds (Starfields, Embers, Hearts).
+
+### 📣 MARKETING SUITE (`src/components/marketing/`)
+
+6. **`Navbar.js`:** **[SMART]** Listens directly to Context. Border/Text colors react instantly.
+7. **`Footer.js`:** Includes `CineSonic Productions` legal copy and dynamic bottom glow.
+8. **`ProjectIntakeForm.js`:** **[COMPLEX]** The "Remote Control." Updates global theme based on selection.
+9. **`RosterPreview.js`:** Homepage teaser grid.
+10. **`ServiceHero.js`:** Header containing the CineSonic Toggle.
+
+### 🎛️ DASHBOARD APP (`src/components/dashboard/`)
+
+*The "Engine Room" (Private).*
+11. **`DashboardLayout.js`:** Forces `system` (Blue) theme.
+12. **`DashboardSidebar.js`:** Vertical nav with glowing active states.
+13. **`ProductionHub.js`:** Kanban board with genre-colored headers.
+14. **`TalentManager.js`:** Database view for `actor_db`.
+
+---
+
+## 5. CODING RULES (THE "LAW")
+
+1. **Language:** JavaScript (`.js`) only. No TypeScript.
+2. **Imports:** Use absolute (`@/components/...`) or clean relative (`../../`).
+3. **Theme Logic:**
+* **ALWAYS** import `useTheme` from `../../components/ui/ThemeContext`.
+* **NEVER** hardcode colors. Use `style={{ color: currentColor }}`.
+
+
+4. **Styles:**
+* Use **Tailwind** for layout.
+* Use **Inline Styles** for dynamic theme colors.
+* Use **Globals.css** for complex animations (Shimmer, Scanlines).
+
+
+
+---
+
+## 6. DEVELOPMENT STATUS
+
+### ✅ COMPLETED
+
+* **Theme Engine:** Fully operational. Context is live.
+* **Navbar/Footer:** Reactive & Rebranded to "Productions".
+* **Project Form:** "God-Tier" implementation. Clicking "Multi-Cast" turns the whole site Cyan.
+* **Home Page:** Integrated and polished.
+
+### 🚧 IN PROGRESS
+
+* **Service Pages:** Implementing the "Toggle Strategy" (`/solo-production` handles both Standard and Audiodrama via the toggle).
+* **Dashboard:** Layout & Sidebar construction.
+
+### 🔮 NEXT STEPS
+
+* **Dashboard Layout:** Apply the "System Blue" theme logic to the admin panel.
+* **Talent Manager:** Connect `actor_db` to the UI for real-time editing.
+
+---

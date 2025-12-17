@@ -9,26 +9,31 @@
   --color-midnight: #0c0442;
   --color-glass: rgba(12, 4, 66, 0.7);
 
-  /* --- 1. BLURPLE SUITE (Atmosphere) --- */
+  /* --- 1. ATMOSPHERE --- */
   --color-blurple: #5865f2;
   --color-blurple-dark: #3c45a5;
 
-  /* --- 2. THEME: CLASSIC / SOLO (Gold) --- */
+  /* --- 2a. THEME: CLASSIC (Gold) --- */
   --color-gold: #d4af37;
   --color-gold-light: #fcf6ba;
   --color-gold-dark: #b38728;
 
-  /* --- 3. THEME: ROMANCE / DUAL (Pink) --- */
+  /* --- 2b. THEME: SECONDARY (Silver/Tech) --- */
+  --color-silver: #c0c0c0;
+  --color-silver-light: #e8e8e8;
+  --color-silver-dark: #757575;
+
+  /* --- 3. THEME: ROMANCE (Pink) --- */
   --color-pink-neon: #ff3399;
   --color-pink-soft: #ff80cc;
   --color-pink-dark: #cc0066;
 
-  /* --- 4. THEME: HEAT / DUET (Fire) --- */
+  /* --- 4. THEME: HEAT (Fire) --- */
   --color-fire: #ff4500;
   --color-magma: #ff8c00;
   --color-ember: #8b0000;
 
-  /* --- 5. THEME: GALAXY / MULTI (Sci-Fi) --- */
+  /* --- 5. THEME: GALAXY (Cyan) --- */
   --color-cyan: #00f0ff;
   --color-galaxy: #8a2be2;
   --color-void: #0a0a20;
@@ -41,6 +46,7 @@
   --animate-fade-in: fadeIn 1.2s ease-out;
   --animate-drift: drift 30s ease-in-out infinite alternate;
   --animate-pulse-slow: pulseSlow 4s ease-in-out infinite;
+  --animate-shine: shimmer 3s linear infinite;
 
   @keyframes fadeIn {
     from {
@@ -77,6 +83,12 @@
       transform: scale(1.05);
     }
   }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
 }
 
 /* =========================================
@@ -90,11 +102,7 @@
   body {
     background-color: var(--color-deep-space);
 
-    /* THE "MIDNIGHT THEATRE" STAGE (Restored!)
-       Layer 1: Top Center Spotlight (Midnight Blue)
-       Layer 2: Bottom Left Haze (Blurple Dark) - The cool ambient light
-       Layer 3: Deep Base Gradient (Deep Space -> Black)
-    */
+    /* THE "MIDNIGHT THEATRE" STAGE */
     background-image: radial-gradient(
         circle at 50% 0%,
         #1a0f5e 0%,
@@ -131,7 +139,7 @@
     font-weight: 400;
     line-height: 1.2;
     letter-spacing: 0.01em;
-    @apply text-3xl md:text-4xl lg:text-5xl text-white/90;
+    @apply text-2xl md:text-4xl lg:text-5xl text-white/90;
   }
 
   h3 {
@@ -188,29 +196,6 @@
     @apply bg-white/[0.02] backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
   }
 
-  /* --- STATIC GRADIENTS (Restored) --- */
-  .text-gradient-gold {
-    background: linear-gradient(to bottom, #ffd700, #d4af37, #aa8c2c);
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-
-  .text-gradient-blurple {
-    background: linear-gradient(to right, #5865f2, #a855f7);
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-
-  .text-glass-gradient {
-    background: linear-gradient(
-      to bottom,
-      #ffffff 0%,
-      rgba(255, 255, 255, 0.7) 100%
-    );
-    -webkit-background-clip: text;
-    color: transparent;
-  }
-
   /* --- ANIMATED SHIMMER COLLECTION --- */
   @keyframes shimmer-scroll {
     0% {
@@ -238,7 +223,24 @@
     animation: shimmer-scroll 3s linear infinite;
   }
 
-  /* 2. PINK (Romance) */
+  /* 2. SILVER (Secondary/Tech) */
+  .text-shimmer-silver {
+    background: linear-gradient(
+      to right,
+      #9ca3af 20%,
+      #ffffff 40%,
+      #4b5563 60%,
+      #9ca3af 80%
+    );
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: shimmer-scroll 3s linear infinite;
+  }
+
+  /* 3. PINK (Romance) */
   .text-shimmer-pink {
     background: linear-gradient(
       to right,
@@ -255,7 +257,7 @@
     animation: shimmer-scroll 3s linear infinite;
   }
 
-  /* 3. FIRE (Heat) */
+  /* 4. FIRE (Heat) */
   .text-shimmer-fire {
     background: linear-gradient(
       to right,
@@ -272,7 +274,7 @@
     animation: shimmer-scroll 2.5s linear infinite;
   }
 
-  /* 4. GALAXY (Sci-Fi) */
+  /* 5. GALAXY (Sci-Fi) */
   .text-shimmer-galaxy {
     background: linear-gradient(
       to right,
@@ -289,14 +291,14 @@
     animation: shimmer-scroll 4s linear infinite;
   }
 
-  /* 5. SILVER (Tech) */
-  .text-shimmer-silver {
+  /* 6. SYSTEM (Blue/Blurple) */
+  .text-shimmer-system {
     background: linear-gradient(
       to right,
-      #9ca3af 20%,
-      #ffffff 40%,
-      #4b5563 60%,
-      #9ca3af 80%
+      #3b82f6 20%,
+      #93c5fd 40%,
+      #2563eb 60%,
+      #3b82f6 80%
     );
     background-size: 200% auto;
     background-clip: text;
@@ -331,4 +333,184 @@
     left: 150%;
     transition: 0.7s ease-in-out;
   }
+
+  /* =========================================
+     4. CINEMATIC BLOG TYPOGRAPHY
+     ========================================= */
+
+  /* The Wrapper */
+  .blog-content {
+    @apply text-lg md:text-xl text-gray-300 font-light leading-relaxed;
+    font-family: var(--font-sans);
+  }
+
+  /* Spacing */
+  .blog-content p {
+    @apply mb-8;
+  }
+
+  /* Headings - Serif & Gold/White */
+  .blog-content h2 {
+    font-family: var(--font-serif);
+    @apply text-3xl md:text-4xl text-white mt-16 mb-6 font-normal tracking-wide border-b border-white/10 pb-4;
+  }
+
+  .blog-content h3 {
+    font-family: var(--font-serif);
+    @apply text-2xl md:text-3xl text-white mt-12 mb-4 font-normal tracking-wide;
+  }
+
+  .blog-content h4 {
+    @apply text-lg font-bold text-[var(--color-gold)] mt-8 mb-4 uppercase tracking-[0.2em];
+  }
+
+  /* Links - Gold Underline */
+  .blog-content a {
+    @apply text-[var(--color-gold)] border-b border-[var(--color-gold)]/30 transition-all duration-300 no-underline;
+  }
+  .blog-content a:hover {
+    @apply border-b-[var(--color-gold)] text-white shadow-[0_0_15px_rgba(212,175,55,0.4)];
+  }
+
+  /* Lists - Custom Gold Diamonds */
+  .blog-content ul {
+    @apply mb-8 ml-4 space-y-3;
+  }
+  .blog-content ul li {
+    @apply relative pl-8;
+  }
+  .blog-content ul li::before {
+    content: "❖";
+    @apply absolute left-0 top-1 text-[10px] text-[var(--color-gold)];
+  }
+
+  .blog-content ol {
+    @apply mb-8 ml-6 space-y-3 list-decimal marker:text-[var(--color-gold)] marker:font-bold marker:font-mono;
+  }
+
+  /* Blockquotes - Glass Panel & Big Quotes */
+  .blog-content blockquote {
+    @apply relative p-8 my-12 rounded-r-xl bg-white/[0.03] border-l-4 border-[var(--color-gold)] italic text-xl md:text-2xl text-white/90 shadow-2xl;
+  }
+  .blog-content blockquote::before {
+    content: "“";
+    font-family: serif;
+    @apply absolute -top-4 left-4 text-6xl text-[var(--color-gold)] opacity-20 pointer-events-none;
+  }
+
+  /* Images - Cinematic Frame */
+  .blog-content img {
+    @apply rounded-xl border border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.5)] my-12 w-full object-cover;
+  }
+
+  /* Code Blocks */
+  .blog-content pre {
+    @apply bg-[#050505] border border-white/10 rounded-lg p-6 overflow-x-auto my-8 font-mono text-sm text-[var(--color-cyan)];
+  }
+
+  /* Inline Code */
+  .blog-content code {
+    @apply bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-[var(--color-gold)];
+  }
+
+  /* Bold Text */
+  .blog-content strong,
+  .blog-content b {
+    @apply font-bold text-white;
+  }
+
+  /* Divider */
+  .blog-content hr {
+    @apply border-none h-px my-16 bg-gradient-to-r from-transparent via-white/20 to-transparent;
+  }
+
+  /* =========================================
+     5. CINESONIC MODE (CINEMATIC OVERLAYS)
+     ========================================= */
+
+  /* Letterbox Effect (Black Bars) */
+  .cinesonic-active body::before,
+  .cinesonic-active body::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    right: 0;
+    height: 10vh; /* The Black Bars */
+    background: black;
+    z-index: 9999;
+    transition: transform 0.8s cubic-bezier(0.8, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .cinesonic-active body::before {
+    top: 0;
+  }
+  .cinesonic-active body::after {
+    bottom: 0;
+  }
+
+  /* If not active, hide bars off-screen */
+  body:not(.cinesonic-active)::before {
+    transform: translateY(-100%);
+  }
+  body:not(.cinesonic-active)::after {
+    transform: translateY(100%);
+  }
+}
+/* =========================================
+   6. CINESONIC MODE: THE VIOLET TAKEOVER
+   ========================================= */
+
+/* A. The Letterbox Bars (Existing) */
+.cinesonic-active body::before,
+.cinesonic-active body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 10vh;
+  background: black;
+  z-index: 9999; /* Very high, but below the toggle if we fix z-index properly */
+  transition: transform 0.8s cubic-bezier(0.8, 0, 0.2, 1);
+  pointer-events: none; /* KEY: Allows clicks to pass through bars */
+}
+
+.cinesonic-active body::before {
+  top: 0;
+}
+.cinesonic-active body::after {
+  bottom: 0;
+}
+
+body:not(.cinesonic-active)::before {
+  transform: translateY(-100%);
+}
+body:not(.cinesonic-active)::after {
+  transform: translateY(100%);
+}
+
+/* B. The Moving Violet Nebula (NEW) */
+@keyframes cinesonic-drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.cinesonic-active {
+  /* This overrides the standard dark blue background */
+  background: linear-gradient(
+    -45deg,
+    #050505,
+    /* Black */ #1a0b2e,
+    /* Deep Violet */ #2e1065,
+    /* Rich Purple */ #000000 /* Black */
+  ) !important;
+  background-size: 400% 400% !important;
+  animation: cinesonic-drift 15s ease infinite !important;
 }

@@ -1,75 +1,69 @@
+"use client";
+
 import React from "react";
-import { ArrowDownCircle } from "lucide-react";
+import Image from "next/image";
+import CineSonicToggle from "../ui/CineSonicToggle"; // Import the toggle
+import { useTheme } from "../ui/ThemeContext";
 
-const ServiceHero = ({
-  title,
-  subtitle,
-  badgeText,
-  accentColor = "#d4af37", // Default to Cinema Gold
-  backgroundImageUrl,
-}) => {
+export default function ServiceHero({
+  title = "Solo Production",
+  subtitle = "The Single Voice.",
+  imagePath = "/images/solo-hero.jpg", // Fallback
+}) {
+  const { theme, isCinematic } = useTheme();
+
+  // Map theme keys to hex for inline styles
+  const COLORS = {
+    gold: "#d4af37",
+    pink: "#ff3399",
+    fire: "#ff4500",
+    cyan: "#00f0ff",
+    system: "#3b82f6",
+  };
+  const activeColor = COLORS[theme] || COLORS.gold;
+
   return (
-    <section className="relative w-full min-h-[80vh] flex items-center justify-center overflow-hidden bg-[#050505]">
-      {/* 1. Dynamic Ambient Glow (The "Aura") */}
-      {/* Uses the accentColor prop to cast a colored light into the void */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[120px] pointer-events-none"
-        style={{ backgroundColor: accentColor }}
-      />
-
-      {/* 2. Background Texture / Image Overlay */}
+    <section className="relative min-h-[70vh] flex flex-col items-center justify-center overflow-hidden pt-20">
+      {/* 1. Background Image with "Cinematic" Zoom Effect */}
       <div className="absolute inset-0 z-0">
-        {backgroundImageUrl && (
-          <img
-            src={backgroundImageUrl}
-            alt="Background"
-            className="w-full h-full object-cover opacity-30 mix-blend-overlay"
-          />
-        )}
-        {/* Noise Texture */}
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
-        {/* Vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]"></div>
+        <Image
+          src={imagePath}
+          alt={title}
+          fill
+          className={`object-cover transition-transform duration-[2000ms] ease-in-out ${
+            isCinematic ? "scale-110 grayscale-[0.5]" : "scale-100"
+          }`}
+          priority
+        />
+        {/* Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020010] via-[#020010]/80 to-transparent" />
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
-      {/* 3. Content Layer */}
-      <div className="relative z-10 container mx-auto px-6 text-center flex flex-col items-center">
-        {/* Badge */}
-        <div
-          className="mb-6 px-4 py-1 border rounded-full backdrop-blur-md uppercase tracking-[0.25em] text-[10px] font-bold shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+      {/* 2. Content */}
+      <div className="relative z-10 text-center px-4 max-w-4xl mx-auto space-y-8">
+        {/* Dynamic Title */}
+        <h1
+          className="text-5xl md:text-7xl lg:text-8xl font-serif text-white drop-shadow-2xl tracking-tight"
           style={{
-            borderColor: `${accentColor}40`, // 40 is hex opacity
-            color: accentColor,
-            boxShadow: `0 0 20px -5px ${accentColor}40`,
+            textShadow: isCinematic ? `0 0 50px ${activeColor}50` : "none",
           }}
         >
-          {badgeText}
-        </div>
-
-        {/* Cinematic Title */}
-        <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl text-white leading-tight drop-shadow-2xl mb-6">
           {title}
         </h1>
 
-        {/* Subtitle */}
-        <p className="font-sans text-white/60 text-lg md:text-xl max-w-2xl leading-relaxed mb-10">
+        <p className="text-lg md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto">
           {subtitle}
         </p>
 
-        {/* CTA Button */}
-        <button className="group relative px-8 py-4 bg-[#d4af37] text-black font-bold uppercase tracking-widest text-xs transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_#d4af37]">
-          <span className="relative z-10 flex items-center gap-2">
-            Start Production
-          </span>
-        </button>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 animate-bounce text-white/20">
-          <ArrowDownCircle size={32} strokeWidth={1} />
+        {/* 3. THE TRIGGER */}
+        <div className="pt-8">
+          <CineSonicToggle />
         </div>
       </div>
+
+      {/* 4. Bottom Fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#020010] to-transparent z-10" />
     </section>
   );
-};
-
-export default ServiceHero;
+}

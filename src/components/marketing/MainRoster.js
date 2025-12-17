@@ -1,15 +1,30 @@
+"use client";
 import React from "react";
 import ActorCard from "./ActorCard";
 import { MicOff, Sparkles } from "lucide-react";
 
-const MainRoster = ({ actors, onSelectActor }) => {
-  // --- 1. CINEMATIC EMPTY STATE ---
-  // Instead of a plain error, we show a "Dark Stage"
+const MainRoster = ({ actors, onSelectActor, theme = "gold" }) => {
+  // 1. LOCAL COLOR MAP
+  const themeConfig = {
+    gold: { hex: "#d4af37" },
+    pink: { hex: "#ff3399" },
+    fire: { hex: "#ff4500" },
+    cyan: { hex: "#00f0ff" },
+    system: { hex: "#3b82f6" },
+  };
+
+  const activeTheme = themeConfig[theme] || themeConfig.gold;
+  const color = activeTheme.hex;
+
+  // --- 2. CINEMATIC EMPTY STATE ---
   if (!actors || actors.length === 0) {
     return (
-      <div className="w-full min-h-[50vh] flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-white/[0.02]">
+      <div className="w-full min-h-[50vh] flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl bg-white/[0.02] animate-fade-in-up">
         <div className="relative mb-6">
-          <div className="absolute inset-0 bg-[#d4af37]/20 blur-xl rounded-full" />
+          <div
+            className="absolute inset-0 blur-xl rounded-full opacity-50 transition-colors duration-500"
+            style={{ backgroundColor: `${color}33` }} // ~20%
+          />
           <MicOff
             size={48}
             className="relative z-10 text-white/20"
@@ -26,7 +41,7 @@ const MainRoster = ({ actors, onSelectActor }) => {
     );
   }
 
-  // --- 2. THE GALLERY GRID ---
+  // --- 3. THE GALLERY GRID ---
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">
       {actors.map((actor, index) => {
@@ -53,22 +68,30 @@ const MainRoster = ({ actors, onSelectActor }) => {
           >
             {/* Hover Spotlight (Only for Revealed Actors) */}
             {isInteractive && (
-              <div className="absolute -inset-4 bg-gradient-to-b from-[#d4af37]/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl -z-10" />
+              <div
+                className="absolute -inset-4 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl -z-10"
+                style={{
+                  background: `linear-gradient(to bottom, ${color}1A, transparent)`,
+                }}
+              />
             )}
 
-            {/* The Card */}
+            {/* The Card - Passing Color Down */}
             <div
               className={`transition-transform duration-500 ${
                 isInteractive ? "group-hover:-translate-y-2" : ""
               }`}
             >
-              <ActorCard actor={actor} />
+              <ActorCard actor={actor} color={color} />
             </div>
 
             {/* Interactive Hint (Only for Revealed) */}
             {isInteractive && (
               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-2 group-hover:translate-y-0">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#d4af37]">
+                <div
+                  className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors duration-500"
+                  style={{ color: color }}
+                >
                   <Sparkles size={10} />
                   <span>View Profile</span>
                 </div>
