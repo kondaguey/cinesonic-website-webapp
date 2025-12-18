@@ -36,6 +36,7 @@ import {
   Layers,
   Settings2,
   Clock,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 
 // --- 🟢 1. ROBUST MATCHMAKER ALGO ---
@@ -90,7 +91,7 @@ export function runCreativeMatch(role, roster) {
   return scoredCandidates.sort((a, b) => b.score - a.score);
 }
 
-// --- 🟢 3. MAIN COMPONENT ---
+// --- 🟢 2. MAIN COMPONENT ---
 export default function ProjectIntakeForm() {
   const {
     setTheme,
@@ -132,7 +133,7 @@ export default function ProjectIntakeForm() {
   const [openCalendarIdx, setOpenCalendarIdx] = useState(null);
   const [characters, setCharacters] = useState([]);
 
-  // 🟢 FIXED: Character Update (Immutable)
+  // LOGIC HELPERS
   const updateCharacter = (index, field, value) => {
     setCharacters((prev) =>
       prev.map((char, i) =>
@@ -147,7 +148,6 @@ export default function ProjectIntakeForm() {
     );
   };
 
-  // 🟢 FIXED: Voice Type Selection (Immutable)
   const toggleCharVoice = (charIdx, vt) => {
     setCharacters((prev) =>
       prev.map((char, i) => {
@@ -175,13 +175,14 @@ export default function ProjectIntakeForm() {
     });
   };
 
-  // HELPERS
   const formatCommas = (val) =>
     val ? val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+
   const handleWordCountChange = (e) => {
     const rawValue = e.target.value.replace(/,/g, "");
     if (!isNaN(rawValue)) setFormData({ ...formData, word_count: rawValue });
   };
+
   const calculateDuration = (words) => {
     const count = parseFloat(words) || 0;
     if (count === 0) return null;
@@ -190,7 +191,15 @@ export default function ProjectIntakeForm() {
     const minutes = Math.round((totalHours - hours) * 60);
     return { hours, minutes, totalDecimal: totalHours.toFixed(2) };
   };
+
   const duration = calculateDuration(formData.word_count);
+
+  const getMinDate = (prevDateStr) => {
+    if (!prevDateStr) return new Date();
+    const d = new Date(prevDateStr);
+    d.setDate(d.getDate() + 30);
+    return d;
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -290,16 +299,17 @@ export default function ProjectIntakeForm() {
     setIsSubmitting(true);
     try {
       const intakeId = "PRJ-" + Math.floor(1000 + Math.random() * 9000);
+
+      // This string is critical for the "Explosion" trigger to parse characters later
       const flatChars = characters
         .map(
           (c) =>
-            `${c.name || "Unknown"}, ${c.gender || "Any"}, ${
-              c.age || "Any"
-            }, Voices: ${c.voiceTypes?.join("/") || "Standard"}, ${
-              c.preferredActorId || "None"
-            }`
+            `${c.name || "Unknown"}, ${c.gender || "Any"}, ${c.age || "Any"}, ${
+              c.voiceTypes?.join("/") || "Standard"
+            }, ${c.preferredActorId || "None"}`
         )
         .join(" | ");
+
       const { error } = await supabase.from("master_production_log").insert([
         {
           intake_id: intakeId,
@@ -308,6 +318,7 @@ export default function ProjectIntakeForm() {
           email: formData.email,
           project_title: formData.project_title,
           word_count: parseFloat(formData.word_count) || 0,
+          style: formData.style, // 🟢 Added to match your DB
           genres: formData.genres.join(", "),
           character_details: flatChars,
           timeline_prefs: dates.filter((d) => d).join(" | "),
@@ -318,12 +329,10 @@ export default function ProjectIntakeForm() {
           is_cinematic: isCinematic,
           base_format: formData.base_format,
           price_tier: formData.price_tier,
-          requested_actor_id:
-            characters[0]?.preferredActorId === "Matchmaker"
-              ? null
-              : characters[0]?.preferredActorId || null,
+          requested_actor_id: characters[0]?.preferredActorId || null,
         },
       ]);
+
       if (error) throw error;
       setSubmitStatus("success");
     } catch (err) {
@@ -378,7 +387,6 @@ export default function ProjectIntakeForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* 1. CARDS */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {serviceBase.map((opt) => (
               <ProjectSelectionCard
@@ -396,7 +404,6 @@ export default function ProjectIntakeForm() {
             ))}
           </section>
 
-          {/* 2. CORE INFO */}
           <section
             className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md space-y-6"
             style={{ borderColor: `${activeColor}30` }}
@@ -450,17 +457,15 @@ export default function ProjectIntakeForm() {
                     WORDS
                   </div>
                 </div>
-
-                {/* DYNAMIC RUNTIME DISPLAY */}
                 {duration && (
                   <div className="px-2 animate-in fade-in slide-in-from-top-1 duration-500">
                     <span
                       className="text-[10px] font-mono uppercase tracking-widest flex items-center gap-2"
                       style={{ color: activeColor }}
                     >
-                      <Clock size={12} />
-                      {duration.hours > 0 && `${duration.hours}h `}
-                      {duration.minutes}m est. runtime
+                      <Clock size={12} />{" "}
+                      {duration.hours > 0 && `${duration.hours}h `}{" "}
+                      {duration.minutes}m est. runtime{" "}
                       <span className="text-gray-600 ml-1">
                         ({duration.totalDecimal} PFH)
                       </span>
@@ -496,7 +501,6 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* 3. CHARACTERS */}
           {formData.base_format && (
             <section
               className="glass-panel p-6 md:p-8"
@@ -591,11 +595,7 @@ export default function ProjectIntakeForm() {
                         }
                       }}
                     >
-                      {char.preferredActorId === "Matchmaker" ? (
-                        <span className="text-white text-xs font-bold">
-                          Matchmaker Selected
-                        </span>
-                      ) : char.preferredActorId ? (
+                      {char.preferredActorId ? (
                         <span className="text-white text-xs font-bold">
                           Talent Selected
                         </span>
@@ -604,7 +604,7 @@ export default function ProjectIntakeForm() {
                           <Star size={14} /> Scout Talent...
                         </span>
                       )}
-                      <ChevronRight size={16} />
+                      <ChevronRightIcon size={16} />
                     </button>
                   </div>
                 ))}
@@ -612,32 +612,51 @@ export default function ProjectIntakeForm() {
             </section>
           )}
 
-          {/* 4. TIMELINE */}
           <section
-            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md"
+            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative z-[50]"
             style={{ borderColor: `${activeColor}30` }}
           >
-            <h2 className="text-xl font-bold flex items-center gap-3 text-white mb-6">
-              <Calendar size={20} style={{ color: activeColor }} /> Timeline
-            </h2>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-3 text-white">
+                <Calendar size={20} style={{ color: activeColor }} /> Production
+                Timeline
+              </h2>
+              <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+                <AlertTriangle size={14} className="text-yellow-500" />
+                <span className="text-[9px] uppercase tracking-tighter text-gray-400 leading-tight">
+                  Casting Window: Options must be{" "}
+                  <span className="text-white font-bold">30 days apart</span>{" "}
+                  for optimal talent availability.
+                </span>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[0, 1, 2].map((idx) => (
                 <div key={idx} className="relative">
+                  <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block tracking-widest">
+                    Option 0{idx + 1}
+                  </label>
                   <button
                     type="button"
                     onClick={() =>
                       setOpenCalendarIdx(openCalendarIdx === idx ? null : idx)
                     }
-                    className="w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center text-white"
+                    className="w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center text-white hover:border-white/30 transition-all"
                   >
-                    {dates[idx] || "Select Date..."}
+                    {dates[idx] ? (
+                      <span className="font-mono">{dates[idx]}</span>
+                    ) : (
+                      <span className="text-gray-600">Select Date...</span>
+                    )}{" "}
                     <Calendar size={16} />
                   </button>
                   {openCalendarIdx === idx && (
-                    <div className="absolute top-full left-0 z-50 mt-3 w-full bg-[#080810] border border-white/20 rounded-2xl p-4 shadow-2xl">
+                    <div className="absolute bottom-full left-0 z-[100] mb-3 w-full bg-[#0d0d1a] border border-white/20 rounded-2xl p-4 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl">
                       <ThemedCalendar
                         activeColor={activeColor}
-                        minDate={new Date()}
+                        minDate={
+                          idx === 0 ? new Date() : getMinDate(dates[idx - 1])
+                        }
                         onSelect={(d) => {
                           const n = [...dates];
                           n[idx] = d;
@@ -662,119 +681,116 @@ export default function ProjectIntakeForm() {
             {isSubmitting ? "Transmitting..." : "Initialize Production"}
           </button>
         </form>
-      </div>
 
-      {/* MODALS INCORPORATED USING PopupSelection */}
-      <PopupSelection
-        isOpen={isGenreModalOpen}
-        onClose={() => setIsGenreModalOpen(false)}
-        title="Project Genre"
-        activeColor={activeColor}
-      >
-        <div className="flex flex-wrap gap-2">
-          {dropdowns.genres.map((g) => {
-            const isSelected = formData.genres.includes(g);
-            return (
-              <button
-                key={g}
-                type="button"
-                onClick={() => toggleGenre(g)}
-                className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
-                  isSelected
-                    ? "text-black font-bold border-transparent shadow-lg"
-                    : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
-                }`}
-                style={{
-                  backgroundColor: isSelected ? activeColor : undefined,
-                }}
-              >
-                {g}
-              </button>
-            );
-          })}
-        </div>
-      </PopupSelection>
-
-      <PopupSelection
-        isOpen={voiceTypeModalIdx !== null}
-        onClose={() => setVoiceTypeModalIdx(null)}
-        title="Voice Specs"
-        activeColor={activeColor}
-      >
-        <div className="flex flex-wrap gap-2">
-          {dropdowns.voiceTypes.map((vt) => {
-            const isSelected =
-              characters[voiceTypeModalIdx]?.voiceTypes?.includes(vt);
-            return (
-              <button
-                key={vt}
-                type="button"
-                onClick={() => toggleCharVoice(voiceTypeModalIdx, vt)}
-                className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
-                  isSelected
-                    ? "text-black font-bold border-transparent shadow-lg"
-                    : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
-                }`}
-                style={{
-                  backgroundColor: isSelected ? activeColor : undefined,
-                }}
-              >
-                {vt}
-              </button>
-            );
-          })}
-        </div>
-      </PopupSelection>
-
-      <PopupSelection
-        isOpen={isScoutOpen}
-        onClose={() => setIsScoutOpen(false)}
-        title="CineSonic Matchmaker"
-        activeColor={activeColor}
-      >
-        <div className="space-y-3">
-          <div
-            className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-500/30 cursor-pointer"
-            onClick={() => {
-              updateCharacter(
-                scoutTargetIndex,
-                "preferredActorId",
-                "Matchmaker"
+        <PopupSelection
+          isOpen={isGenreModalOpen}
+          onClose={() => setIsGenreModalOpen(false)}
+          title="Project Genre"
+          activeColor={activeColor}
+          currentCount={formData.genres.length}
+          maxCount={3}
+        >
+          <div className="flex flex-wrap gap-2">
+            {dropdowns.genres.map((g) => {
+              const isSelected = formData.genres.includes(g);
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => toggleGenre(g)}
+                  className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
+                    isSelected
+                      ? "text-black font-bold border-transparent shadow-lg"
+                      : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
+                  }`}
+                  style={{
+                    backgroundColor: isSelected ? activeColor : undefined,
+                  }}
+                >
+                  {g}
+                </button>
               );
-              setIsScoutOpen(false);
-            }}
-          >
-            <div className="flex items-center gap-4">
-              <Cpu className="text-indigo-400" size={24} />
-              <div>
-                <h4 className="text-indigo-300 font-bold text-sm">
-                  Delegate to Matchmaker
-                </h4>
-              </div>
-            </div>
+            })}
           </div>
-          <ScoutResultsList
-            roster={roster}
-            character={characters[scoutTargetIndex]}
-            formData={formData}
-            onSelect={(id) => {
-              updateCharacter(scoutTargetIndex, "preferredActorId", id);
-              setIsScoutOpen(false);
-            }}
-            activeColor={activeColor}
-          />
-        </div>
-      </PopupSelection>
+        </PopupSelection>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-      `}</style>
+        <PopupSelection
+          isOpen={voiceTypeModalIdx !== null}
+          onClose={() => setVoiceTypeModalIdx(null)}
+          title="Voice Specs"
+          activeColor={activeColor}
+          currentCount={
+            voiceTypeModalIdx !== null
+              ? characters[voiceTypeModalIdx]?.voiceTypes?.length || 0
+              : 0
+          }
+          maxCount={2}
+        >
+          <div className="flex flex-wrap gap-2">
+            {dropdowns.voiceTypes.map((vt) => {
+              const isSelected =
+                voiceTypeModalIdx !== null &&
+                characters[voiceTypeModalIdx]?.voiceTypes?.includes(vt);
+              return (
+                <button
+                  key={vt}
+                  type="button"
+                  onClick={() => toggleCharVoice(voiceTypeModalIdx, vt)}
+                  className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
+                    isSelected
+                      ? "text-black font-bold border-transparent shadow-lg"
+                      : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
+                  }`}
+                  style={{
+                    backgroundColor: isSelected ? activeColor : undefined,
+                  }}
+                >
+                  {vt}
+                </button>
+              );
+            })}
+          </div>
+        </PopupSelection>
+
+        <PopupSelection
+          isOpen={isScoutOpen}
+          onClose={() => setIsScoutOpen(false)}
+          title="CineSonic Talent Roster"
+          activeColor={activeColor}
+          currentCount={
+            scoutTargetIndex !== null &&
+            characters[scoutTargetIndex]?.preferredActorId
+              ? 1
+              : 0
+          }
+          maxCount={1}
+        >
+          <div className="space-y-3">
+            {scoutTargetIndex !== null && (
+              <ScoutResultsList
+                roster={roster}
+                character={characters[scoutTargetIndex]}
+                formData={formData}
+                onSelect={(id) => {
+                  updateCharacter(scoutTargetIndex, "preferredActorId", id);
+                  setIsScoutOpen(false);
+                }}
+                activeColor={activeColor}
+              />
+            )}
+          </div>
+        </PopupSelection>
+
+        <style jsx global>{`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+          }
+        `}</style>
+      </div>
     </div>
   );
 }
@@ -789,6 +805,7 @@ function ScoutResultsList({
 }) {
   const [playingUrl, setPlayingUrl] = useState(null);
   const audioRef = useRef(null);
+
   const matchResults = useMemo(
     () =>
       runCreativeMatch(
@@ -817,44 +834,87 @@ function ScoutResultsList({
     }
   };
 
-  return matchResults.map(({ actor, score }) => (
-    <div
-      key={actor.id}
-      className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] cursor-pointer"
-      onClick={() => onSelect(actor.id)}
-    >
-      <div className="relative">
-        <img
-          src={actor.headshot_url}
-          className="w-14 h-14 rounded-xl object-cover"
-          alt="H"
-        />
-        <div className="absolute -bottom-2 -right-2 px-1 py-0.5 rounded bg-green-500 text-black text-[9px] font-black">
-          {score}%
+  const getMatchStyles = (score) => {
+    if (score <= 15)
+      return {
+        bg: "bg-orange-500/10",
+        border: "border-orange-500/30",
+        text: "text-orange-500",
+      };
+    if (score <= 25)
+      return {
+        bg: "bg-yellow-400/10",
+        border: "border-yellow-400/30",
+        text: "text-yellow-400",
+      };
+    if (score <= 50)
+      return {
+        bg: "bg-purple-500/10",
+        border: "border-purple-500/30",
+        text: "text-purple-400",
+      };
+    if (score <= 75)
+      return {
+        bg: "bg-blue-500/10",
+        border: "border-blue-500/30",
+        text: "text-blue-400",
+      };
+    return {
+      bg: "bg-green-500/10",
+      border: "border-green-500/30",
+      text: "text-green-400",
+    };
+  };
+
+  return matchResults.map(({ actor, score }) => {
+    const tier = getMatchStyles(score);
+    return (
+      <div
+        key={actor.id}
+        className="flex items-center gap-4 p-4 rounded-3xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer group"
+        onClick={() => onSelect(actor.id)}
+      >
+        <div className="relative flex-shrink-0">
+          <img
+            src={actor.headshot_url}
+            className="w-16 h-16 rounded-2xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+            alt="Actor"
+          />
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-white font-serif text-lg truncate tracking-wide">
+              {actor.name}
+            </h4>
+            <div
+              className={`px-2 py-0.5 rounded-md border ${tier.bg} ${tier.border} ${tier.text} text-[9px] font-black uppercase tracking-tighter`}
+            >
+              {score}% MATCH
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-500 uppercase tracking-widest truncate">
+            {actor.voice_type}
+          </p>
+        </div>
+        {actor.demo_url && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleAudio(actor.demo_url);
+            }}
+            className="w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:border-white/30 transition-all"
+          >
+            {playingUrl === actor.demo_url ? (
+              <Pause size={18} className="text-white" />
+            ) : (
+              <Play size={18} className="text-white fill-white ml-1" />
+            )}
+          </button>
+        )}
       </div>
-      <div className="flex-1 min-w-0">
-        <h4 className="text-white font-bold text-sm truncate">{actor.name}</h4>
-        <p className="text-[10px] text-gray-500 truncate">{actor.voice_type}</p>
-      </div>
-      {actor.demo_url && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleAudio(actor.demo_url);
-          }}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
-        >
-          {playingUrl === actor.demo_url ? (
-            <Pause size={16} />
-          ) : (
-            <Play size={16} />
-          )}
-        </button>
-      )}
-    </div>
-  ));
+    );
+  });
 }
 
 function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
@@ -876,7 +936,7 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
     .concat([...Array(daysInMonth).keys()].map((i) => i + 1));
 
   return (
-    <div>
+    <div className="relative z-[100]">
       <div className="flex justify-between items-center mb-4 text-white text-[10px] font-bold uppercase tracking-widest">
         <button
           type="button"
@@ -904,23 +964,32 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
-        {["S", "M", "T", "W", "T", "F", "S"].map((d) => (
-          <div key={d} className="text-[8px] text-gray-500 font-bold mb-2">
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+          <div
+            key={`day-header-${i}`}
+            className="text-[8px] text-gray-500 font-bold mb-2"
+          >
             {d}
           </div>
         ))}
         {days.map((day, i) => {
-          if (!day) return <div key={i} />;
+          if (!day) return <div key={`empty-${i}`} />;
           const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
           const isSelected = selectedDate === d.toISOString().split("T")[0];
+          const isTooEarly =
+            d.getTime() < new Date(minDate).setHours(0, 0, 0, 0);
+
           return (
             <button
-              key={i}
+              key={`day-${i}`}
               type="button"
+              disabled={isTooEarly}
               onClick={() => onSelect(d.toISOString().split("T")[0])}
-              className={`h-7 w-7 rounded-full text-[10px] flex items-center justify-center ${
-                isSelected
-                  ? "text-black font-bold"
+              className={`h-7 w-7 rounded-full text-[10px] flex items-center justify-center transition-all ${
+                isTooEarly
+                  ? "opacity-10 cursor-not-allowed"
+                  : isSelected
+                  ? "text-black font-bold scale-110"
                   : "text-gray-300 hover:bg-white/10"
               }`}
               style={{ backgroundColor: isSelected ? activeColor : undefined }}

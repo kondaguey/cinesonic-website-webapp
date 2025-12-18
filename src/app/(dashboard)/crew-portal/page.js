@@ -26,6 +26,7 @@ import {
   Save,
   RotateCcw,
   Trash2,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -213,28 +214,28 @@ export default function AdminPortal() {
       });
       if (intakeData)
         // Inside fetchAllData -> intakeData.map
+        // Inside fetchAllData -> intakeData.map
         setIntakes(
           intakeData
             .map((i) => ({
-              id: i.intake_id, // Human-readable PRJ-XXXX
-              db_id: i.id, // The UUID
+              id: i.intake_id, // The PRJ-XXXX tag
+              db_id: i.id, // The actual UUID for the SQL .eq() calls
               title: i.project_title,
               clientName: i.client_name,
               clientType: i.client_type,
               email: i.email,
               wordCount: i.word_count,
-              genres: i.genres, // Database column is 'genres'
+              style: i.style, // 🟢 Fixed: Now mapping the style spec
+              genres: i.genres,
               baseFormat: i.base_format,
+              priceTier: i.price_tier,
               isCinematic: i.is_cinematic,
               character_details: i.character_details,
               timeline_prefs: i.timeline_prefs,
               notes: i.notes,
-              priceTier: i.price_tier,
-              style: i.style, // <--- MISSING: Add this
             }))
             .filter((i) => i.status !== "Greenlit")
         );
-
       const { data: projData } = await supabase.rpc("secure_fetch_production", {
         secret_pass: activeKey,
       });
@@ -713,15 +714,16 @@ export default function AdminPortal() {
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8 bg-[#020010]">
                   <div className="grid grid-cols-3 gap-6 mb-8">
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                      <h4 className="text-gray-500 text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
-                        <User size={12} /> Client
+                      <h4 className="text-[#d4af37] text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
+                        <Zap size={12} /> Production Tier
                       </h4>
-                      <span className="text-white text-sm block">
-                        {selectedIntake.clientName}
-                      </span>
-                      <span className="text-gray-500 text-xs">
-                        {selectedIntake.email}
-                      </span>
+                      <div className="text-white text-sm">
+                        {selectedIntake.baseFormat} — {selectedIntake.style}
+                        <br />
+                        <span className="text-[#d4af37] font-mono">
+                          {selectedIntake.priceTier} Budget
+                        </span>
+                      </div>
                     </div>
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
                       <h4 className="text-gray-500 text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
