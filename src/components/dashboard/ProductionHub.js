@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 // --- ATOMS ---
-import Button from "../ui/Button";
+import Button from "../ui/Button"; // Used for secondary actions, but critical buttons are explicit
 import SectionHeader from "../ui/SectionHeader";
 import Badge from "../ui/Badge";
 
@@ -30,7 +30,7 @@ const PROGRESS_STEPS = [
 
 const ProductionHub = ({ project, updateField, user, saveProject }) => {
   const [newNote, setNewNote] = useState("");
-  const [pendingStep, setPendingStep] = useState(null); // 🟢 NEW: Tracks step awaiting confirmation
+  const [pendingStep, setPendingStep] = useState(null);
   const chatEndRef = useRef(null);
 
   if (!project) return null;
@@ -209,14 +209,13 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                 const isCompleted = idx < currentIdx;
                 const isActive = currentProductionStep === step;
 
-                // 🟢 RETRIEVE TIMESTAMP
                 const stepTimestamp = contractStatus.step_timestamps?.[step];
 
                 return (
                   <div
                     key={idx}
                     className="flex-1 last:flex-none relative flex flex-col items-center justify-center group/step cursor-pointer"
-                    onClick={() => requestStepChange(step)} // 🟢 UPDATED CLICK HANDLER
+                    onClick={() => requestStepChange(step)}
                   >
                     {/* Active Line Fill */}
                     {idx > 0 && (
@@ -267,7 +266,6 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                         {step}
                       </span>
 
-                      {/* 🟢 TIMESTAMP DISPLAY */}
                       {stepTimestamp && (
                         <span className="text-[9px] font-mono text-gray-500 bg-black/20 px-1.5 py-0.5 rounded border border-white/5">
                           {new Date(stepTimestamp).toLocaleDateString(
@@ -377,14 +375,13 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
         </div>
 
         {lockedCount > 0 && (
-          <Button
+          // 🟢 EXPLICIT SOLID BUTTON
+          <button
             onClick={handleEmailTeam}
-            variant="solid"
-            color="#d4af37"
-            className="w-auto px-4 py-2 text-[10px]"
+            className="flex items-center gap-2 bg-[#d4af37] hover:bg-[#b8860b] text-black font-bold uppercase tracking-wider text-xs px-6 py-2.5 rounded-lg shadow-lg hover:shadow-[#d4af37]/20 transition-all shrink-0 border border-[#d4af37]"
           >
-            <Mail className="w-3 h-3 mr-2" /> Email All Team
-          </Button>
+            <Mail size={16} /> Email All Team
+          </button>
         )}
       </header>
 
@@ -424,9 +421,16 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
             const isLate = timeline.status === "late";
             const isDone = timeline.status === "complete";
 
-            // Dynamic Button Config
-            const btnColor = isLate ? "#ef4444" : "#d4af37";
-            const btnVariant = isLate ? "solid" : "ghost";
+            // Dynamic Button Config (Colors)
+            const btnBg = isLate
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-[#d4af37]/10 hover:bg-[#d4af37]";
+            const btnText = isLate
+              ? "text-white"
+              : "text-[#d4af37] hover:text-black";
+            const btnBorder = isLate
+              ? "border-red-500"
+              : "border-[#d4af37]/30 hover:border-[#d4af37]";
 
             return (
               <div
@@ -525,27 +529,21 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                   />
                 </div>
 
-                {/* Action Button */}
-                <Button
+                {/* 🟢 EXPLICIT ACTION BUTTON */}
+                <button
                   onClick={() => (window.location.href = `mailto:${email}`)}
-                  variant={btnVariant}
-                  color={btnColor}
-                  className="w-full mt-auto py-2 text-[10px]"
+                  className={`w-full mt-auto py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 border transition-all ${btnBg} ${btnText} ${btnBorder}`}
                 >
-                  {isLate ? (
-                    <AlertTriangle size={12} className="mr-2" />
-                  ) : (
-                    <Mail size={12} className="mr-2" />
-                  )}
+                  {isLate ? <AlertTriangle size={12} /> : <Mail size={12} />}
                   {isLate ? "Send Late Notice" : "Email Individual"}
-                </Button>
+                </button>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* 🟢 CUSTOM CONFIRMATION MODAL */}
+      {/* CONFIRMATION MODAL */}
       {pendingStep && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
           <div className="bg-[#0c0442] border border-[#d4af37]/30 w-full max-w-sm rounded-xl shadow-[0_0_50px_rgba(212,175,55,0.2)] animate-scale-in p-6">
@@ -569,7 +567,7 @@ const ProductionHub = ({ project, updateField, user, saveProject }) => {
                 onClick={() => setPendingStep(null)}
                 variant="ghost"
                 color="#9ca3af"
-                className="justify-center"
+                className="justify-center border border-white/10 hover:bg-white/5"
               >
                 Cancel
               </Button>

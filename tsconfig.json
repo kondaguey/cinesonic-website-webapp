@@ -30,7 +30,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "src/app/layout.js",
-    "src/app/(marketing)/page.js"
+    "src/app/(marketing)/page.js",
+    "src/app/admin/main-admin-dash/page.js"
   ],
   "exclude": ["node_modules"]
 }

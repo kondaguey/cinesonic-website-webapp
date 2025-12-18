@@ -8,13 +8,10 @@ import {
   Clock,
   XCircle,
   Database,
-  Check,
+  AlertTriangle,
 } from "lucide-react";
-
-// --- ATOMS ---
 import Button from "../ui/Button";
 
-// Helper: Clean Date Display
 const formatDate = (dateString) => {
   if (!dateString) return "No Date Set";
   const date = new Date(dateString);
@@ -27,30 +24,34 @@ const formatDate = (dateString) => {
   });
 };
 
-export default function ScheduleHub({
-  project,
-  roles,
-  roster,
-  castingSelections,
-  onSync,
-}) {
+export default function ScheduleHub({ project, roles, roster, onSync }) {
   const [analysisRun, setAnalysisRun] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(null);
 
-  // 1. GET ALL 3 DATES
+  // 🟢 READ FROM DB (This is the bridge)
+  const getCastingSelections = () => {
+    try {
+      return project?.["Contract Data"]?.casting_selections || {};
+    } catch (e) {
+      return {};
+    }
+  };
+  const castingSelections = getCastingSelections();
+
   const dates = [
     { label: "Option 1", val: project["Start Date"] },
     { label: "Option 2", val: project["Start Date 2"] },
     { label: "Option 3", val: project["Start Date 3"] },
   ];
 
-  // Reset analysis (Re-enable the big button) if selections change
+  // Auto-run analysis when tab loads if we have data
   useEffect(() => {
-    setAnalysisRun(false);
-  }, [project, castingSelections]);
+    if (Object.keys(castingSelections).length > 0) {
+      setAnalysisRun(true);
+    }
+  }, []); // Run once on mount
 
-  // --- LOGIC: INITIAL LOCAL CHECK ---
   const runLocalCheck = () => {
     setIsChecking(true);
     setTimeout(() => {
@@ -59,11 +60,10 @@ export default function ScheduleHub({
     }, 500);
   };
 
-  // --- LOGIC: RE-RUN (SYNC & CHECK) ---
   const handleDeepSync = async () => {
     setIsChecking(true);
     if (onSync) {
-      await onSync(false); // Silent Sync
+      await onSync(false);
       setLastSyncTime(new Date().toLocaleTimeString());
     }
     setAnalysisRun(true);
@@ -101,53 +101,44 @@ export default function ScheduleHub({
 
         <div className="flex flex-col items-end gap-2 w-full md:w-auto">
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            {/* 🟢 FIXED: Explicit Label & Fixed Size */}
-            <Button
+            <button
               onClick={handleDeepSync}
               disabled={isChecking}
-              variant="ghost"
-              color="#d4af37"
-              className="!w-auto border border-[#d4af37]/30 hover:bg-[#d4af37]/10 text-xs px-4"
-              title="Pull fresh data from Roster"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#d4af37]/30 text-[#d4af37] hover:bg-[#d4af37]/10 hover:text-white transition-colors text-xs uppercase font-bold tracking-wider disabled:opacity-50"
             >
               {isChecking ? (
-                <RefreshCcw className="w-3 h-3 animate-spin mr-2" />
+                <RefreshCcw className="w-3 h-3 animate-spin" />
               ) : (
-                <Database className="w-3 h-3 mr-2" />
+                <Database className="w-3 h-3" />
               )}
-              {isChecking ? "Syncing..." : "Sync Roster Data"}
-            </Button>
+              {isChecking ? "Syncing..." : "Sync Data"}
+            </button>
 
-            {/* BUTTON 2: THE INITIAL RUNNER */}
-            <Button
+            <button
               onClick={runLocalCheck}
-              disabled={isChecking || analysisRun}
-              variant={analysisRun ? "solid" : "glow"}
-              color="#d4af37"
-              className={`!w-auto min-w-[180px] ${
-                analysisRun ? "opacity-50 cursor-default" : "animate-pulse-slow"
+              disabled={isChecking}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold uppercase tracking-wider text-xs transition-all duration-300 min-w-[180px] justify-center ${
+                analysisRun
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-[#d4af37] text-black hover:bg-[#b8860b] shadow-[0_0_20px_rgba(212,175,55,0.4)]"
               }`}
             >
               {analysisRun ? (
                 <>
-                  <Check size={16} className="mr-2" /> Matrix Active
+                  <CheckCircle size={16} /> Matrix Active
                 </>
               ) : (
                 <>
-                  <PlayCircle size={16} className="mr-2" /> Run Schedule Matrix
+                  <PlayCircle size={16} /> Run Analysis
                 </>
               )}
-            </Button>
+            </button>
           </div>
-
-          {/* SYNC FEEDBACK TEXT */}
           <div className="text-[10px] text-gray-500 h-4 flex justify-end">
-            {lastSyncTime ? (
+            {lastSyncTime && (
               <span className="text-green-400 flex items-center gap-1 animate-fade-in">
                 <CheckCircle size={10} /> Data Updated: {lastSyncTime}
               </span>
-            ) : (
-              <span>Using cached roster data</span>
             )}
           </div>
         </div>
@@ -166,7 +157,6 @@ export default function ScheduleHub({
               key={role["Role ID"]}
               className="bg-[#0a0a0a] border border-white/10 rounded-xl p-5 flex flex-col md:flex-row gap-6 items-start md:items-center hover:border-[#d4af37]/20 transition-colors"
             >
-              {/* ROLE INFO */}
               <div className="w-full md:w-1/5 min-w-[180px]">
                 <h3 className="font-bold text-white text-sm mb-1 font-serif">
                   {role["Character Name"]}
@@ -181,7 +171,6 @@ export default function ScheduleHub({
                 </div>
               </div>
 
-              {/* SELECTION SLOTS */}
               <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ActorSlot
                   type="Primary"
@@ -201,12 +190,9 @@ export default function ScheduleHub({
             </div>
           );
         })}
-
         {roles.length === 0 && (
           <div className="text-center py-12 border-2 border-dashed border-white/10 rounded-xl">
-            <p className="text-gray-500 text-sm">
-              No roles found for this project.
-            </p>
+            <p className="text-gray-500 text-sm">No roles found.</p>
           </div>
         )}
       </div>
@@ -214,7 +200,7 @@ export default function ScheduleHub({
   );
 }
 
-// 🟢 SLOT: CHECKS ALL 3 DATES
+// 🟢 SLOT COMPONENT
 function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
   if (!selectedActor) {
     return (
@@ -227,6 +213,7 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
     );
   }
 
+  // Find full actor data in roster to ensure we have latest bookouts/status
   const liveActor =
     roster.find((r) => String(r.id) === String(selectedActor.id)) ||
     selectedActor;
@@ -251,15 +238,11 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
         <div className="text-sm font-bold text-white truncate mb-3">
           {liveActor.name}
         </div>
-
         <div className="space-y-1.5">
           {dates.map((dateObj, i) => {
             if (!dateObj.val) return null;
-
             let result = { status: "PENDING", reason: "" };
-            if (showResult) {
-              result = checkSchedule(liveActor, dateObj.val);
-            }
+            if (showResult) result = checkSchedule(liveActor, dateObj.val);
 
             let colorClass = "text-gray-500";
             let bgClass = "bg-black/20";
@@ -296,10 +279,9 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
               </div>
             );
           })}
-
           {!dates.some((d) => d.val) && (
             <div className="text-[10px] text-gray-500 italic text-center py-2">
-              No start dates set in project details.
+              No start dates set.
             </div>
           )}
         </div>
@@ -308,33 +290,30 @@ function ActorSlot({ type, selectedActor, roster, dates, showResult }) {
   );
 }
 
-// 🟢 SCHEDULE LOGIC
+// 🟢 CONFLICT LOGIC (Same as before, essentially)
 export function checkSchedule(actor, projectStartStr) {
   if (!actor) return { status: "NEUTRAL", reason: "Unassigned" };
   if (!projectStartStr) return { status: "UNKNOWN", reason: "No Date" };
 
   const projectStart = new Date(projectStartStr);
   const today = new Date();
-
   if (isNaN(projectStart.getTime()))
     return { status: "UNKNOWN", reason: "Invalid Date" };
-
   projectStart.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
 
-  // RULE 1: STATUS
+  // 1. STATUS
   const status = (actor["status"] || "").toLowerCase().trim();
-  if (status.includes("hiatus") || status.includes("inactive")) {
+  if (status.includes("hiatus") || status.includes("inactive"))
     return { status: "CONFLICT", reason: "On Hiatus" };
-  }
 
-  // RULE 2: NEXT AVAIL
+  // 2. NEXT AVAIL
   const nextAvailStr = actor["next_avail"];
   if (nextAvailStr) {
     const nextAvail = new Date(nextAvailStr);
     if (!isNaN(nextAvail.getTime())) {
       nextAvail.setHours(0, 0, 0, 0);
-      if (projectStart < nextAvail) {
+      if (projectStart < nextAvail)
         return {
           status: "CONFLICT",
           reason: `Until ${nextAvail.toLocaleDateString(undefined, {
@@ -342,21 +321,18 @@ export function checkSchedule(actor, projectStartStr) {
             day: "numeric",
           })}`,
         };
-      }
     }
   }
 
-  // RULE 3: BOOKOUTS
+  // 3. BOOKOUTS
   const bookoutsStr = actor["bookouts"];
   if (bookoutsStr) {
     const ranges = String(bookoutsStr).split(",");
-
     for (let range of ranges) {
       const parts = range.trim().split(/ to | - /i);
       if (parts.length === 2) {
         const bookStart = new Date(parts[0]);
         const bookEnd = new Date(parts[1]);
-
         if (!isNaN(bookStart.getTime()) && !isNaN(bookEnd.getTime())) {
           bookStart.setHours(0, 0, 0, 0);
           bookEnd.setHours(23, 59, 59, 999);
@@ -378,6 +354,5 @@ export function checkSchedule(actor, projectStartStr) {
       }
     }
   }
-
   return { status: "CLEAR", reason: "Available" };
 }

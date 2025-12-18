@@ -410,23 +410,29 @@ export default function ArtistPortal() {
   }, []);
 
   // --- LOGIN (ARTIST ONLY) ---
+  // --- LOGIN (ARTIST ONLY) ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setLoginError("");
 
     try {
-      const { data: artistData } = await supabase
-        .from("artist_db")
-        .select("*")
-        .eq("artist_id", accessKey.trim())
-        .single();
-      if (artistData) {
-        loadArtistData(artistData);
+      // 🟢 FIX: Use the Secure Tunnel (RPC) instead of .select()
+      const { data: artistArray, error } = await supabase.rpc(
+        "secure_artist_login",
+        {
+          secret_id: accessKey.trim(),
+        }
+      );
+
+      // RPC returns an array, check if we got a match
+      if (artistArray && artistArray.length > 0) {
+        loadArtistData(artistArray[0]);
       } else {
         setLoginError("Invalid Artist ID.");
       }
     } catch (err) {
+      console.error(err);
       setLoginError("Connection Error.");
     }
     setLoading(false);
@@ -598,9 +604,11 @@ export default function ArtistPortal() {
         resume_url: resumeUrl,
       };
 
-      const { error } = artistId
-        ? await supabase.from("artist_db").update(payload).eq("id", artistId)
-        : await supabase.from("artist_db").insert([payload]);
+      // 🟢 SECURE TUNNEL (Bypasses the RLS Lock)
+      const { error } = await supabase.rpc("secure_artist_self_update", {
+        p_access_key: accessKey, // The key they logged in with (e.g. ART-5678)
+        p_updates: payload,
+      });
 
       if (error) throw error;
 

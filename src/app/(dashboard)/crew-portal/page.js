@@ -1,11 +1,11 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import {
   Loader2,
   Shield,
   AlertTriangle,
-  ArrowLeft,
   LayoutDashboard,
   Clapperboard,
   CheckCircle,
@@ -14,18 +14,26 @@ import {
   FileSignature,
   Calendar,
   Play,
-  Trash2,
-  Globe,
+  ArrowLeft,
   Inbox,
+  Briefcase,
+  Palette,
+  Search,
+  Filter,
+  User,
+  Info,
+  RefreshCw,
+  Save,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
-// --- UI ATOMS ---
+// --- UI COMPONENTS ---
 import Button from "../../../components/ui/Button";
-import Badge from "../../../components/ui/Badge";
 import SectionHeader from "../../../components/ui/SectionHeader";
 
-// --- DASHBOARD COMPONENTS ---
+// --- DASHBOARD SUB-COMPONENTS ---
 import Sidebar from "../../../components/dashboard/Sidebar";
 import DashboardStats from "../../../components/dashboard/DashboardStats";
 import TalentManager from "../../../components/dashboard/TalentManager";
@@ -36,41 +44,124 @@ import ProductionHub from "../../../components/dashboard/ProductionHub";
 import ScheduleHub from "../../../components/dashboard/ScheduleHub";
 import ProjectHeader from "../../../components/dashboard/ProductionHeader";
 
-// UTILS
+// --- UTILS ---
 import { runCreativeMatch } from "../../../utils/dashboard/matchmaker";
 
-// 🟢 INITIALIZE SUPABASE
+// 🟢 1. REFACTORED PALETTE (Visuals Forced to Premium)
+const COLORS = {
+  GOLD: "#d4af37",
+  SILVER: "#c0c0c0",
+  MIDNIGHT: "#0c0442",
+  HOLD: "#eab308",
+};
+
+const getLocalTheme = (formatString) => {
+  if (!formatString) return COLORS.GOLD;
+  const lower = formatString.toLowerCase();
+  if (lower.includes("drama") || lower.includes("cinematic"))
+    return COLORS.GOLD;
+  return COLORS.SILVER;
+};
+
+// --- CONFIGURATION ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// --- INLINE COMPONENT: SIMPLE TABLE MANAGER ---
+const SimpleTableManager = ({ title, data, type, onBack }) => (
+  <div className="p-8 animate-fade-in w-full h-full overflow-y-auto bg-[#020010]">
+    <div className="flex items-center gap-4 mb-8">
+      <button
+        onClick={onBack}
+        className="text-gray-400 hover:text-[#d4af37] transition-colors"
+      >
+        <ArrowLeft />
+      </button>
+      <h2 className="text-3xl font-serif text-[#d4af37]">{title}</h2>
+    </div>
+    <div className="bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+      <table className="w-full text-left text-sm text-gray-400">
+        <thead className="bg-white/5 text-xs uppercase tracking-widest font-bold text-[#d4af37] border-b border-white/10">
+          <tr>
+            <th className="p-4">Name</th>
+            <th className="p-4">{type === "crew" ? "Role" : "Specialty"}</th>
+            <th className="p-4">Email</th>
+            <th className="p-4">Status</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-white/5">
+          {data.map((item, i) => (
+            <tr key={i} className="hover:bg-white/5 transition-colors">
+              <td className="p-4 font-bold text-white">{item.name}</td>
+              <td className="p-4">
+                {type === "crew" ? item.role : item.specialty}
+              </td>
+              <td className="p-4 font-mono text-xs text-gray-500">
+                {item.email}
+              </td>
+              <td className="p-4">
+                <span className="bg-[#d4af37]/10 text-[#d4af37] border border-[#d4af37]/20 px-2 py-1 rounded text-[10px] uppercase font-bold">
+                  {item.status || "Active"}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
 export default function AdminPortal() {
+  const [isSaving, setIsSaving] = useState(false);
   const [view, setView] = useState("login");
   const [loading, setLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [error, setError] = useState("");
-  const [accessKey, setAccessKey] = useState("");
-  const [crewUser, setCrewUser] = useState(null);
+  const [accessInput, setAccessInput] = useState("");
 
   // DATA STATE
   const [projects, setProjects] = useState([]);
   const [roster, setRoster] = useState([]);
+  const [crewList, setCrewList] = useState([]);
+  const [artistList, setArtistList] = useState([]);
   const [allRoles, setAllRoles] = useState([]);
-
-  // INTAKE STATE
   const [intakes, setIntakes] = useState([]);
-  const [selectedIntake, setSelectedIntake] = useState(null);
-  const [processingId, setProcessingId] = useState(null);
 
-  // PROJECT UI STATE
+  // UI STATE
+  const [selectedIntake, setSelectedIntake] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [activeTab, setActiveTab] = useState("production");
+  const [activeTab, setActiveTab] = useState("casting");
   const [filterStatus, setFilterStatus] = useState("All");
   const [matchResults, setMatchResults] = useState({});
-  const [saving, setSaving] = useState(false);
-
-  // CASTING SELECTIONS
   const [castingSelections, setCastingSelections] = useState({});
+
+  useEffect(() => {
+    const savedKey = localStorage.getItem("cinesonic_access_key");
+    if (savedKey && view === "login") autoLogin(savedKey);
+  }, []);
+
+  const autoLogin = async (key) => {
+    setLoading(true);
+    try {
+      const { data: crewArray, error: loginErr } = await supabase.rpc(
+        "secure_crew_login",
+        { secret_key: key.trim() }
+      );
+      if (loginErr || !crewArray || crewArray.length === 0) {
+        localStorage.removeItem("cinesonic_access_key");
+      } else {
+        setAccessInput(key);
+        localStorage.setItem("cinesonic_access_key", key.trim());
+        setView("dashboard");
+        fetchAllData(key.trim());
+      }
+    } catch (err) {
+      localStorage.removeItem("cinesonic_access_key");
+    }
+    setLoading(false);
+  };
 
   const META_STATUSES = [
     "NEW",
@@ -81,342 +172,228 @@ export default function AdminPortal() {
     "POST-PRODUCTION",
     "COMPLETE",
     "CANCELLED",
+    "HOLD",
   ];
-
   const TABS = [
-    { id: "production", label: "Production", icon: LayoutDashboard },
-    { id: "casting", label: "Casting", icon: Mic },
-    { id: "schedule", label: "Schedule", icon: Calendar },
-    { id: "contracts", label: "Contracts", icon: FileSignature },
-    { id: "hub", label: "Workflow", icon: Play },
+    { id: "casting", label: "1. Casting", icon: Mic },
+    { id: "schedule", label: "2. Schedule", icon: Calendar },
+    { id: "contracts", label: "3. Contracts", icon: FileSignature },
+    { id: "hub", label: "4. Workflow", icon: Play },
+    { id: "production", label: "Logistics", icon: LayoutDashboard },
   ];
 
-  // 🟢 1. REALTIME LISTENER
-  useEffect(() => {
-    if (view !== "dashboard") return;
-    const channels = supabase
-      .channel("admin-dashboard-changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "project_intake_db" },
-        () => fetchAllData(false)
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "production_db" },
-        () => fetchAllData(false)
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "casting_db" },
-        () => fetchAllData(false)
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channels);
-    };
-  }, [view]);
-
-  // --- 2. LOGIN ---
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
-      const { data } = await supabase
-        .from("crew_db")
-        .select("*")
-        .eq("access_key", accessKey.trim())
-        .single();
-
-      if (data) {
-        setCrewUser(data);
-        setView("dashboard");
-        fetchAllData(true);
-      } else {
-        setError("Access Denied: Invalid Credentials");
-      }
+      const { data: crewArray, error: loginErr } = await supabase.rpc(
+        "secure_crew_login",
+        { secret_key: accessInput.trim() }
+      );
+      if (loginErr) throw loginErr;
+      if (!crewArray || crewArray.length === 0)
+        throw new Error("No matching Active user found for this key.");
+      localStorage.setItem("cinesonic_access_key", accessInput.trim());
+      setView("dashboard");
+      fetchAllData(accessInput.trim());
     } catch (err) {
-      setError("Connection Error");
+      setError(err.message);
     }
     setLoading(false);
   };
 
-  // --- 3. DATA FETCHING ---
-  const fetchAllData = async (showLoadingScreen = false) => {
-    if (showLoadingScreen) setIsLoadingData(true);
-
+  const fetchAllData = async (overrideKey = null) => {
+    const activeKey = overrideKey || accessInput;
+    if (!activeKey) return;
+    setIsLoadingData(true);
     try {
-      // Intakes
-      const { data: intakeData } = await supabase
-        .from("project_intake_db")
-        .select("*")
-        .eq("status", "NEW")
-        .order("created_at", { ascending: false });
-
-      if (intakeData) {
+      const { data: intakeData } = await supabase.rpc("secure_fetch_intakes", {
+        secret_pass: activeKey,
+      });
+      if (intakeData)
+        // Inside fetchAllData -> intakeData.map
         setIntakes(
-          intakeData.map((i) => ({
-            id: i.intake_id,
-            db_id: i.id,
-            timestamp: i.created_at,
-            clientType: i.client_type,
-            clientName: i.client_name,
-            email: i.email,
-            title: i.project_title,
-            wordCount: i.word_count,
-            style: i.style,
-            genres: i.genres,
-            characters: i.character_details,
-            timeline: i.timeline_prefs,
-            notes: i.notes,
+          intakeData
+            .map((i) => ({
+              id: i.intake_id, // Human-readable PRJ-XXXX
+              db_id: i.id, // The UUID
+              title: i.project_title,
+              clientName: i.client_name,
+              clientType: i.client_type,
+              email: i.email,
+              wordCount: i.word_count,
+              genres: i.genres, // Database column is 'genres'
+              baseFormat: i.base_format,
+              isCinematic: i.is_cinematic,
+              character_details: i.character_details,
+              timeline_prefs: i.timeline_prefs,
+              notes: i.notes,
+              priceTier: i.price_tier,
+              style: i.style, // <--- MISSING: Add this
+            }))
+            .filter((i) => i.status !== "Greenlit")
+        );
+
+      const { data: projData } = await supabase.rpc("secure_fetch_production", {
+        secret_pass: activeKey,
+      });
+      if (projData)
+        setProjects(
+          projData.map((p) => ({
+            "Project ID": p.project_id,
+            Title: p.title,
+            Status: p.status,
+            Format: p.format || "Standard",
+            "Start Date": p.start_date_1,
+            "Start Date 2": p.start_date_2,
+            "Start Date 3": p.start_date_3,
+            "Contract Data": p.contract_data || {},
+            "Project Correspondence": p.project_correspondence || [],
           }))
         );
-      }
 
-      // Projects
-      const { data: projData } = await supabase
-        .from("production_db")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      setProjects(
-        (projData || []).map((p) => ({
-          "Project ID": p.project_id,
-          Title: p.title,
-          "Start Date": p.start_date_1,
-          "Start Date 2": p.start_date_2,
-          "Start Date 3": p.start_date_3,
-          Coordinator: p.coordinator,
-          "Coordinator Email": p.coordinator_email,
-          "Script Prep": p.script_prep,
-          "Script Prep Email": p.script_prep_email,
-          Engineer: p.engineer,
-          "Engineer Email": p.engineer_email,
-          Proofer: p.proofer,
-          "Proofer Email": p.proofer_email,
-          "Talent A": p.talent_a,
-          "Talent A Email": p.talent_a_email,
-          "Talent B": p.talent_b,
-          "Talent B Email": p.talent_b_email,
-          "Talent C": p.talent_c,
-          "Talent C Email": p.talent_c_email,
-          "Talent D": p.talent_d,
-          "Talent D Email": p.talent_d_email,
-          "QC Status": p.qc_status,
-          Status: p.status,
-          "Contract Data": p.contract_data,
-          "Project Booked Date": p.project_booked_date,
-          "Project Correspondence": p.project_correspondence,
-        }))
-      );
-
-      // Roles
-      const { data: roleData } = await supabase.from("casting_db").select("*");
-      setAllRoles(
-        (roleData || []).map((r) => ({
-          "Project ID": r.project_id,
-          "Role ID": r.role_id,
-          "Character Name": r.role_name,
-          Gender: r.gender,
-          "Age Range": r.age,
-          "Vocal Specs": r.vocal_specs,
-          Status: r.status,
-          "Assigned Actor": r.assigned_actor,
-        }))
-      );
-
-      // Roster
       const { data: actorData } = await supabase
         .from("actor_db")
         .select("*")
-        .order("name", { ascending: true });
+        .order("name");
+      if (actorData)
+        setRoster(
+          actorData.map((a) => ({
+            name: a.name,
+            id: a.actor_id,
+            email: a.email,
+            gender: a.gender,
+            age_range: a.age_range,
+            voice: a.voice_type,
+            genres: a.genres,
+            headshot: a.headshot_url,
+            demo: a.demo_url,
+          }))
+        );
 
-      setRoster(
-        (actorData || []).map((a) => ({
-          name: a.name,
-          id: a.actor_id,
-          email: a.email,
-          gender: a.gender,
-          age_range: a.age_range,
-          voice: a.voice_type,
-          genres: a.genres,
-          status: a.status,
-          next_avail: a.next_available,
-          rate: a.pfh_rate,
-          sag: a.union_status,
-          triggers: a.triggers,
-          bookouts: a.bookouts,
-          notes: a.other_notes,
-          training: a.training_notes,
-          bio: a.bio,
-          audiobooks: a.audiobooks_narrated,
-          headshot: a.headshot_url,
-          demo: a.demo_url,
-          resume: a.resume_url,
-        }))
-      );
-    } catch (e) {
-      console.error("Fetch error", e);
-    }
-    if (showLoadingScreen) setIsLoadingData(false);
-  };
-
-  // --- 4. APPROVE INTAKE ---
-  const handleApproveIntake = async () => {
-    if (!selectedIntake) return;
-    setProcessingId(selectedIntake.id);
-
-    try {
-      const projectId = "PROJ-" + Math.floor(1000 + Math.random() * 9000);
-      const dates = (selectedIntake.timeline || "").split("|");
-
-      // Create Project
-      await supabase.from("production_db").insert([
-        {
-          project_id: projectId,
-          title: selectedIntake.title,
-          start_date_1: dates[0] || "",
-          start_date_2: dates[1] || "",
-          start_date_3: dates[2] || "",
-          status: "CASTING",
-          qc_status: "No QC",
-          coordinator: "Unassigned",
-        },
-      ]);
-
-      // Parse Characters & Create Roles
-      const charBlock = selectedIntake.characters || "";
-      const lines = charBlock
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.length > 2);
-
-      const rolesToInsert = lines.map((line) => {
-        let charName = line,
-          gender = "Any",
-          age = "Any",
-          specs = "See Breakdown";
-        if (line.includes(":")) {
-          const parts = line.split(":");
-          const prefix = parts[0].trim();
-          const details = parts.slice(1).join(":").trim();
-          if (prefix.startsWith("M")) gender = "Male";
-          else if (prefix.startsWith("F")) gender = "Female";
-          charName = details.split("-")[0].trim();
-        }
-        return {
-          project_id: projectId,
-          role_id: "ROLE-" + Math.floor(10000 + Math.random() * 90000),
-          role_name: charName,
-          gender: gender,
-          age: age,
-          vocal_specs: specs,
-          status: "Open",
-        };
+      const { data: crewData } = await supabase.rpc("secure_fetch_crew", {
+        secret_pass: activeKey,
       });
+      if (crewData)
+        setCrewList(
+          crewData.map((c) => ({
+            name: c.name,
+            role: c.role || "Crew",
+            email: c.email,
+            status: c.status || "Active",
+          }))
+        );
 
-      if (rolesToInsert.length > 0) {
-        await supabase.from("casting_db").insert(rolesToInsert);
-      }
+      const { data: artistData } = await supabase.rpc("secure_fetch_artists", {
+        secret_pass: activeKey,
+      });
+      if (artistData)
+        setArtistList(
+          artistData.map((a) => ({
+            name: a.name,
+            specialty: a.specialty || "Artist",
+            email: a.email,
+            status: a.status || "Active",
+          }))
+        );
 
-      // Mark Approved
-      await supabase
-        .from("project_intake_db")
-        .update({ status: "APPROVED" })
-        .eq("id", selectedIntake.db_id);
-
-      alert(`Project Approved! Created ID: ${projectId}`);
-      setSelectedIntake(null);
-    } catch (err) {
-      alert("Approval Failed: " + err.message);
+      const { data: roleData } = await supabase.rpc("secure_fetch_casting", {
+        secret_pass: activeKey,
+      });
+      if (roleData)
+        setAllRoles(
+          roleData.map((r) => ({
+            "Project ID": r.project_id,
+            "Role ID": r.role_id,
+            "Character Name": r.role_name,
+            Gender: r.gender,
+            "Age Range": r.age,
+            "Vocal Specs": r.vocal_specs,
+            Status: r.status,
+            "Assigned Actor": r.assigned_actor,
+          }))
+        );
+    } catch (e) {
+      console.error("Fetch Error:", e);
     }
-    setProcessingId(null);
+    setIsLoadingData(false);
   };
 
-  // --- 5. DELETE INTAKE ---
-  const handleDeleteIntake = async () => {
-    if (!selectedIntake || !confirm("Reject and delete this request?")) return;
-    setProcessingId(selectedIntake.id);
+  const handleGreenLight = async (intakeItem) => {
+    if (!intakeItem) return;
+    setIsSaving(true);
+
     try {
-      await supabase
+      // We only need one update call.
+      // The DB Trigger will catch this and handle the production_db insertion.
+      const { error: updateError } = await supabase
         .from("project_intake_db")
-        .delete()
-        .eq("id", selectedIntake.db_id);
+        .update({ status: "Greenlit" })
+        .eq("id", intakeItem.db_id); // Use the UUID
+
+      if (updateError) throw updateError;
+
+      alert("SUCCESS: System trigger fired. Production record created.");
       setSelectedIntake(null);
+      fetchAllData();
     } catch (err) {
-      alert("Delete Failed: " + err.message);
+      alert("TRIGGER FAILURE: " + err.message);
+    } finally {
+      setIsSaving(false);
     }
-    setProcessingId(null);
   };
 
-  // --- 6. SAVE PROJECT ---
-  const saveProject = async (dataOverride = null) => {
-    const projectToSave = dataOverride || selectedProject;
-    if (!projectToSave) return;
-    setSaving(true);
+  const saveProject = async () => {
+    if (!selectedProject || !selectedProject["Project ID"]) return;
+    setIsSaving(true);
     try {
-      const updatePayload = {
-        title: projectToSave["Title"],
-        start_date_1: projectToSave["Start Date"],
-        start_date_2: projectToSave["Start Date 2"],
-        start_date_3: projectToSave["Start Date 3"],
-        coordinator: projectToSave["Coordinator"],
-        coordinator_email: projectToSave["Coordinator Email"],
-        status: projectToSave["Status"],
-        contract_data: projectToSave["Contract Data"],
-        project_correspondence: projectToSave["Project Correspondence"],
-      };
-
       const { error } = await supabase
         .from("production_db")
-        .update(updatePayload)
-        .eq("project_id", projectToSave["Project ID"]);
+        .update({
+          title: selectedProject["Title"],
+          status: selectedProject["Status"],
+          format: selectedProject["Format"],
+        })
+        .eq("project_id", selectedProject["Project ID"]);
 
       if (error) throw error;
-
-      // Optimistic Update
-      setProjects((prev) =>
-        prev.map((p) =>
-          p["Project ID"] === projectToSave["Project ID"] ? projectToSave : p
-        )
-      );
-      if (dataOverride) setSelectedProject(dataOverride);
+      fetchAllData();
     } catch (err) {
-      alert("Save Failed: " + err.message);
+      console.error("SAVE FAILED:", err.message);
+    } finally {
+      setIsSaving(false);
     }
-    setSaving(false);
   };
 
   const updateField = (field, value) =>
     setSelectedProject((prev) => ({ ...prev, [field]: value }));
-  const handleCastingConfirm = (selections) => {
-    setCastingSelections(selections);
-    setActiveTab("schedule");
-  };
 
-  // --- RENDER: LOGIN ---
-  if (view === "login")
+  if (view === "login") {
+    if (loading && localStorage.getItem("cinesonic_access_key")) {
+      return (
+        <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center text-white">
+          <Loader2 className="w-12 h-12 text-[#d4af37] animate-spin mb-4" />
+          <h2 className="text-xl font-serif text-[#d4af37] tracking-widest animate-pulse">
+            RE-ESTABLISHING SECURE UPLINK...
+          </h2>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-[#020010]">
-        <div className="absolute top-6 left-6 z-50 flex flex-col items-start gap-3">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors pl-1"
-          >
-            <Globe size={12} /> Public Home
-          </Link>
-        </div>
-
-        <div className="w-full max-w-[400px] rounded-2xl border border-[#d4af37]/30 backdrop-blur-2xl bg-[#0a0a0a] p-10 shadow-2xl animate-fade-in-up">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a0f5e_0%,_#020010_70%)] opacity-40" />
+        <Link
+          href="/"
+          className="absolute top-8 left-8 z-50 flex items-center gap-2 text-[#d4af37]/60 hover:text-[#d4af37] text-xs uppercase tracking-widest transition-colors"
+        >
+          <ArrowLeft size={14} /> Back to Site
+        </Link>
+        <div className="w-full max-w-[400px] rounded-2xl border border-[#d4af37]/30 bg-[#0a0a0a] p-10 shadow-2xl relative z-10">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#d4af37]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#d4af37]/30">
-              <Shield className="w-8 h-8 text-[#d4af37]" />
-            </div>
+            <Shield className="w-16 h-16 text-[#d4af37] mx-auto mb-6" />
             <h2 className="text-2xl font-serif text-[#d4af37] mb-2">
-              Crew Portal
+              Admin Portal
             </h2>
             <p className="text-xs text-gray-400 uppercase tracking-[0.2em]">
               Authorized Personnel Only
@@ -425,141 +402,103 @@ export default function AdminPortal() {
           <form onSubmit={handleLogin} className="space-y-6">
             <input
               type="password"
-              value={accessKey}
-              onChange={(e) => setAccessKey(e.target.value)}
-              className="w-full bg-white/5 border border-[#d4af37]/20 text-white py-4 pl-4 pr-4 rounded-xl text-center text-lg tracking-[0.2em] outline-none focus:border-[#d4af37] focus:shadow-[0_0_20px_rgba(212,175,55,0.2)] transition-all placeholder:text-gray-600 placeholder:text-sm placeholder:tracking-normal"
-              placeholder="ACCESS KEY"
+              value={accessInput}
+              onChange={(e) => setAccessInput(e.target.value)}
+              className="w-full bg-white/5 border border-[#d4af37]/20 text-white py-4 rounded-xl text-center text-lg tracking-[0.2em] outline-none focus:border-[#d4af37] transition-all placeholder:text-gray-600 font-serif"
+              placeholder="ACCESS CODE"
             />
             {error && (
-              <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-xs text-center flex items-center justify-center gap-2 animate-fade-in">
+              <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-xs text-center flex items-center justify-center gap-2">
                 <AlertTriangle size={14} /> {error}
               </div>
             )}
-            <Button
+            <button
               disabled={loading}
-              variant="solid"
-              color="#d4af37"
-              className="w-full py-4 text-sm"
+              className="w-full py-4 bg-[#d4af37] hover:bg-[#b8860b] text-black font-bold uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)] disabled:opacity-50"
             >
-              {loading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                "Verify Credentials"
-              )}
-            </Button>
+              {loading ? "Verifying..." : "Enter Vault"}
+            </button>
           </form>
         </div>
       </div>
     );
+  }
 
-  // --- RENDER: LOADING ---
   if (isLoadingData)
     return (
       <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center text-white z-50">
-        <div className="w-16 h-16 border-4 border-white/10 border-t-[#d4af37] rounded-full animate-spin mb-6"></div>
+        <div className="w-16 h-16 border-4 border-white/10 border-t-[#d4af37] rounded-full animate-spin mb-6" />
         <h2 className="text-xl font-serif text-[#d4af37] tracking-widest animate-pulse">
-          Accessing Database...
+          Establishing Secure Uplink...
         </h2>
       </div>
     );
 
-  const currentRoles = selectedProject
-    ? allRoles.filter((r) => r["Project ID"] === selectedProject["Project ID"])
-    : [];
-
-  // --- RENDER: MAIN APP ---
-  return (
-    <div className="flex h-screen bg-[#020010] text-white font-sans overflow-hidden">
-      <Sidebar
-        user={crewUser}
-        projects={projects}
-        selectedProject={selectedProject}
-        onSelectProject={(p) => {
-          setSelectedProject(p);
-          setView("project");
-        }}
-        onLogout={() => setView("login")}
-        onDashboardClick={() => {
-          setSelectedProject(null);
-          setView("dashboard");
-        }}
-        filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
-        metaStatuses={META_STATUSES}
+  if (view === "roster")
+    return <TalentManager data={roster} onBack={() => setView("dashboard")} />;
+  if (view === "crew")
+    return (
+      <SimpleTableManager
+        title="Production Crew"
+        data={crewList}
+        type="crew"
+        onBack={() => setView("dashboard")}
       />
+    );
+  if (view === "artists")
+    return (
+      <SimpleTableManager
+        title="Visual Artists"
+        data={artistList}
+        type="artist"
+        onBack={() => setView("dashboard")}
+      />
+    );
 
-      <main className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
-        {view === "dashboard" ? (
-          <>
-            <DashboardStats
-              data={projects}
-              onNavigate={() => setView("roster")}
-              onSync={() => fetchAllData(false)}
-            />
-
-            <div className="mt-12">
-              <SectionHeader
-                icon={Inbox}
-                title={`New Project Requests (${intakes.length})`}
-                color="text-[#d4af37]"
-              />
-
-              {intakes.length === 0 ? (
-                <div className="mt-6 p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/5 border-dashed">
-                  No new requests pending.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                  {intakes.map((intake) => (
-                    <div
-                      key={intake.id}
-                      onClick={() => setSelectedIntake(intake)}
-                      className="bg-[#0a0a0a] border border-white/10 p-5 rounded-xl hover:border-[#d4af37]/50 cursor-pointer transition-all hover:bg-white/5 group shadow-lg"
-                    >
-                      <div className="flex justify-between items-start mb-4">
-                        <Badge
-                          label={intake.clientType}
-                          color="text-[#d4af37]"
-                          bg="bg-[#d4af37]/10"
-                          border="border-[#d4af37]/20"
-                        />
-                        <span className="text-[10px] text-gray-500 font-mono">
-                          {new Date(intake.timestamp).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <h4 className="font-serif text-xl text-white group-hover:text-[#d4af37] mb-1 truncate transition-colors">
-                        {intake.title}
-                      </h4>
-                      <p className="text-xs text-gray-400">
-                        {intake.clientName}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        ) : view === "roster" ? (
-          <TalentManager data={roster} onBack={() => setView("dashboard")} />
-        ) : (
+  if (view === "project") {
+    const currentRoles = selectedProject
+      ? allRoles.filter(
+          (r) => r["Project ID"] === selectedProject["Project ID"]
+        )
+      : [];
+    return (
+      <div className="flex h-screen bg-[#020010] text-white font-sans overflow-hidden">
+        <Sidebar
+          projects={projects}
+          selectedProject={selectedProject}
+          onSelectProject={(p) => {
+            setSelectedProject(p);
+            setView("project");
+          }}
+          onLogout={() => {
+            localStorage.removeItem("cinesonic_access_key");
+            setView("login");
+          }}
+          onDashboardClick={() => {
+            setSelectedProject(null);
+            setView("dashboard");
+          }}
+          filterStatus={filterStatus}
+          setFilterStatus={setFilterStatus}
+          metaStatuses={META_STATUSES}
+        />
+        <main className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
           <div className="max-w-6xl mx-auto animate-fade-in">
             <ProjectHeader
               project={selectedProject}
               saveProject={saveProject}
-              saving={saving}
+              saving={isSaving}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
               updateField={updateField}
-              metaStatuses={META_STATUSES}
               tabs={TABS}
+              userKey={accessInput}
+              onRecycleSuccess={() => {
+                setSelectedProject(null);
+                setView("dashboard");
+                fetchAllData(accessInput);
+              }}
             />
-            {activeTab === "production" && (
-              <ProductionView
-                project={selectedProject}
-                updateField={updateField}
-                roster={roster}
-              />
-            )}
             {activeTab === "casting" && (
               <CastingTab
                 project={selectedProject}
@@ -569,7 +508,10 @@ export default function AdminPortal() {
                 matchResults={matchResults}
                 setMatchResults={setMatchResults}
                 runCreativeMatch={runCreativeMatch}
-                onConfirmSelections={handleCastingConfirm}
+                onConfirmSelections={(s) => {
+                  setCastingSelections(s);
+                  setActiveTab("schedule");
+                }}
                 initialSelections={castingSelections}
               />
             )}
@@ -595,115 +537,289 @@ export default function AdminPortal() {
               <ProductionHub
                 project={selectedProject}
                 updateField={updateField}
-                user={crewUser}
                 saveProject={saveProject}
               />
             )}
+            {activeTab === "production" && (
+              <ProductionView
+                project={selectedProject}
+                updateField={updateField}
+                roster={roster}
+              />
+            )}
           </div>
-        )}
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen bg-[#020010] text-white font-sans overflow-hidden">
+      <Sidebar
+        projects={projects}
+        selectedProject={null}
+        onSelectProject={(p) => {
+          setSelectedProject(p);
+          setView("project");
+        }}
+        onLogout={() => {
+          localStorage.removeItem("cinesonic_access_key");
+          setView("login");
+        }}
+        onDashboardClick={() => {}}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        metaStatuses={META_STATUSES}
+      />
+      <main className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
+        <DashboardStats
+          data={projects}
+          onNavigate={() => setView("roster")}
+          onSync={() => fetchAllData(false)}
+        />
+        <div className="flex gap-4 mt-6">
+          <button
+            onClick={() => setView("crew")}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 transition-all text-xs font-bold uppercase tracking-widest text-[#d4af37]"
+          >
+            <Briefcase size={14} /> Manage Crew
+          </button>
+          <button
+            onClick={() => setView("artists")}
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg border border-white/10 transition-all text-xs font-bold uppercase tracking-widest text-[#d4af37]"
+          >
+            <Palette size={14} /> Manage Artists
+          </button>
+        </div>
+        <div className="mt-12">
+          <SectionHeader
+            icon={Inbox}
+            title={`New Project Requests (${intakes.length})`}
+            color="text-[#d4af37]"
+          />
+          {intakes.length === 0 ? (
+            <div className="mt-6 p-8 text-center text-gray-500 bg-white/5 rounded-xl border border-white/5 border-dashed">
+              No new requests pending.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {intakes.map((intake) => {
+                const themeColor = getLocalTheme(intake.clientType);
+                const isCinema =
+                  intake.isCinematic ||
+                  intake.clientType.toLowerCase().includes("drama");
+                return (
+                  <div
+                    key={intake.id}
+                    onClick={() => setSelectedIntake(intake)}
+                    className="border p-5 rounded-xl cursor-pointer transition-all hover:bg-white/5 group shadow-lg bg-[#0a0a0a]"
+                    style={{
+                      borderColor: `${themeColor}50`,
+                      boxShadow: isCinema
+                        ? `0 0 25px ${themeColor}20`
+                        : `0 0 15px ${themeColor}10`,
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded border uppercase tracking-widest font-bold"
+                        style={{
+                          color: themeColor,
+                          backgroundColor: `${themeColor}15`,
+                          borderColor: `${themeColor}40`,
+                        }}
+                      >
+                        {intake.clientType}
+                      </span>
+                      <span className="text-[10px] text-gray-500 font-mono">
+                        {new Date(intake.timestamp).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {isCinema ? (
+                        <Clapperboard size={14} style={{ color: themeColor }} />
+                      ) : (
+                        <Mic size={14} style={{ color: themeColor }} />
+                      )}
+                      <h4
+                        className="font-serif text-xl truncate text-gray-300 group-hover:text-white"
+                        style={{ textShadow: `0 0 20px ${themeColor}20` }}
+                      >
+                        {intake.title}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-gray-400">{intake.clientName}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </main>
-
-      {/* MODAL: INTAKE DETAIL */}
       {selectedIntake && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-          <div className="bg-[#0c0442] border border-[#d4af37]/30 w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-scale-in">
-            <div className="bg-black/40 p-6 border-b border-[#d4af37]/20 flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="text-2xl font-serif text-[#d4af37]">
-                  {selectedIntake.title}
-                </h2>
-                <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">
-                  {selectedIntake.id} • {selectedIntake.clientName}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedIntake(null)}
-                className="text-gray-400 hover:text-white transition-colors"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in">
+          {(() => {
+            const themeColor = getLocalTheme(selectedIntake.clientType);
+            const isDrama =
+              selectedIntake.isCinematic ||
+              selectedIntake.clientType.toLowerCase().includes("drama");
+            return (
+              <div
+                className="bg-[#0c0442] border w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col max-h-[95vh] shadow-2xl relative"
+                style={{
+                  borderColor: `${themeColor}60`,
+                  boxShadow: `0 0 60px ${themeColor}20`,
+                }}
               >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="p-8 overflow-y-auto custom-scrollbar space-y-6">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-1">
-                    Email
-                  </span>
-                  {selectedIntake.email}
-                </div>
-                <div>
-                  <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-1">
-                    Word Count
-                  </span>
-                  {selectedIntake.wordCount}
-                </div>
-                <div>
-                  <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-1">
-                    Style
-                  </span>
-                  {selectedIntake.style}
-                </div>
-                <div>
-                  <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-1">
-                    Genres
-                  </span>
-                  {selectedIntake.genres}
-                </div>
-              </div>
-              <div className="bg-white/5 p-4 rounded border border-white/10">
-                <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-2">
-                  Character Breakdown
-                </span>
-                <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans">
-                  {selectedIntake.characters}
-                </pre>
-              </div>
-              <div className="bg-white/5 p-4 rounded border border-white/10">
-                <span className="text-[#d4af37] block text-[10px] uppercase font-bold mb-2">
-                  Notes
-                </span>
-                <p className="text-sm text-gray-300">
-                  {selectedIntake.notes || "None"}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-6 bg-black/40 border-t border-[#d4af37]/20 flex justify-between items-center shrink-0">
-              <Button
-                onClick={handleDeleteIntake}
-                disabled={processingId === selectedIntake.id}
-                variant="ghost"
-                color="#ef4444"
-                className="text-xs"
-              >
-                <Trash2 size={14} className="mr-2" /> Reject
-              </Button>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedIntake(null)}
-                  className="px-4 py-2 text-gray-400 hover:text-white text-xs uppercase transition-colors"
+                <div
+                  className="p-6 border-b flex justify-between items-center bg-[#050510]"
+                  style={{ borderColor: `${themeColor}30` }}
                 >
-                  Close
-                </button>
-                <Button
-                  onClick={handleApproveIntake}
-                  disabled={processingId === selectedIntake.id}
-                  variant="solid"
-                  color="#d4af37"
-                  className="text-xs px-6"
-                >
-                  {processingId === selectedIntake.id ? (
-                    <Loader2 className="animate-spin mr-2" size={16} />
-                  ) : (
-                    <CheckCircle className="mr-2" size={16} />
-                  )}
-                  Approve & Explode
-                </Button>
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="w-12 h-12 rounded-full flex items-center justify-center border"
+                      style={{
+                        borderColor: themeColor,
+                        backgroundColor: `${themeColor}10`,
+                        color: themeColor,
+                      }}
+                    >
+                      {isDrama ? <Clapperboard size={24} /> : <Mic size={24} />}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-serif text-white">
+                        {selectedIntake.title}
+                      </h2>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border"
+                          style={{
+                            borderColor: `${themeColor}40`,
+                            color: themeColor,
+                          }}
+                        >
+                          {selectedIntake.clientType}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedIntake(null)}
+                    className="text-gray-500 hover:text-white p-2"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 bg-[#020010]">
+                  <div className="grid grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <h4 className="text-gray-500 text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
+                        <User size={12} /> Client
+                      </h4>
+                      <span className="text-white text-sm block">
+                        {selectedIntake.clientName}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        {selectedIntake.email}
+                      </span>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <h4 className="text-gray-500 text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
+                        <Info size={12} /> Specs
+                      </h4>
+                      <div className="text-white text-sm">
+                        {Number(selectedIntake.wordCount).toLocaleString()}{" "}
+                        Words
+                        <br />
+                        {selectedIntake.genres}
+                      </div>
+                    </div>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                      <h4 className="text-gray-500 text-[10px] uppercase font-bold mb-3 flex items-center gap-2">
+                        <Calendar size={12} /> Timeline
+                      </h4>
+                      <div className="text-white text-sm font-mono">
+                        {selectedIntake.timeline_prefs?.split("|").join(" | ")}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mb-8 relative">
+                    <div
+                      className="absolute -left-1 top-0 bottom-0 w-1 rounded-l-lg"
+                      style={{ backgroundColor: themeColor }}
+                    />
+                    <div className="bg-[#0a0a0a] border border-white/10 rounded-r-xl p-6">
+                      <h4
+                        className="text-[10px] uppercase font-bold mb-4 flex items-center gap-2"
+                        style={{ color: themeColor }}
+                      >
+                        <LayoutDashboard size={14} /> Character Manifest (To
+                        Explode)
+                      </h4>
+                      <div className="space-y-2">
+                        {(selectedIntake.character_details || "")
+                          .split("|")
+                          .map((charStr, i) => {
+                            if (!charStr.trim()) return null;
+                            const parts = charStr.split(",");
+                            return (
+                              <div
+                                key={i}
+                                className="flex items-center gap-4 p-3 bg-white/5 rounded border border-white/5 hover:border-white/20 transition-colors"
+                              >
+                                <div
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-black"
+                                  style={{ backgroundColor: themeColor }}
+                                >
+                                  {i + 1}
+                                </div>
+                                <div className="grid grid-cols-4 w-full gap-4 text-xs">
+                                  <span className="font-bold text-white">
+                                    {parts[0]?.trim() || "Unknown"}
+                                  </span>
+                                  <span className="text-gray-400">
+                                    {parts[1]?.trim()}
+                                  </span>
+                                  <span className="text-gray-400">
+                                    {parts[2]?.trim()}
+                                  </span>
+                                  <span className="text-gray-500 italic">
+                                    {parts[3]?.trim()}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 bg-[#0a0a0a] border-t border-white/10 flex justify-end gap-3">
+                  <Button
+                    onClick={() => setSelectedIntake(null)}
+                    variant="ghost"
+                    color="#ffffff"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => handleGreenLight(selectedIntake)}
+                    variant="solid"
+                    color={themeColor}
+                    className="px-8 shadow-lg"
+                    style={{ color: "black" }}
+                  >
+                    {isSaving ? (
+                      <Loader2 className="animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle className="mr-2" />
+                    )}{" "}
+                    GREENLIGHT
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       )}
     </div>

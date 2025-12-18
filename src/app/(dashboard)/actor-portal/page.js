@@ -408,14 +408,22 @@ export default function ActorPortal() {
     setLoading(true);
     setLoginError("");
     try {
-      const { data: actorData } = await supabase
-        .from("actor_db")
-        .select("*")
-        .eq("actor_id", accessKey.trim())
-        .single();
-      if (actorData) loadActorData(actorData);
-      else setLoginError("Invalid Actor ID.");
+      // 🟢 FIX: Use the Secure Tunnel (RPC) instead of .select()
+      const { data: actorArray, error } = await supabase.rpc(
+        "secure_actor_login",
+        {
+          secret_id: accessKey.trim(),
+        }
+      );
+
+      // RPC returns an array. Check if we found someone.
+      if (actorArray && actorArray.length > 0) {
+        loadActorData(actorArray[0]);
+      } else {
+        setLoginError("Invalid Actor ID.");
+      }
     } catch (err) {
+      console.error(err);
       setLoginError("Connection Error.");
     }
     setLoading(false);
@@ -612,10 +620,11 @@ export default function ActorPortal() {
         resume_url: resumeUrl,
         coming_soon: false,
       };
-      const { error } = await supabase
-        .from("actor_db")
-        .update(payload)
-        .eq("id", actorId);
+      // 🟢 SECURE TUNNEL (Bypasses the RLS Lock)
+      const { error } = await supabase.rpc("secure_actor_self_update", {
+        p_access_key: accessKey, // This is the key they logged in with (e.g. ACT-1234)
+        p_updates: payload,
+      });
       if (error) throw error;
       setSuccessMsg("Profile Synced Successfully");
       setTimeout(() => setSuccessMsg(""), 3000);

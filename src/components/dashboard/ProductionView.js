@@ -13,7 +13,7 @@ import Button from "../ui/Button";
 import SectionHeader from "../ui/SectionHeader";
 import Badge from "../ui/Badge";
 
-// --- LOCAL SUB-COMPONENTS (Could be extracted to UI later if needed) ---
+// --- LOCAL SUB-COMPONENTS ---
 const CrewCard = ({ label, name, email, onUpdate, onEmail }) => {
   const hasEmail = Boolean(email);
 
@@ -31,16 +31,21 @@ const CrewCard = ({ label, name, email, onUpdate, onEmail }) => {
         placeholder="Unassigned"
       />
 
-      <Button
+      {/* 🟢 EXPLICIT BUTTON */}
+      <button
         onClick={onEmail}
         disabled={!hasEmail}
-        variant={hasEmail ? "glow" : "ghost"}
-        color="#d4af37"
-        className="w-full py-2 h-auto text-[10px]"
+        className={`w-full py-2 h-auto text-[10px] rounded flex items-center justify-center font-bold uppercase tracking-wider transition-all duration-200 border
+          ${
+            hasEmail
+              ? "bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30 hover:bg-[#d4af37] hover:text-black"
+              : "bg-transparent text-gray-500 border-white/10 cursor-not-allowed opacity-50"
+          }
+        `}
       >
         <Mail className="w-3 h-3 mr-2" />
         {hasEmail ? "Email" : "No Email"}
-      </Button>
+      </button>
     </div>
   );
 };
@@ -75,16 +80,21 @@ const TalentCard = ({ name, email, onEmail }) => {
       </div>
 
       <div className="mt-auto pt-3 border-t border-white/5">
-        <Button
+        {/* 🟢 EXPLICIT BUTTON */}
+        <button
           onClick={onEmail}
           disabled={!hasEmail}
-          variant="ghost"
-          color="#d4af37"
-          className="w-full py-2 h-auto text-[10px] hover:bg-[#d4af37] hover:text-[#0c0442]"
+          className={`w-full py-2 h-auto text-[10px] rounded flex items-center justify-center font-bold uppercase tracking-wider transition-all duration-200 border
+            ${
+              hasEmail
+                ? "bg-transparent text-[#d4af37] border-[#d4af37]/30 hover:bg-[#d4af37] hover:text-black"
+                : "bg-transparent text-gray-500 border-white/10 cursor-not-allowed opacity-50"
+            }
+          `}
         >
           <Mail className="w-3 h-3 mr-2" />
           {hasEmail ? "Email Talent" : "No Email"}
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -212,14 +222,13 @@ const ProductionView = ({ project, updateField, roster }) => {
             </h3>
           </div>
 
-          <Button
+          {/* 🟢 EXPLICIT BUTTON */}
+          <button
             onClick={handleEmailAll}
-            variant="solid"
-            color="#d4af37"
-            className="w-auto px-4 py-2 text-[10px]"
+            className="w-auto px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center bg-[#d4af37] text-black hover:bg-[#b8860b] shadow-lg hover:shadow-[#d4af37]/20 transition-all border border-[#d4af37]"
           >
             <Users className="w-4 h-4 mr-2" /> Email Full Team (Kickoff)
-          </Button>
+          </button>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

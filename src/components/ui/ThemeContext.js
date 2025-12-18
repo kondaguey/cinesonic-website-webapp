@@ -5,37 +5,44 @@ import { usePathname } from "next/navigation";
 
 const ThemeContext = createContext();
 
-// 🟢 COLORS
+// 🟢 1. MASTER COLOR PALETTE
 export const THEME_COLORS = {
-  GOLD: "#d4af37", // Standard / Solo
+  GOLD: "#d4af37", // Solo / Standard
   PINK: "#ff3399", // Dual
   FIRE: "#ff4500", // Duet
   CYAN: "#00f0ff", // Multi
-  VIOLET: "#7c3aed", // Cinema / Drama (Static)
-  SYSTEM: "#3b82f6", // Admin / Dashboard
+  VIOLET: "#7c3aed", // Drama / Cinematic (Accent)
+  SYSTEM: "#3b82f6", // Admin System Blue
 };
 
-// 🟢 HELPER: Determine Theme based on Project Format string
+// 🟢 2. HELPER: Logic Engine
 export const getProjectTheme = (formatString) => {
   if (!formatString) return THEME_COLORS.GOLD;
+
   const lower = formatString.toLowerCase();
 
-  // If it's a Drama/Cinema -> VIOLET
-  if (lower.includes("drama") || lower.includes("cinema")) {
+  // PRIORITY 1: Specific Formats
+  if (lower.includes("multi")) return THEME_COLORS.CYAN;
+  if (lower.includes("duet")) return THEME_COLORS.FIRE;
+  if (lower.includes("dual")) return THEME_COLORS.PINK;
+
+  // PRIORITY 2: Generic Drama
+  if (lower.includes("drama") || lower.includes("cinematic")) {
     return THEME_COLORS.VIOLET;
   }
 
-  // Otherwise -> GOLD (Standard)
+  // DEFAULT
   return THEME_COLORS.GOLD;
 };
 
+// 🟢 3. PROVIDER
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState("gold");
+  const [themeName, setThemeName] = useState("gold");
   const [isCinematic, setIsCinematic] = useState(false);
   const pathname = usePathname();
 
+  // ROUTE LISTENER (Preserves Marketing Site Logic)
   useEffect(() => {
-    // URL Logic
     const colorZones = {
       "/dual-audio-production": "pink",
       "/duet-audio-production": "fire",
@@ -43,42 +50,79 @@ export function ThemeProvider({ children }) {
       "/solo-audio-production": "gold",
     };
 
-    const zoneTheme = colorZones[pathname];
+    const activeKey = Object.keys(colorZones).find((key) =>
+      pathname?.includes(key)
+    );
 
-    if (zoneTheme) {
-      setTheme(zoneTheme);
-    } else if (
-      pathname.includes("/crewportal") ||
-      pathname.includes("/dashboard")
-    ) {
-      // 🟢 DASHBOARD MODE: Default to System
-      setTheme("system");
+    if (activeKey) {
+      setThemeName(colorZones[activeKey]);
       setIsCinematic(false);
+    } else if (
+      pathname?.includes("/crewportal") ||
+      pathname?.includes("/dashboard")
+    ) {
+      // Manual control for Dashboard
     } else {
-      setTheme("gold");
+      setThemeName("gold");
       setIsCinematic(false);
     }
   }, [pathname]);
 
+  // 🟢 4. CALCULATE COLORS (The Bridge)
+
+  // A. Base Color (The Identity: Gold, Pink, Cyan)
+  const getBaseColorHex = () => {
+    switch (themeName) {
+      case "pink":
+        return THEME_COLORS.PINK;
+      case "fire":
+        return THEME_COLORS.FIRE;
+      case "cyan":
+        return THEME_COLORS.CYAN;
+      case "system":
+        return THEME_COLORS.SYSTEM;
+      case "gold":
+      default:
+        return THEME_COLORS.GOLD;
+    }
+  };
+  const baseColor = getBaseColorHex();
+
+  // B. Active Color (Violet if Cine, Base if Standard)
+  const activeColor = isCinematic ? THEME_COLORS.VIOLET : baseColor;
+
+  // C. Active Styles (Legacy support for marketing site text effects)
   const activeStyles = {
-    color: isCinematic
-      ? THEME_COLORS.VIOLET
-      : THEME_COLORS[theme.toUpperCase()] || THEME_COLORS.GOLD,
+    color: activeColor,
+    shimmer: isCinematic
+      ? `text-shimmer-${themeName}-violet`
+      : `text-shimmer-${themeName}`,
+    isCinematic, // Pass state down in styles too for ease of access
+  };
+
+  // 🟢 EXPOSE VALUES
+  const value = {
+    // Standard State (Mapped for Backward Compatibility)
+    theme: themeName,
+    setTheme: setThemeName,
+    setThemeName,
+    isCinematic,
+    setIsCinematic,
+
+    // Computed Values (New Dashboard Bridge)
+    baseColor, // Always Gold/Pink/Cyan (For Titles/Borders)
+    activeColor, // Varies based on Cinematic toggle (For Toggles/Accents)
+    activeStyles, // Legacy object for marketing site
   };
 
   return (
-    <ThemeContext.Provider
-      value={{ theme, setTheme, isCinematic, setIsCinematic, activeStyles }}
-    >
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
   return useContext(ThemeContext);
 }
-
 const FxSolo = () => (
   <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
     <div className="absolute top-1/2 left-1/2 w-32 h-32 bg-[#d4af37] rounded-full blur-[50px] animate-[pulseGlow_4s_ease-in-out_infinite]" />
