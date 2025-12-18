@@ -9,23 +9,20 @@ import ParticleFx from "../ui/ParticleFx";
 import ProjectSelectionCard from "./ProjectSelectionCard";
 import CineSonicToggle from "../ui/CineSonicToggle";
 import Button from "../ui/Button";
+import PopupSelection from "../ui/PopupSelection";
 
 // ICONS
 import {
   User,
   BookOpen,
   Mic,
-  Plus,
-  Trash2,
   Calendar,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Play,
   Pause,
   AlertTriangle,
   Star,
-  Clock,
   Music,
   Users,
   Rocket,
@@ -38,12 +35,12 @@ import {
   X,
   Layers,
   Settings2,
+  Clock,
 } from "lucide-react";
 
 // --- 🟢 1. ROBUST MATCHMAKER ALGO ---
 export function runCreativeMatch(role, roster) {
   if (!roster || !role) return [];
-
   const roleGender = (role["Gender"] || "any").toLowerCase().trim();
   const roleAge = (role["Age Range"] || "").toLowerCase().trim();
   const roleSpecs = (role["Vocal Specs"] || "").toLowerCase();
@@ -68,14 +65,12 @@ export function runCreativeMatch(role, roster) {
     if (requestedActorName && actor.name.toLowerCase() === requestedActorName) {
       return { actor: actor, score: 100, isRequested: true };
     }
-
     let score = 0;
     const actorAges = (actor.ages || actor.age_range || "").toLowerCase();
     const actorVoice = (actor.voice || "").toLowerCase();
     const actorGenres = (actor.genres || "").toLowerCase();
 
     if (roleAge && actorAges.includes(roleAge)) score += 60;
-
     const keywords = roleSpecs.split(/[\s,.-]+/).filter((k) => k.length > 3);
     let voicePoints = 0;
     let genrePoints = 0;
@@ -89,83 +84,11 @@ export function runCreativeMatch(role, roster) {
     score += Math.min(voicePoints, 30);
     score += Math.min(genrePoints, 10);
     score += 5;
-
     return { actor: actor, score: Math.min(score, 99) };
   });
 
   return scoredCandidates.sort((a, b) => b.score - a.score);
 }
-
-// --- 🟢 2. REUSABLE SELECTION MODAL ---
-const SelectionModal = ({
-  isOpen,
-  onClose,
-  title,
-  items,
-  selectedItems,
-  onToggle,
-  maxItems,
-  activeColor,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-md"
-        onClick={onClose}
-      />
-      <div className="relative w-full max-w-lg bg-[#080810] border border-white/10 rounded-3xl overflow-hidden flex flex-col shadow-2xl animate-fade-in-up">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-serif text-white tracking-widest uppercase">
-              {title}
-            </h3>
-            <p className="text-[10px] text-gray-500 font-mono mt-1 uppercase tracking-tighter">
-              Select up to {maxItems} • {selectedItems.length} selected
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-500 hover:text-white bg-white/5 rounded-full"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="p-6 overflow-y-auto max-h-[50vh] flex flex-wrap gap-2 custom-scrollbar">
-          {items.map((item) => {
-            const isSelected = selectedItems.includes(item);
-            return (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onToggle(item)}
-                className={`px-4 py-2 rounded-xl text-xs border transition-all ${
-                  isSelected
-                    ? "text-black font-bold border-transparent"
-                    : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
-                }`}
-                style={{
-                  backgroundColor: isSelected ? activeColor : undefined,
-                }}
-              >
-                {item}
-              </button>
-            );
-          })}
-        </div>
-        <div className="p-4 bg-white/[0.02] border-t border-white/5">
-          <button
-            onClick={onClose}
-            className="w-full py-3 rounded-xl bg-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/20 transition-all"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // --- 🟢 3. MAIN COMPONENT ---
 export default function ProjectIntakeForm() {
@@ -184,8 +107,6 @@ export default function ProjectIntakeForm() {
   const [submitStatus, setSubmitStatus] = useState(null);
   const [isScoutOpen, setIsScoutOpen] = useState(false);
   const [scoutTargetIndex, setScoutTargetIndex] = useState(null);
-
-  // Modal States
   const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
   const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
 
@@ -195,7 +116,6 @@ export default function ProjectIntakeForm() {
     ageRanges: [],
   });
   const [roster, setRoster] = useState([]);
-
   const [formData, setFormData] = useState({
     client_name: "",
     email: "",
@@ -208,10 +128,52 @@ export default function ProjectIntakeForm() {
     base_format: "",
     price_tier: "",
   });
-
   const [dates, setDates] = useState(["", "", ""]);
   const [openCalendarIdx, setOpenCalendarIdx] = useState(null);
   const [characters, setCharacters] = useState([]);
+
+  // 🟢 FIXED: Character Update (Immutable)
+  const updateCharacter = (index, field, value) => {
+    setCharacters((prev) =>
+      prev.map((char, i) =>
+        i === index
+          ? {
+              ...char,
+              [field]: value,
+              ...(field === "gender" ? { preferredActorId: null } : {}),
+            }
+          : char
+      )
+    );
+  };
+
+  // 🟢 FIXED: Voice Type Selection (Immutable)
+  const toggleCharVoice = (charIdx, vt) => {
+    setCharacters((prev) =>
+      prev.map((char, i) => {
+        if (i !== charIdx) return char;
+        const current = char.voiceTypes || [];
+        const isSelected = current.includes(vt);
+
+        if (isSelected) {
+          return { ...char, voiceTypes: current.filter((x) => x !== vt) };
+        } else if (current.length < 2) {
+          return { ...char, voiceTypes: [...current, vt] };
+        }
+        return char;
+      })
+    );
+  };
+
+  const toggleGenre = (g) => {
+    setFormData((prev) => {
+      const current = prev.genres || [];
+      if (current.includes(g))
+        return { ...prev, genres: current.filter((x) => x !== g) };
+      if (current.length < 3) return { ...prev, genres: [...current, g] };
+      return prev;
+    });
+  };
 
   // HELPERS
   const formatCommas = (val) =>
@@ -229,42 +191,6 @@ export default function ProjectIntakeForm() {
     return { hours, minutes, totalDecimal: totalHours.toFixed(2) };
   };
   const duration = calculateDuration(formData.word_count);
-  const getMinDate = (prevDateStr) => {
-    if (!prevDateStr) return new Date();
-    const d = new Date(prevDateStr);
-    d.setDate(d.getDate() + 30);
-    return d;
-  };
-
-  const updateCharacter = (index, field, value) => {
-    setCharacters((prev) => {
-      const n = [...prev];
-      n[index][field] = value;
-      if (field === "gender") n[index].preferredActorId = null;
-      return n;
-    });
-  };
-
-  const toggleGenre = (g) => {
-    setFormData((prev) => {
-      const current = prev.genres || [];
-      if (current.includes(g))
-        return { ...prev, genres: current.filter((x) => x !== g) };
-      if (current.length < 3) return { ...prev, genres: [...current, g] };
-      return prev;
-    });
-  };
-
-  const toggleCharVoice = (charIdx, vt) => {
-    setCharacters((prev) => {
-      const n = [...prev];
-      const current = n[charIdx].voiceTypes || [];
-      if (current.includes(vt))
-        n[charIdx].voiceTypes = current.filter((x) => x !== vt);
-      else if (current.length < 2) n[charIdx].voiceTypes = [...current, vt];
-      return n;
-    });
-  };
 
   useEffect(() => {
     async function fetchData() {
@@ -290,6 +216,31 @@ export default function ProjectIntakeForm() {
     }
     fetchData();
   }, []);
+
+  const handleServiceSelect = (id, baseType) => {
+    const opt = serviceBase.find((o) => o.baseType === baseType);
+    setFormData((prev) => ({
+      ...prev,
+      client_type: id,
+      base_format: baseType,
+      price_tier: opt.price,
+    }));
+    setTheme(
+      { Solo: "gold", Dual: "pink", Duet: "fire", Multi: "cyan" }[baseType]
+    );
+    const slots = baseType === "Solo" ? 1 : baseType === "Multi" ? 4 : 2;
+    setCharacters(
+      Array(slots)
+        .fill(0)
+        .map(() => ({
+          name: "",
+          gender: "",
+          age: "",
+          voiceTypes: [],
+          preferredActorId: null,
+        }))
+    );
+  };
 
   const serviceBase = [
     {
@@ -333,42 +284,6 @@ export default function ProjectIntakeForm() {
       price: "$$$$$",
     },
   ];
-
-  const handleServiceSelect = (id, baseType) => {
-    const opt = serviceBase.find((o) => o.baseType === baseType);
-    setFormData((prev) => ({
-      ...prev,
-      client_type: id,
-      base_format: baseType,
-      price_tier: opt.price,
-    }));
-    const themes = { Solo: "gold", Dual: "pink", Duet: "fire", Multi: "cyan" };
-    setTheme(themes[baseType]);
-    const slots = baseType === "Solo" ? 1 : baseType === "Multi" ? 4 : 2;
-    setCharacters(
-      Array(slots)
-        .fill(0)
-        .map(() => ({
-          name: "",
-          gender: "",
-          age: "",
-          voiceTypes: [],
-          preferredActorId: null,
-        }))
-    );
-  };
-
-  const HeaderTitle = ({ icon: Icon, title }) => (
-    <h2
-      className={`text-xl font-bold flex items-center gap-3 transition-all duration-500 ${
-        isCinematic ? shimmerClass : ""
-      }`}
-      style={{ color: !isCinematic ? baseColor : undefined }}
-    >
-      <Icon size={20} style={{ color: activeColor }} />
-      {title}
-    </h2>
-  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -449,9 +364,8 @@ export default function ProjectIntakeForm() {
           background: `radial-gradient(circle at 50% 0%, ${activeColor}15 0%, transparent 70%)`,
         }}
       />
-
       <div className="w-full md:max-w-5xl mx-auto relative z-10 px-4">
-        <div className="text-center mb-10 animate-fade-in-up">
+        <div className="text-center mb-10">
           <h1
             className={`text-4xl md:text-7xl font-serif mb-4 transition-all duration-500 ${
               isCinematic ? shimmerClass : ""
@@ -464,38 +378,40 @@ export default function ProjectIntakeForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* 1. SELECTION CARDS */}
-          <section className="animate-fade-in-up">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-10 -m-10 overflow-visible">
-              {serviceBase.map((opt) => (
-                <div key={opt.baseType} className="relative overflow-visible">
-                  <ProjectSelectionCard
-                    id={isCinematic ? opt.dramaTitle : opt.standardTitle}
-                    title={isCinematic ? opt.dramaTitle : opt.standardTitle}
-                    desc={isCinematic ? opt.dramaDesc : opt.standardDesc}
-                    icon={isCinematic ? opt.dramaIcon : opt.icon}
-                    baseType={opt.baseType}
-                    isDrama={isCinematic}
-                    price={opt.price}
-                    isSelected={formData.base_format === opt.baseType}
-                    onSelect={handleServiceSelect}
-                  />
-                </div>
-              ))}
-            </div>
+          {/* 1. CARDS */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {serviceBase.map((opt) => (
+              <ProjectSelectionCard
+                key={opt.baseType}
+                id={isCinematic ? opt.dramaTitle : opt.standardTitle}
+                title={isCinematic ? opt.dramaTitle : opt.standardTitle}
+                desc={isCinematic ? opt.dramaDesc : opt.standardDesc}
+                icon={isCinematic ? opt.dramaIcon : opt.icon}
+                baseType={opt.baseType}
+                isDrama={isCinematic}
+                price={opt.price}
+                isSelected={formData.base_format === opt.baseType}
+                onSelect={handleServiceSelect}
+              />
+            ))}
           </section>
 
           {/* 2. CORE INFO */}
           <section
-            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md shadow-2xl space-y-6 transition-all duration-500"
+            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md space-y-6"
             style={{ borderColor: `${activeColor}30` }}
           >
-            <HeaderTitle icon={BookOpen} title="Title Core Info" />
+            <h2
+              className="text-xl font-bold flex items-center gap-3"
+              style={{ color: activeColor }}
+            >
+              <BookOpen size={20} /> Title Core Info
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <input
                 required
                 placeholder="Author / Client"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white text-sm outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
                 value={formData.client_name}
                 onChange={(e) =>
                   setFormData({ ...formData, client_name: e.target.value })
@@ -505,7 +421,7 @@ export default function ProjectIntakeForm() {
                 required
                 type="email"
                 placeholder="Contact Email"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white text-sm outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -514,31 +430,45 @@ export default function ProjectIntakeForm() {
               <input
                 required
                 placeholder="Project Title"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white text-sm outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
                 value={formData.project_title}
                 onChange={(e) =>
                   setFormData({ ...formData, project_title: e.target.value })
                 }
               />
-              <div className="relative">
-                <input
-                  required
-                  type="text"
-                  inputMode="numeric"
-                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white text-sm font-mono outline-none"
-                  value={formatCommas(formData.word_count)}
-                  onChange={handleWordCountChange}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-gray-500">
-                  WORDS
+              <div className="space-y-2">
+                <div className="relative">
+                  <input
+                    required
+                    type="text"
+                    inputMode="numeric"
+                    className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white font-mono outline-none focus:border-white/30 transition-all"
+                    value={formatCommas(formData.word_count)}
+                    onChange={handleWordCountChange}
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-gray-500 font-black tracking-widest">
+                    WORDS
+                  </div>
                 </div>
-              </div>
 
-              {/* Genre Selection Trigger */}
-              <div className="md:col-span-2 space-y-3">
-                <label className="text-[10px] uppercase text-gray-500 font-bold tracking-widest">
-                  Book most similar genre
-                </label>
+                {/* DYNAMIC RUNTIME DISPLAY */}
+                {duration && (
+                  <div className="px-2 animate-in fade-in slide-in-from-top-1 duration-500">
+                    <span
+                      className="text-[10px] font-mono uppercase tracking-widest flex items-center gap-2"
+                      style={{ color: activeColor }}
+                    >
+                      <Clock size={12} />
+                      {duration.hours > 0 && `${duration.hours}h `}
+                      {duration.minutes}m est. runtime
+                      <span className="text-gray-600 ml-1">
+                        ({duration.totalDecimal} PFH)
+                      </span>
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="md:col-span-2">
                 <button
                   type="button"
                   onClick={() => setIsGenreModalOpen(true)}
@@ -556,7 +486,7 @@ export default function ProjectIntakeForm() {
                       ))
                     ) : (
                       <span className="text-gray-500 italic">
-                        Tap to select genres...
+                        Select Project Genres...
                       </span>
                     )}
                   </div>
@@ -566,35 +496,35 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* 3. CHARACTER SPECS */}
+          {/* 3. CHARACTERS */}
           {formData.base_format && (
             <section
-              className="glass-panel p-6 md:p-8 animate-fade-in-up"
+              className="glass-panel p-6 md:p-8"
               style={{ borderColor: `${activeColor}30` }}
             >
               <div className="flex justify-between items-center mb-6">
-                <HeaderTitle icon={User} title="Character Specs" />
-                <span className="text-[9px] font-mono font-bold text-gray-500 border border-white/10 px-3 py-1 rounded bg-black">
-                  SLOTS: {characters.length}
-                </span>
+                <h2 className="text-xl font-bold flex items-center gap-3 text-white">
+                  <User size={20} style={{ color: activeColor }} /> Character
+                  Specs
+                </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {characters.map((char, index) => (
                   <div
                     key={index}
-                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative group"
+                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative"
                   >
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <input
                         placeholder="Name"
-                        className="col-span-2 w-full bg-transparent border-b border-white/10 py-1 text-white text-sm outline-none"
+                        className="col-span-2 bg-transparent border-b border-white/10 py-1 text-white outline-none"
                         value={char.name}
                         onChange={(e) =>
                           updateCharacter(index, "name", e.target.value)
                         }
                       />
                       <select
-                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs outline-none"
+                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs"
                         value={char.gender}
                         onChange={(e) =>
                           updateCharacter(index, "gender", e.target.value)
@@ -605,7 +535,7 @@ export default function ProjectIntakeForm() {
                         <option value="Female">Female</option>
                       </select>
                       <select
-                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs outline-none"
+                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs"
                         value={char.age}
                         onChange={(e) =>
                           updateCharacter(index, "age", e.target.value)
@@ -619,9 +549,8 @@ export default function ProjectIntakeForm() {
                         ))}
                       </select>
                     </div>
-
-                    <div className="mb-6 space-y-2">
-                      <label className="text-[9px] uppercase text-gray-600 font-bold">
+                    <div className="mb-6">
+                      <label className="text-[9px] uppercase text-gray-600 font-bold block mb-2">
                         Voice Types
                       </label>
                       <button
@@ -648,13 +577,12 @@ export default function ProjectIntakeForm() {
                         <Layers size={14} className="text-gray-600" />
                       </button>
                     </div>
-
                     <button
                       type="button"
-                      className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between transition-all ${
+                      className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between ${
                         !char.gender
                           ? "opacity-30 cursor-not-allowed"
-                          : "hover:bg-white/10 hover:border-white/30"
+                          : "hover:bg-white/10"
                       }`}
                       onClick={() => {
                         if (char.gender) {
@@ -664,42 +592,19 @@ export default function ProjectIntakeForm() {
                       }}
                     >
                       {char.preferredActorId === "Matchmaker" ? (
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-                            <Sparkles size={14} className="text-yellow-500" />
-                          </div>
-                          <div className="text-left">
-                            <span className="text-white text-xs font-bold block">
-                              Matchmaker
-                            </span>
-                          </div>
-                        </div>
+                        <span className="text-white text-xs font-bold">
+                          Matchmaker Selected
+                        </span>
                       ) : char.preferredActorId ? (
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={
-                              roster.find((r) => r.id === char.preferredActorId)
-                                ?.headshot_url
-                            }
-                            className="w-8 h-8 rounded-full object-cover border border-white/20"
-                            alt="H"
-                          />
-                          <div className="text-left">
-                            <span className="text-white text-xs font-bold block">
-                              {
-                                roster.find(
-                                  (r) => r.id === char.preferredActorId
-                                )?.name
-                              }
-                            </span>
-                          </div>
-                        </div>
+                        <span className="text-white text-xs font-bold">
+                          Talent Selected
+                        </span>
                       ) : (
                         <span className="text-gray-400 italic text-xs flex items-center gap-2">
                           <Star size={14} /> Scout Talent...
                         </span>
                       )}
-                      <ChevronRight size={16} className="text-gray-600" />
+                      <ChevronRight size={16} />
                     </button>
                   </div>
                 ))}
@@ -709,48 +614,30 @@ export default function ProjectIntakeForm() {
 
           {/* 4. TIMELINE */}
           <section
-            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md shadow-2xl space-y-6 transition-all duration-500"
+            className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md"
             style={{ borderColor: `${activeColor}30` }}
           >
-            <HeaderTitle icon={Calendar} title="Production Timeline" />
+            <h2 className="text-xl font-bold flex items-center gap-3 text-white mb-6">
+              <Calendar size={20} style={{ color: activeColor }} /> Timeline
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {[0, 1, 2].map((idx) => (
                 <div key={idx} className="relative">
-                  <label className="text-[10px] uppercase text-gray-500 mb-2 block font-bold">
-                    Option {idx + 1}
-                  </label>
                   <button
                     type="button"
                     onClick={() =>
                       setOpenCalendarIdx(openCalendarIdx === idx ? null : idx)
                     }
-                    className="w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center"
-                    style={{
-                      borderColor:
-                        openCalendarIdx === idx ? activeColor : undefined,
-                    }}
+                    className="w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center text-white"
                   >
-                    <span
-                      className={
-                        dates[idx]
-                          ? "text-white font-mono"
-                          : "text-gray-500 italic"
-                      }
-                    >
-                      {dates[idx] || "Select Date..."}
-                    </span>
-                    <Calendar
-                      size={16}
-                      style={{ color: dates[idx] ? activeColor : undefined }}
-                    />
+                    {dates[idx] || "Select Date..."}
+                    <Calendar size={16} />
                   </button>
                   {openCalendarIdx === idx && (
                     <div className="absolute top-full left-0 z-50 mt-3 w-full bg-[#080810] border border-white/20 rounded-2xl p-4 shadow-2xl">
                       <ThemedCalendar
                         activeColor={activeColor}
-                        minDate={
-                          idx === 0 ? new Date() : getMinDate(dates[idx - 1])
-                        }
+                        minDate={new Date()}
                         onSelect={(d) => {
                           const n = [...dates];
                           n[idx] = d;
@@ -766,102 +653,118 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* SUBMIT */}
-          <div className="pt-10 pb-20 text-center flex flex-col items-center gap-6 border-t border-white/10">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full max-w-sm py-5 rounded-full text-black font-bold uppercase tracking-[0.2em] text-sm shadow-2xl transition-all hover:scale-[1.02] disabled:opacity-50"
-              style={{ backgroundColor: activeColor }}
-            >
-              {isSubmitting ? "Transmitting..." : "Initialize Production"}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-5 rounded-full text-black font-bold uppercase tracking-widest text-sm transition-all hover:scale-[1.01]"
+            style={{ backgroundColor: activeColor }}
+          >
+            {isSubmitting ? "Transmitting..." : "Initialize Production"}
+          </button>
         </form>
       </div>
 
-      {/* MODALS */}
-      <SelectionModal
+      {/* MODALS INCORPORATED USING PopupSelection */}
+      <PopupSelection
         isOpen={isGenreModalOpen}
         onClose={() => setIsGenreModalOpen(false)}
         title="Project Genre"
-        items={dropdowns.genres}
-        selectedItems={formData.genres}
-        onToggle={toggleGenre}
-        maxItems={3}
         activeColor={activeColor}
-      />
+      >
+        <div className="flex flex-wrap gap-2">
+          {dropdowns.genres.map((g) => {
+            const isSelected = formData.genres.includes(g);
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => toggleGenre(g)}
+                className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
+                  isSelected
+                    ? "text-black font-bold border-transparent shadow-lg"
+                    : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
+                }`}
+                style={{
+                  backgroundColor: isSelected ? activeColor : undefined,
+                }}
+              >
+                {g}
+              </button>
+            );
+          })}
+        </div>
+      </PopupSelection>
 
-      <SelectionModal
+      <PopupSelection
         isOpen={voiceTypeModalIdx !== null}
         onClose={() => setVoiceTypeModalIdx(null)}
-        title={`Voice Specs: ${
-          characters[voiceTypeModalIdx]?.name || "Character"
-        }`}
-        items={dropdowns.voiceTypes}
-        selectedItems={characters[voiceTypeModalIdx]?.voiceTypes || []}
-        onToggle={(vt) => toggleCharVoice(voiceTypeModalIdx, vt)}
-        maxItems={2}
+        title="Voice Specs"
         activeColor={activeColor}
-      />
-
-      {isScoutOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-0 md:p-8">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-fade-in"
-            onClick={() => setIsScoutOpen(false)}
-          />
-          <div className="relative w-full h-full md:h-auto md:max-h-[85vh] md:max-w-2xl bg-[#080810] border-x md:border border-white/10 md:rounded-3xl overflow-hidden flex flex-col shadow-[0_0_100px_rgba(0,0,0,1)] animate-fade-in-up">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-              <div>
-                <h3 className="text-xl font-serif text-white tracking-widest uppercase flex items-center gap-3">
-                  <Sparkles size={20} style={{ color: activeColor }} />{" "}
-                  CineSonic Matchmaker
-                </h3>
-              </div>
+      >
+        <div className="flex flex-wrap gap-2">
+          {dropdowns.voiceTypes.map((vt) => {
+            const isSelected =
+              characters[voiceTypeModalIdx]?.voiceTypes?.includes(vt);
+            return (
               <button
-                onClick={() => setIsScoutOpen(false)}
-                className="p-3 text-gray-500 hover:text-white bg-white/5 rounded-full"
+                key={vt}
+                type="button"
+                onClick={() => toggleCharVoice(voiceTypeModalIdx, vt)}
+                className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
+                  isSelected
+                    ? "text-black font-bold border-transparent shadow-lg"
+                    : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
+                }`}
+                style={{
+                  backgroundColor: isSelected ? activeColor : undefined,
+                }}
               >
-                <X size={20} />
+                {vt}
               </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar space-y-3">
-              <div
-                className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-500/30 hover:border-indigo-500/60 transition-all cursor-pointer group mb-6"
-                onClick={() => {
-                  updateCharacter(
-                    scoutTargetIndex,
-                    "preferredActorId",
-                    "Matchmaker"
-                  );
-                  setIsScoutOpen(false);
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <Cpu className="text-indigo-400" size={24} />
-                  <div className="flex-1">
-                    <h4 className="text-indigo-300 font-bold text-sm">
-                      Delegate to Matchmaker
-                    </h4>
-                  </div>
-                  <ChevronRight className="text-indigo-500 group-hover:translate-x-1 transition-transform" />
-                </div>
+            );
+          })}
+        </div>
+      </PopupSelection>
+
+      <PopupSelection
+        isOpen={isScoutOpen}
+        onClose={() => setIsScoutOpen(false)}
+        title="CineSonic Matchmaker"
+        activeColor={activeColor}
+      >
+        <div className="space-y-3">
+          <div
+            className="p-5 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 border border-indigo-500/30 cursor-pointer"
+            onClick={() => {
+              updateCharacter(
+                scoutTargetIndex,
+                "preferredActorId",
+                "Matchmaker"
+              );
+              setIsScoutOpen(false);
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <Cpu className="text-indigo-400" size={24} />
+              <div>
+                <h4 className="text-indigo-300 font-bold text-sm">
+                  Delegate to Matchmaker
+                </h4>
               </div>
-              <ScoutResultsList
-                roster={roster}
-                character={characters[scoutTargetIndex]}
-                formData={formData}
-                onSelect={(id) => {
-                  updateCharacter(scoutTargetIndex, "preferredActorId", id);
-                  setIsScoutOpen(false);
-                }}
-                activeColor={activeColor}
-              />
             </div>
           </div>
+          <ScoutResultsList
+            roster={roster}
+            character={characters[scoutTargetIndex]}
+            formData={formData}
+            onSelect={(id) => {
+              updateCharacter(scoutTargetIndex, "preferredActorId", id);
+              setIsScoutOpen(false);
+            }}
+            activeColor={activeColor}
+          />
         </div>
-      )}
+      </PopupSelection>
 
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
@@ -876,7 +779,7 @@ export default function ProjectIntakeForm() {
   );
 }
 
-// --- 🟢 4. HELPER COMPONENTS (RESTORED) ---
+// --- 🟢 HELPER COMPONENTS ---
 function ScoutResultsList({
   roster,
   character,
@@ -886,17 +789,20 @@ function ScoutResultsList({
 }) {
   const [playingUrl, setPlayingUrl] = useState(null);
   const audioRef = useRef(null);
-
-  const matchResults = useMemo(() => {
-    const role = {
-      Gender: character?.gender || "any",
-      "Age Range": character?.age || "",
-      "Vocal Specs": `${formData.style} ${formData.notes} ${
-        character?.voiceTypes?.join(" ") || ""
-      }`,
-    };
-    return runCreativeMatch(role, roster);
-  }, [character, roster, formData]);
+  const matchResults = useMemo(
+    () =>
+      runCreativeMatch(
+        {
+          Gender: character?.gender || "any",
+          "Age Range": character?.age || "",
+          "Vocal Specs": `${formData.style} ${formData.notes} ${
+            character?.voiceTypes?.join(" ") || ""
+          }`,
+        },
+        roster
+      ),
+    [character, roster, formData]
+  );
 
   const toggleAudio = (url) => {
     if (playingUrl === url) {
@@ -914,32 +820,22 @@ function ScoutResultsList({
   return matchResults.map(({ actor, score }) => (
     <div
       key={actor.id}
-      className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer"
+      className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] cursor-pointer"
       onClick={() => onSelect(actor.id)}
     >
       <div className="relative">
         <img
           src={actor.headshot_url}
-          className="w-14 h-14 rounded-xl object-cover border border-white/10"
+          className="w-14 h-14 rounded-xl object-cover"
           alt="H"
         />
-        <div
-          className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-md text-[9px] font-black shadow-lg"
-          style={{
-            backgroundColor: score > 80 ? "#22c55e" : activeColor,
-            color: "#000",
-          }}
-        >
+        <div className="absolute -bottom-2 -right-2 px-1 py-0.5 rounded bg-green-500 text-black text-[9px] font-black">
           {score}%
         </div>
       </div>
       <div className="flex-1 min-w-0">
         <h4 className="text-white font-bold text-sm truncate">{actor.name}</h4>
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider truncate">
-          {Array.isArray(actor.voice_type)
-            ? actor.voice_type.join(" • ")
-            : actor.voice_type}
-        </p>
+        <p className="text-[10px] text-gray-500 truncate">{actor.voice_type}</p>
       </div>
       {actor.demo_url && (
         <button
@@ -948,12 +844,12 @@ function ScoutResultsList({
             e.stopPropagation();
             toggleAudio(actor.demo_url);
           }}
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/20"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10"
         >
           {playingUrl === actor.demo_url ? (
-            <Pause size={16} fill="white" />
+            <Pause size={16} />
           ) : (
-            <Play size={16} fill="white" className="ml-0.5" />
+            <Play size={16} />
           )}
         </button>
       )}
@@ -963,7 +859,7 @@ function ScoutResultsList({
 
 function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
   const [viewDate, setViewDate] = useState(
-    selectedDate ? new Date(selectedDate) : minDate || new Date()
+    selectedDate ? new Date(selectedDate) : minDate
   );
   const daysInMonth = new Date(
     viewDate.getFullYear(),
@@ -981,7 +877,7 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4 text-white text-[10px] font-bold uppercase tracking-widest px-2">
+      <div className="flex justify-between items-center mb-4 text-white text-[10px] font-bold uppercase tracking-widest">
         <button
           type="button"
           onClick={() =>
@@ -1017,18 +913,13 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
           if (!day) return <div key={i} />;
           const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
           const isSelected = selectedDate === d.toISOString().split("T")[0];
-          const disabled =
-            d.setHours(0, 0, 0, 0) < new Date(minDate).setHours(0, 0, 0, 0);
           return (
             <button
               key={i}
               type="button"
-              disabled={disabled}
               onClick={() => onSelect(d.toISOString().split("T")[0])}
-              className={`h-7 w-7 rounded-full text-[10px] transition-all flex items-center justify-center ${
-                disabled
-                  ? "text-gray-800"
-                  : isSelected
+              className={`h-7 w-7 rounded-full text-[10px] flex items-center justify-center ${
+                isSelected
                   ? "text-black font-bold"
                   : "text-gray-300 hover:bg-white/10"
               }`}
