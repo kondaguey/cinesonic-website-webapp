@@ -1,6 +1,5 @@
 import { Cinzel, Lato } from "next/font/google";
 import "./globals.css";
-// 🟢 CHANGE: Import the Context, not the Wrapper
 import { ThemeProvider } from "@/src/components/ui/ThemeContext";
 
 const cinzel = Cinzel({
@@ -24,13 +23,13 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
+    // 🟢 REQUIRED: html tag with font variables
     <html lang="en" className={`${cinzel.variable} ${lato.variable}`}>
+      {/* 🟢 REQUIRED: body tag with your theme background */}
       <body
         className="font-sans antialiased overflow-x-hidden bg-[#020010] text-white"
         suppressHydrationWarning={true}
       >
-        {/* 🟢 LOGIC ONLY: Provides 'theme', 'setTheme', etc. to the whole app.
-            But DOES NOT render a Navbar or Footer. */}
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

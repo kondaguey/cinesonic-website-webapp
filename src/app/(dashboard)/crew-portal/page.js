@@ -345,26 +345,13 @@ export default function AdminPortal() {
     }
   };
 
-  const saveProject = async () => {
-    if (!selectedProject || !selectedProject["Project ID"]) return;
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from("production_db")
-        .update({
-          title: selectedProject["Title"],
-          status: selectedProject["Status"],
-          format: selectedProject["Format"],
-        })
-        .eq("project_id", selectedProject["Project ID"]);
-
-      if (error) throw error;
-      fetchAllData();
-    } catch (err) {
-      console.error("SAVE FAILED:", err.message);
-    } finally {
-      setIsSaving(false);
-    }
+  const saveProject = async (updates) => {
+    const { error } = await supabase.rpc("secure_save_production", {
+      secret_pass: accessInput, // Your Crew Key
+      p_project_id: selectedProject["Project ID"],
+      p_updates: updates, // { title: "New Title", coordinator: "John" }
+    });
+    if (error) alert(error.message);
   };
 
   const updateField = (field, value) =>

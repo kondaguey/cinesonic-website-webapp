@@ -20,23 +20,20 @@ export default function ProspectLogin() {
   const handleEntry = async () => {
     if (!keyInput) return;
     setIsLoading(true);
-    setIsError(false);
-    setStatus("Verifying...");
+
+    const enteredKey = keyInput.trim().toUpperCase();
+    const tables = [
+      "actors",
+      "artists",
+      "authors",
+      "admin",
+      "crew",
+      "site_keys",
+    ];
 
     try {
-      const enteredKey = keyInput.trim().toUpperCase(); // 🟢 THE FIX: Force Uppercase
-      const tables = [
-        "actors",
-        "artists",
-        "authors",
-        "admin",
-        "crew",
-        "site_keys",
-      ];
+      let match = null;
 
-      let matchFound = false;
-
-      // Scan all tables for the key
       for (const table of tables) {
         const { data } = await supabase
           .from(table)
@@ -45,34 +42,24 @@ export default function ProspectLogin() {
           .maybeSingle();
 
         if (data) {
-          matchFound = true;
+          match = data;
           break;
         }
       }
 
-      if (matchFound) {
-        // 🟢 THE FIX: Cookie name MUST match middleware
+      if (match) {
         Cookies.set("cinesonic-beta-access", enteredKey, {
           expires: 7,
           path: "/",
-          sameSite: "lax",
         });
-
-        setStatus("Access granted");
-
-        setTimeout(() => {
-          // If the key was found in the 'admin' table, you can redirect to /admin
-          // Otherwise, go to root or intake.
-          window.location.href = "/";
-        }, 400);
+        window.location.href = "/"; // Or your logic for admin redirect
       } else {
-        setStatus("Invalid or expired key");
+        setStatus("INVALID_KEY");
         setIsError(true);
-        setIsLoading(false);
       }
     } catch (err) {
-      setStatus("System error");
-      setIsError(true);
+      setStatus("ERROR");
+    } finally {
       setIsLoading(false);
     }
   };
@@ -80,7 +67,6 @@ export default function ProspectLogin() {
   return (
     <div className="min-h-screen bg-deep-space flex items-center justify-center p-6 font-sans text-white/90">
       <div className="max-w-sm w-full animate-fade-in">
-        {/* Subtle Branding */}
         <div className="text-center mb-8">
           <h1 className="font-serif text-[10px] tracking-[0.5em] text-white/30 uppercase mb-2">
             CineSonic Productions
@@ -90,7 +76,6 @@ export default function ProspectLogin() {
           </h2>
         </div>
 
-        {/* The Glass Entry Panel */}
         <div className="glass-panel p-8 shadow-2xl relative border-white/5 bg-white/[0.01]">
           <div className="space-y-6">
             <div className="relative">
@@ -147,7 +132,6 @@ export default function ProspectLogin() {
           </div>
         </div>
 
-        {/* Minimalist Status Bar */}
         <div className="mt-8 flex flex-col items-center">
           <div className="flex items-center gap-2 opacity-40">
             <div
@@ -159,7 +143,6 @@ export default function ProspectLogin() {
               {status}
             </span>
           </div>
-
           <p className="mt-6 text-[9px] text-white/10 uppercase tracking-[0.2em] font-sans">
             Restricted Beta • 2025
           </p>

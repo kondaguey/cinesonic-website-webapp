@@ -300,25 +300,24 @@ export default function ProjectIntakeForm() {
     try {
       const intakeId = "PRJ-" + Math.floor(1000 + Math.random() * 9000);
 
-      // This string is critical for the "Explosion" trigger to parse characters later
+      // 🟢 ALIGNED: Uses Pipes to prevent comma-clashes in parsing
       const flatChars = characters
         .map(
           (c) =>
-            `${c.name || "Unknown"}, ${c.gender || "Any"}, ${c.age || "Any"}, ${
+            `${c.name || "TBD"} | ${c.gender || "Any"} | ${c.age || "Any"} | ${
               c.voiceTypes?.join("/") || "Standard"
-            }, ${c.preferredActorId || "None"}`
+            } | ${c.preferredActorId || "NULL"}`
         )
-        .join(" | ");
+        .join(" || ");
 
       const { error } = await supabase.from("master_production_log").insert([
         {
           intake_id: intakeId,
-          client_type: formData.client_type,
           client_name: formData.client_name,
           email: formData.email,
           project_title: formData.project_title,
           word_count: parseFloat(formData.word_count) || 0,
-          style: formData.style, // 🟢 Added to match your DB
+          production_style: formData.style, // 🟢 MATCHED to DB column name
           genres: formData.genres.join(", "),
           character_details: flatChars,
           timeline_prefs: dates.filter((d) => d).join(" | "),

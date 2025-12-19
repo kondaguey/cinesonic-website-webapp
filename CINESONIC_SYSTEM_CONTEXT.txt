@@ -22,8 +22,6 @@ Copy this entire block. This is the source code for our brain.
 1. **The Showroom (Public):** High-performance marketing site (Next.js).
 2. **The Engine (Private):** Production OS for crew/talent (Dashboard).
 
-
-
 ---
 
 ## 2. THE "LIVING UI" ENGINE
@@ -158,3 +156,11 @@ Copy this entire block. This is the source code for our brain.
 * **Talent Manager:** Connect `actor_db` to the UI for real-time editing.
 
 ---
+
+Gate,Key,Logic Status
+Perimeter,CINESONIC-VIP-2025,Secure: Middleware checks site_keys.
+Crew Portal,CREW-MASTER-77,Elevated: Can see/edit all projects via secure_fetch_production.
+Actor Portal,ACTOR-MASTER-11,Tunneled: Can only edit own row via secure_actor_self_update.
+Artist Portal,ARTIST-MASTER-22,Tunneled: Can only edit own row via secure_artist_self_update.
+
+
