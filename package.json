@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "open-cli http://localhost:3000 && next dev",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -11,7 +11,8 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
-    "@supabase/supabase-js": "^2.88.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-query": "^5.90.12",
     "axios": "^1.13.2",
     "js-cookie": "^3.0.5",
@@ -33,6 +34,6 @@
     "eslint-config-next": "16.0.8",
     "open-cli": "^8.0.0",
     "tailwindcss": "^4.1.17",
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }

@@ -10,6 +10,7 @@ import ProjectSelectionCard from "./ProjectSelectionCard";
 import CineSonicToggle from "../ui/CineSonicToggle";
 import Button from "../ui/Button";
 import PopupSelection from "../ui/PopupSelection";
+import { subscribeToWaitlist } from "../../actions/subscribeActions"; // 🟢 NEW IMPORT
 
 // ICONS
 import {
@@ -29,6 +30,7 @@ import {
   Flame,
   Zap,
   CheckCircle,
+  Check, // 🟢 NEW ICON
   Sparkles,
   Heart,
   Cpu,
@@ -110,6 +112,7 @@ export default function ProjectIntakeForm() {
   const [scoutTargetIndex, setScoutTargetIndex] = useState(null);
   const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
   const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
+  const [optIn, setOptIn] = useState(false); // 🟢 NEW STATE
 
   const [dropdowns, setDropdowns] = useState({
     genres: [],
@@ -298,6 +301,15 @@ export default function ProjectIntakeForm() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // 🟢 1. HANDLE MARKETING OPT-IN
+      if (optIn && formData.email) {
+        const subForm = new FormData();
+        subForm.append("email", formData.email);
+        subForm.append("source", "client_intake");
+        // We fire this silently without awaiting to prevent blocking the main submission
+        subscribeToWaitlist(subForm);
+      }
+
       const intakeId = "PRJ-" + Math.floor(1000 + Math.random() * 9000);
 
       // 🟢 ALIGNED: Uses Pipes to prevent comma-clashes in parsing
@@ -670,6 +682,29 @@ export default function ProjectIntakeForm() {
               ))}
             </div>
           </section>
+
+          {/* 🟢 OPT-IN CHECKBOX */}
+          <div
+            className="flex items-center gap-3 px-2 cursor-pointer group"
+            onClick={() => setOptIn(!optIn)}
+          >
+            <div
+              className={`w-5 h-5 rounded border flex items-center justify-center transition-all duration-300 ${
+                optIn
+                  ? "bg-white border-white"
+                  : "bg-transparent border-white/30 group-hover:border-white/50"
+              }`}
+            >
+              {optIn && <Check size={14} className="text-black stroke-[3]" />}
+            </div>
+            <span className="text-xs text-gray-400 select-none">
+              Join the{" "}
+              <span className="text-white font-medium">
+                Production Waitlist
+              </span>{" "}
+              for exclusive casting updates & industry intel.
+            </span>
+          </div>
 
           <button
             type="submit"
