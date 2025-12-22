@@ -3,8 +3,16 @@
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { X, ShoppingBag, Loader2 } from "lucide-react";
-// 🟢 1. IMPORT THEME CONTEXT
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X,
+  ShoppingBag,
+  Loader2,
+  ChevronRight,
+  User,
+  Lock,
+  Mail,
+} from "lucide-react";
 import { useTheme } from "../ui/ThemeContext";
 
 const supabase = createClient(
@@ -12,11 +20,19 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// 🟢 2. REMOVED 'isOpen' PROP (Navbar handles mounting/unmounting)
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 300, damping: 25 },
+  },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+};
+
 export default function ShopLoginModal({ onClose }) {
   const router = useRouter();
-
-  // 🟢 3. GET ACTIVE COLOR
   const { activeColor } = useTheme();
 
   const [isSignUp, setIsSignUp] = useState(false);
@@ -24,22 +40,13 @@ export default function ShopLoginModal({ onClose }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [isAnimating, setIsAnimating] = useState(false);
 
-  // 🟢 4. ANIMATION & SCROLL LOCK
   useEffect(() => {
-    setIsAnimating(true);
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, []);
-
-  const handleClose = () => {
-    setIsAnimating(false);
-    // Wait for animation to finish before unmounting
-    setTimeout(onClose, 300);
-  };
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -48,7 +55,6 @@ export default function ShopLoginModal({ onClose }) {
 
     try {
       if (isSignUp) {
-        // --- SIGN UP ---
         const { data: authData, error: authError } = await supabase.auth.signUp(
           {
             email,
@@ -57,7 +63,6 @@ export default function ShopLoginModal({ onClose }) {
         );
         if (authError) throw authError;
 
-        // --- PROFILE CREATION ---
         if (authData?.user) {
           const { error: profileError } = await supabase
             .from("profiles")
@@ -70,12 +75,10 @@ export default function ShopLoginModal({ onClose }) {
                 status: "active",
               },
             ]);
-
           if (profileError)
             console.error("Profile creation failed:", profileError);
         }
       } else {
-        // --- LOGIN ---
         const { error: loginError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -83,7 +86,7 @@ export default function ShopLoginModal({ onClose }) {
         if (loginError) throw loginError;
       }
 
-      handleClose();
+      onClose();
       router.refresh();
     } catch (err) {
       setError(err.message);
@@ -94,116 +97,130 @@ export default function ShopLoginModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4">
-      {/* BACKDROP */}
-      <div
-        className={`absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity duration-300 ${
-          isAnimating ? "opacity-100" : "opacity-0"
-        }`}
-        onClick={handleClose}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
       />
 
-      {/* MODAL */}
-      <div
-        className={`relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl transition-all duration-300 transform ${
-          isAnimating
-            ? "scale-100 opacity-100 translate-y-0"
-            : "scale-95 opacity-0 translate-y-4"
-        }`}
+      <motion.div
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="relative w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+        style={{ borderColor: `${activeColor}40` }}
       >
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-        >
-          <X size={20} />
-        </button>
+        <div className="h-1 w-full" style={{ backgroundColor: activeColor }} />
 
-        <div className="text-center mb-8">
-          {/* 🟢 DYNAMIC THEME COLOR BADGE */}
-          <div
-            className="inline-block p-3 rounded-full mb-4 shadow-[0_0_20px_rgba(var(--c),0.2)]"
-            style={{
-              backgroundColor: `${activeColor}15`,
-              borderColor: `${activeColor}30`,
-              borderWidth: "1px",
-            }}
-          >
-            <ShoppingBag style={{ color: activeColor }} size={32} />
-          </div>
-
-          <h2 className="text-xl font-serif text-white mb-1">
-            {isSignUp ? "Join CineSonic" : "Store Access"}
-          </h2>
-          <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-            {isSignUp ? "Create your customer profile" : "Login to view orders"}
-          </p>
-        </div>
-
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div className="space-y-2">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@address.com"
-              className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-colors placeholder:text-gray-600"
-              style={{ caretColor: activeColor }}
-              // Inline style for focus border since Tailwind arbitrary values can be tricky with dynamic vars
-              onFocus={(e) => (e.target.style.borderColor = activeColor)}
-              onBlur={(e) =>
-                (e.target.style.borderColor = "rgba(255,255,255,0.1)")
-              }
-            />
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-colors placeholder:text-gray-600"
-              style={{ caretColor: activeColor }}
-              onFocus={(e) => (e.target.style.borderColor = activeColor)}
-              onBlur={(e) =>
-                (e.target.style.borderColor = "rgba(255,255,255,0.1)")
-              }
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2 text-red-400 text-[10px] text-center uppercase tracking-wide font-bold">
-              {error}
+        <div className="p-8">
+          <div className="flex justify-between items-start mb-6">
+            <div className="flex items-center gap-3">
+              <div
+                className="p-2 rounded-lg bg-white/5 border border-white/10"
+                style={{ color: activeColor }}
+              >
+                <ShoppingBag size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-serif text-white">
+                  {isSignUp ? "Create Profile" : "Store Access"}
+                </h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                  {isSignUp ? "Join the Collective" : "Member Identification"}
+                </p>
+              </div>
             </div>
-          )}
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
 
-          <button
-            disabled={loading}
-            className="w-full text-black font-bold py-3 rounded-xl uppercase tracking-widest transition-all shadow-lg hover:brightness-110 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: activeColor,
-              boxShadow: `0 0 20px ${activeColor}40`,
-            }}
-          >
-            {loading ? (
-              <Loader2 className="animate-spin mx-auto" size={16} />
-            ) : isSignUp ? (
-              "Create Account"
-            ) : (
-              "Sign In"
+          <form onSubmit={handleAuth} className="space-y-4">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-2 rounded-lg text-red-400 text-[10px] font-bold text-center uppercase tracking-wider">
+                {error}
+              </div>
             )}
-          </button>
-        </form>
 
-        <div className="mt-6 text-center border-t border-white/5 pt-4">
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest transition-colors"
-          >
-            {isSignUp
-              ? "Already have an account? Sign In"
-              : "New here? Create Account"}
-          </button>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">
+                Email
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@address.com"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none transition-colors"
+                  style={{ caretColor: activeColor }}
+                />
+                <Mail
+                  size={16}
+                  className="absolute right-3 top-3.5 text-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">
+                Passcode
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none transition-colors"
+                />
+                <Lock
+                  size={16}
+                  className="absolute right-3 top-3.5 text-gray-600"
+                />
+              </div>
+            </div>
+
+            <button
+              disabled={loading}
+              className="w-full py-3 rounded-lg font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-4 transition-all hover:brightness-110 active:scale-95"
+              style={{
+                backgroundColor: activeColor,
+                color: "#000",
+                boxShadow: `0 0 20px ${activeColor}30`,
+              }}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : (
+                <>
+                  {isSignUp ? "Initialize Account" : "Sign In"}{" "}
+                  <ChevronRight size={14} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center border-t border-white/5 pt-4">
+            <button
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-[10px] text-gray-500 hover:text-white uppercase tracking-widest transition-colors font-bold"
+            >
+              {isSignUp
+                ? "Already a Member? Sign In"
+                : "New Client? Register Here"}
+            </button>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

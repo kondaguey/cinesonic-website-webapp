@@ -1,120 +1,207 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { X, Mail, Lock, ArrowRight, Github } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X,
+  Loader2,
+  AlertTriangle,
+  GraduationCap,
+  ChevronRight,
+  User,
+  Lock,
+} from "lucide-react";
 import { useTheme } from "../../components/ui/ThemeContext";
 import { Cinzel } from "next/font/google";
 
 const cinzel = Cinzel({ subsets: ["latin"], weight: ["700"] });
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+// Animation Variants matching the Studio Hub
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.9, y: 20 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { type: "spring", stiffness: 300, damping: 25 },
+  },
+  exit: { opacity: 0, scale: 0.95, transition: { duration: 0.2 } },
+};
+
 export default function AcademyLoginModal({ onClose }) {
-  const { activeStyles, activeColor } = useTheme();
-  const [isAnimating, setIsAnimating] = useState(false);
+  const { activeColor } = useTheme();
+  const router = useRouter();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    setIsAnimating(true);
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "unset";
     };
   }, []);
 
-  const handleClose = () => {
-    setIsAnimating(false);
-    setTimeout(onClose, 300);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+      if (authError) throw new Error("Invalid credentials");
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (profileError || !profile) throw new Error("Profile not found");
+
+      const userRole = profile.role;
+      if (userRole !== "student" && userRole !== "admin") {
+        await supabase.auth.signOut();
+        throw new Error("Access Denied: Not a registered student.");
+      }
+
+      onClose();
+      router.push("/academy/dashboard");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4">
-      {/* BACKDROP */}
-      <div
-        className={`absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 ${
-          isAnimating ? "opacity-100" : "opacity-0"
-        }`}
-        onClick={handleClose}
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
       />
 
-      {/* MODAL */}
-      <div
-        className={`relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 transform ${
-          isAnimating
-            ? "scale-100 opacity-100 translate-y-0"
-            : "scale-95 opacity-0 translate-y-4"
-        }`}
+      {/* Keycard Modal */}
+      <motion.div
+        variants={modalVariants}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+        style={{ borderColor: `${activeColor}40` }}
       >
-        <div
-          className="absolute top-0 left-0 right-0 h-1"
-          style={{ background: activeColor }}
-        />
-
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-        >
-          <X size={20} />
-        </button>
+        <div className="h-1 w-full" style={{ backgroundColor: activeColor }} />
 
         <div className="p-8">
-          <div className="text-center mb-8">
-            <h2 className={`${cinzel.className} text-2xl text-white mb-2`}>
-              CineSonic <span className="text-white/50">ID</span>
-            </h2>
-            <p className="text-xs text-gray-400 uppercase tracking-widest">
-              Access Student Portal
-            </p>
-          </div>
-
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase text-gray-500 font-bold tracking-wider ml-1">
-                Email
-              </label>
-              <input
-                type="email"
-                className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-[var(--c)] transition-colors"
-                style={{ "--c": activeColor }}
-                placeholder="student@example.com"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase text-gray-500 font-bold tracking-wider ml-1">
-                Password
-              </label>
-              <input
-                type="password"
-                className="w-full bg-white/5 border border-white/10 rounded-lg py-3 px-4 text-sm text-white focus:outline-none focus:border-[var(--c)] transition-colors"
-                style={{ "--c": activeColor }}
-                placeholder="••••••••"
-              />
+          <div className="flex justify-between items-start mb-8">
+            <div className="flex items-center gap-3">
+              <div
+                className="p-2 rounded-lg bg-white/5 border border-white/10"
+                style={{ color: activeColor }}
+              >
+                <GraduationCap size={24} />
+              </div>
+              <div>
+                <h3 className={`${cinzel.className} text-xl text-white`}>
+                  Academy Access
+                </h3>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                  Secure Student Terminal
+                </p>
+              </div>
             </div>
             <button
-              className="w-full py-3 mt-2 bg-white text-black font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-[var(--c)] hover:text-white transition-all duration-300"
-              style={{ "--c": activeColor }}
+              onClick={onClose}
+              className="text-gray-500 hover:text-white transition-colors"
             >
-              Sign In
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 text-red-400 text-xs font-bold uppercase tracking-tight">
+                <AlertTriangle size={14} />
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">
+                Identity (Email)
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none transition-colors"
+                  style={{ caretColor: activeColor }}
+                  placeholder="student@cinesonic.academy"
+                  required
+                />
+                <User
+                  size={16}
+                  className="absolute right-3 top-3.5 text-gray-600"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 font-bold ml-1">
+                Passcode
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none transition-colors"
+                  placeholder="••••••••"
+                  required
+                />
+                <Lock
+                  size={16}
+                  className="absolute right-3 top-3.5 text-gray-600"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-lg font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-6 transition-all hover:brightness-110 active:scale-95"
+              style={{ backgroundColor: activeColor, color: "#000" }}
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <>
+                  Authenticate <ChevronRight size={14} />
+                </>
+              )}
             </button>
           </form>
-
-          <div className="mt-6 flex items-center gap-4">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] text-gray-600 uppercase">
-              Or continue with
-            </span>
-            <div className="h-px flex-1 bg-white/10" />
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-              <Github size={16} />{" "}
-              <span className="text-xs font-bold text-gray-300">GitHub</span>
-            </button>
-            <button className="flex items-center justify-center gap-2 py-2.5 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors">
-              <span className="text-lg leading-none">G</span>{" "}
-              <span className="text-xs font-bold text-gray-300">Google</span>
-            </button>
-          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

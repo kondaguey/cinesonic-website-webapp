@@ -1,16 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import React, { useState, useEffect, useMemo } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "../ui/ThemeContext";
 
-// 🟢 IMPORTS
-import ParticleFx from "../ui/ParticleFx";
+// UI COMPONENTS
 import ProjectSelectionCard from "./ProjectSelectionCard";
 import CineSonicToggle from "../ui/CineSonicToggle";
-import Button from "../ui/Button";
 import PopupSelection from "../ui/PopupSelection";
-import { subscribeToWaitlist } from "../../actions/subscribeActions"; // 🟢 NEW IMPORT
 
 // ICONS
 import {
@@ -20,8 +17,6 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  Play,
-  Pause,
   AlertTriangle,
   Star,
   Music,
@@ -30,18 +25,21 @@ import {
   Flame,
   Zap,
   CheckCircle,
-  Check, // 🟢 NEW ICON
+  Check,
   Sparkles,
   Heart,
-  Cpu,
-  X,
   Layers,
   Settings2,
   Clock,
   ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 
-// --- 🟢 1. ROBUST MATCHMAKER ALGO ---
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+// --- MATCHMAKER ALGO ---
 export function runCreativeMatch(role, roster) {
   if (!roster || !role) return [];
   const roleGender = (role["Gender"] || "any").toLowerCase().trim();
@@ -75,51 +73,49 @@ export function runCreativeMatch(role, roster) {
 
     if (roleAge && actorAges.includes(roleAge)) score += 60;
     const keywords = roleSpecs.split(/[\s,.-]+/).filter((k) => k.length > 3);
-    let voicePoints = 0;
-    let genrePoints = 0;
 
     keywords.forEach((word) => {
       if (word === "client" || word === "request") return;
-      if (actorVoice.includes(word)) voicePoints += 15;
-      if (actorGenres.includes(word)) genrePoints += 10;
+      if (actorVoice.includes(word)) score += 15;
+      if (actorGenres.includes(word)) score += 10;
     });
 
-    score += Math.min(voicePoints, 30);
-    score += Math.min(genrePoints, 10);
-    score += 5;
-    return { actor: actor, score: Math.min(score, 99) };
+    return { actor: actor, score: Math.min(score + 5, 99) };
   });
 
   return scoredCandidates.sort((a, b) => b.score - a.score);
 }
 
-// --- 🟢 2. MAIN COMPONENT ---
 export default function ProjectIntakeForm() {
-  const {
-    setTheme,
-    setIsCinematic,
-    activeColor,
-    activeStyles,
-    isCinematic,
-    baseColor,
-  } = useTheme();
+  const { setTheme, activeColor, activeStyles, isCinematic, baseColor } =
+    useTheme();
   const shimmerClass = activeStyles?.shimmer || "";
 
-  // STATE
+  // STATE: Flow Control
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+
+  // STATE: Modals
   const [isScoutOpen, setIsScoutOpen] = useState(false);
   const [scoutTargetIndex, setScoutTargetIndex] = useState(null);
   const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
-  const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
-  const [optIn, setOptIn] = useState(false); // 🟢 NEW STATE
 
+  // WIRED: Modal States for Specs
+  const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
+  const [ageModalIdx, setAgeModalIdx] = useState(null);
+  const [accentModalIdx, setAccentModalIdx] = useState(null);
+
+  // STATE: DB Data
   const [dropdowns, setDropdowns] = useState({
     genres: [],
-    voiceTypes: [],
+    vocalQualities: [],
     ageRanges: [],
+    accents: [],
   });
   const [roster, setRoster] = useState([]);
+
+  // STATE: Form Data
+  const [optIn, setOptIn] = useState(false);
   const [formData, setFormData] = useState({
     client_name: "",
     email: "",
@@ -132,71 +128,11 @@ export default function ProjectIntakeForm() {
     base_format: "",
     price_tier: "",
   });
-  const [dates, setDates] = useState(["", "", ""]);
+  const [dates, setDates] = useState(["", ""]);
   const [openCalendarIdx, setOpenCalendarIdx] = useState(null);
   const [characters, setCharacters] = useState([]);
 
-  // LOGIC HELPERS
-  const updateCharacter = (index, field, value) => {
-    setCharacters((prev) =>
-      prev.map((char, i) =>
-        i === index
-          ? {
-              ...char,
-              [field]: value,
-              ...(field === "gender" ? { preferredActorId: null } : {}),
-            }
-          : char
-      )
-    );
-  };
-
-  const toggleCharVoice = (charIdx, vt) => {
-    setCharacters((prev) =>
-      prev.map((char, i) => {
-        if (i !== charIdx) return char;
-        const current = char.voiceTypes || [];
-        const isSelected = current.includes(vt);
-
-        if (isSelected) {
-          return { ...char, voiceTypes: current.filter((x) => x !== vt) };
-        } else if (current.length < 2) {
-          return { ...char, voiceTypes: [...current, vt] };
-        }
-        return char;
-      })
-    );
-  };
-
-  const toggleGenre = (g) => {
-    setFormData((prev) => {
-      const current = prev.genres || [];
-      if (current.includes(g))
-        return { ...prev, genres: current.filter((x) => x !== g) };
-      if (current.length < 3) return { ...prev, genres: [...current, g] };
-      return prev;
-    });
-  };
-
-  const formatCommas = (val) =>
-    val ? val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
-
-  const handleWordCountChange = (e) => {
-    const rawValue = e.target.value.replace(/,/g, "");
-    if (!isNaN(rawValue)) setFormData({ ...formData, word_count: rawValue });
-  };
-
-  const calculateDuration = (words) => {
-    const count = parseFloat(words) || 0;
-    if (count === 0) return null;
-    const totalHours = count / 9300;
-    const hours = Math.floor(totalHours);
-    const minutes = Math.round((totalHours - hours) * 60);
-    return { hours, minutes, totalDecimal: totalHours.toFixed(2) };
-  };
-
-  const duration = calculateDuration(formData.word_count);
-
+  // 🛠️ 30-Day Logic
   const getMinDate = (prevDateStr) => {
     if (!prevDateStr) return new Date();
     const d = new Date(prevDateStr);
@@ -204,30 +140,83 @@ export default function ProjectIntakeForm() {
     return d;
   };
 
+  // 1. DYNAMIC DATA FETCH
   useEffect(() => {
     async function fetchData() {
-      const listsReq = supabase.from("lists_db").select("*");
-      const rosterReq = supabase
-        .from("actor_db")
-        .select("*")
-        .eq("coming_soon", false)
-        .order("name");
-      const [lRes, rRes] = await Promise.all([listsReq, rosterReq]);
-      if (!lRes.error && !rRes.error) {
+      // Fetch Lists
+      const { data: listData } = await supabase
+        .from("lists")
+        .select("category, label")
+        .order("sort_order", { ascending: true });
+
+      if (listData) {
         setDropdowns({
-          genres: [...new Set(lRes.data.map((i) => i.genre).filter(Boolean))],
-          voiceTypes: [
-            ...new Set(lRes.data.map((i) => i.voice_type).filter(Boolean)),
-          ],
-          ageRanges: [
-            ...new Set(lRes.data.map((i) => i.age_range).filter(Boolean)),
-          ],
+          genres: listData
+            .filter((i) => i.category === "genre")
+            .map((i) => i.label),
+          vocalQualities: listData
+            .filter((i) => i.category === "vocal_quality")
+            .map((i) => i.label),
+          ageRanges: listData
+            .filter((i) => i.category === "age_range")
+            .map((i) => i.label),
+          accents: listData
+            .filter((i) => i.category === "accent")
+            .map((i) => i.label),
         });
-        setRoster(rRes.data || []);
+      }
+
+      // Fetch Roster
+      const { data: rosterData } = await supabase
+        .from("actor_roster_public")
+        .select(
+          "id, display_name, headshot_url, voice_types, genres, age_ranges"
+        )
+        .order("display_name");
+
+      if (rosterData) {
+        setRoster(
+          rosterData.map((r) => ({
+            id: r.id,
+            name: r.display_name,
+            headshot_url: r.headshot_url,
+            gender: r.display_name.toLowerCase().includes("actor")
+              ? "male"
+              : "any",
+            voice: r.voice_types?.join(" ") || "",
+            genres: r.genres?.join(" ") || "",
+            age_range: r.age_ranges?.join(" ") || "",
+          }))
+        );
       }
     }
     fetchData();
   }, []);
+
+  // 2. FORM HELPERS
+  const updateCharacter = (index, field, value) => {
+    setCharacters((prev) =>
+      prev.map((char, i) => (i === index ? { ...char, [field]: value } : char))
+    );
+  };
+
+  const toggleCharVoice = (charIdx, vq) => {
+    setCharacters((prev) =>
+      prev.map((char, i) => {
+        if (i !== charIdx) return char;
+        const current = char.voiceTypes || [];
+        return current.includes(vq)
+          ? { ...char, voiceTypes: current.filter((x) => x !== vq) }
+          : { ...char, voiceTypes: [...current, vq].slice(0, 3) };
+      })
+    );
+  };
+
+  const handleWordCountChange = (e) => {
+    // 🛠️ Fix: Strip non-numeric characters to prevent loop
+    const raw = e.target.value.replace(/[^0-9]/g, "");
+    setFormData({ ...formData, word_count: raw });
+  };
 
   const handleServiceSelect = (id, baseType) => {
     const opt = serviceBase.find((o) => o.baseType === baseType);
@@ -235,7 +224,7 @@ export default function ProjectIntakeForm() {
       ...prev,
       client_type: id,
       base_format: baseType,
-      price_tier: opt.price,
+      price_tier: isCinematic ? opt.dramaPrice : opt.standardPrice,
     }));
     setTheme(
       { Solo: "gold", Dual: "pink", Duet: "fire", Multi: "cyan" }[baseType]
@@ -248,12 +237,71 @@ export default function ProjectIntakeForm() {
           name: "",
           gender: "",
           age: "",
+          accent: "",
           voiceTypes: [],
           preferredActorId: null,
         }))
     );
   };
 
+  const formatCommas = (val) =>
+    val ? val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") : "";
+
+  const duration = useMemo(() => {
+    const count = parseInt(formData.word_count) || 0;
+    if (count === 0) return null;
+    const totalHours = count / 9300;
+    return {
+      hours: Math.floor(totalHours),
+      minutes: Math.round((totalHours % 1) * 60),
+      total: totalHours.toFixed(2),
+    };
+  }, [formData.word_count]);
+
+  // 3. SUBMISSION
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    try {
+      const { error } = await supabase.from("project_intake").insert([
+        {
+          client_name: formData.client_name,
+          client_email: formData.email,
+          client_type: formData.client_type,
+          project_title: formData.project_title,
+          word_count: parseInt(formData.word_count) || 0,
+          style: formData.style,
+          genres: formData.genres,
+          base_format: formData.base_format,
+          price_tier: formData.price_tier,
+          is_cinematic: isCinematic,
+          opt_in: optIn,
+          notes: formData.notes,
+          start_date_1: dates[0] || null,
+          start_date_2: dates[1] || null,
+          status: "NEW",
+          character_details: characters.map((c) => ({
+            name: c.name || "TBD",
+            gender: c.gender || "Any",
+            age: c.age || "Any",
+            accent: c.accent || "General American",
+            vocal_qualities: c.voiceTypes || [],
+            actor_request: c.preferredActorId || null,
+          })),
+        },
+      ]);
+
+      if (error) throw error;
+      setSubmitStatus("success");
+    } catch (err) {
+      console.error("Submission Error:", err);
+      setSubmitStatus("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   const serviceBase = [
     {
       baseType: "Solo",
@@ -263,7 +311,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Solo Audio Drama",
       standardDesc: "1 Narrator. Classic.",
       dramaDesc: "1 Narrator + SFX.",
-      price: "$$",
+      standardPrice: "$", // 🟢 NEW
+      dramaPrice: "$$$", // 🟢 NEW
     },
     {
       baseType: "Dual",
@@ -273,7 +322,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Dual Audio Drama",
       standardDesc: "2 Narrators (POV).",
       dramaDesc: "POV + Cinematic FX.",
-      price: "$$$",
+      standardPrice: "$$", // 🟢 NEW
+      dramaPrice: "$$$$", // 🟢 NEW
     },
     {
       baseType: "Duet",
@@ -283,7 +333,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Duet Audio Drama",
       standardDesc: "Real-time Dialogue.",
       dramaDesc: "Dialogue + Score.",
-      price: "$$$$",
+      standardPrice: "$$$", // 🟢 NEW
+      dramaPrice: "$$$$$", // 🟢 NEW
     },
     {
       baseType: "Multi",
@@ -293,85 +344,26 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Cinematic Drama",
       standardDesc: "Full Ensemble.",
       dramaDesc: "Movie for Ears.",
-      price: "$$$$$",
+      standardPrice: "$$$$", // 🟢 NEW
+      dramaPrice: "$x6", // 🟢 NEW
     },
   ];
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      // 🟢 1. HANDLE MARKETING OPT-IN
-      if (optIn && formData.email) {
-        const subForm = new FormData();
-        subForm.append("email", formData.email);
-        subForm.append("source", "client_intake");
-        // We fire this silently without awaiting to prevent blocking the main submission
-        subscribeToWaitlist(subForm);
-      }
-
-      const intakeId = "PRJ-" + Math.floor(1000 + Math.random() * 9000);
-
-      // 🟢 ALIGNED: Uses Pipes to prevent comma-clashes in parsing
-      const flatChars = characters
-        .map(
-          (c) =>
-            `${c.name || "TBD"} | ${c.gender || "Any"} | ${c.age || "Any"} | ${
-              c.voiceTypes?.join("/") || "Standard"
-            } | ${c.preferredActorId || "NULL"}`
-        )
-        .join(" || ");
-
-      const { error } = await supabase.from("master_production_log").insert([
-        {
-          intake_id: intakeId,
-          client_name: formData.client_name,
-          email: formData.email,
-          project_title: formData.project_title,
-          word_count: parseFloat(formData.word_count) || 0,
-          production_style: formData.style, // 🟢 MATCHED to DB column name
-          genres: formData.genres.join(", "),
-          character_details: flatChars,
-          timeline_prefs: dates.filter((d) => d).join(" | "),
-          notes:
-            `Est. Duration: ${duration?.totalDecimal || 0} PFH. ` +
-            formData.notes,
-          status: "New",
-          is_cinematic: isCinematic,
-          base_format: formData.base_format,
-          price_tier: formData.price_tier,
-          requested_actor_id: characters[0]?.preferredActorId || null,
-        },
-      ]);
-
-      if (error) throw error;
-      setSubmitStatus("success");
-    } catch (err) {
-      setSubmitStatus("error");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   if (submitStatus === "success")
     return (
       <div className="min-h-screen bg-[#020010] flex items-center justify-center p-6 text-center relative overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <ParticleFx mode="hero" vector="solo" forceTheme="system" />
-        </div>
+        <ParticleFx mode="hero" vector="solo" forceTheme="system" />
         <div className="max-w-md w-full glass-panel p-10 relative z-10 border-green-500/30">
           <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
           <h2 className="text-3xl font-serif mb-4 text-white">
             Manifest Logged
           </h2>
-          <Button
+          <button
             onClick={() => window.location.reload()}
-            theme="system"
-            variant="outline"
-            className="w-full"
+            className="px-8 py-3 rounded-full border border-white/20 text-white hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest"
           >
-            Start New Project
-          </Button>
+            New Manifest
+          </button>
         </div>
       </div>
     );
@@ -398,6 +390,7 @@ export default function ProjectIntakeForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* SERVICE SELECTION */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {serviceBase.map((opt) => (
               <ProjectSelectionCard
@@ -408,13 +401,15 @@ export default function ProjectIntakeForm() {
                 icon={isCinematic ? opt.dramaIcon : opt.icon}
                 baseType={opt.baseType}
                 isDrama={isCinematic}
-                price={opt.price}
+                // 🟢 UI UPDATE: Display price based on mode
+                price={isCinematic ? opt.dramaPrice : opt.standardPrice}
                 isSelected={formData.base_format === opt.baseType}
                 onSelect={handleServiceSelect}
               />
             ))}
           </section>
 
+          {/* TITLE INFO */}
           <section
             className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md space-y-6"
             style={{ borderColor: `${activeColor}30` }}
@@ -429,7 +424,7 @@ export default function ProjectIntakeForm() {
               <input
                 required
                 placeholder="Author / Client"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
                 value={formData.client_name}
                 onChange={(e) =>
                   setFormData({ ...formData, client_name: e.target.value })
@@ -439,7 +434,7 @@ export default function ProjectIntakeForm() {
                 required
                 type="email"
                 placeholder="Contact Email"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -448,7 +443,7 @@ export default function ProjectIntakeForm() {
               <input
                 required
                 placeholder="Project Title"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none"
+                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
                 value={formData.project_title}
                 onChange={(e) =>
                   setFormData({ ...formData, project_title: e.target.value })
@@ -475,10 +470,10 @@ export default function ProjectIntakeForm() {
                       style={{ color: activeColor }}
                     >
                       <Clock size={12} />{" "}
-                      {duration.hours > 0 && `${duration.hours}h `}{" "}
-                      {duration.minutes}m est. runtime{" "}
+                      {duration.hours > 0 && `${duration.hours}h `}
+                      {duration.minutes}m runtime{" "}
                       <span className="text-gray-600 ml-1">
-                        ({duration.totalDecimal} PFH)
+                        ({duration.total} PFH)
                       </span>
                     </span>
                   </div>
@@ -512,34 +507,34 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
+          {/* CHARACTER SPECS */}
           {formData.base_format && (
             <section
               className="glass-panel p-6 md:p-8"
               style={{ borderColor: `${activeColor}30` }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-3 text-white">
-                  <User size={20} style={{ color: activeColor }} /> Character
-                  Specs
-                </h2>
-              </div>
+              <h2 className="text-xl font-bold flex items-center gap-3 text-white mb-6">
+                <User size={20} style={{ color: activeColor }} /> Character
+                Specs
+              </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {characters.map((char, index) => (
                   <div
                     key={index}
-                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative"
+                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative group/card"
                   >
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <input
-                        placeholder="Name"
-                        className="col-span-2 bg-transparent border-b border-white/10 py-1 text-white outline-none"
+                        placeholder="Role Name"
+                        className="col-span-2 bg-transparent border-b border-white/10 py-1 text-white outline-none focus:border-white/40 transition-all"
                         value={char.name}
                         onChange={(e) =>
                           updateCharacter(index, "name", e.target.value)
                         }
                       />
+
                       <select
-                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs"
+                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-gray-400 text-xs outline-none focus:border-white/30 transition-all cursor-pointer hover:bg-white/5"
                         value={char.gender}
                         onChange={(e) =>
                           updateCharacter(index, "gender", e.target.value)
@@ -549,24 +544,47 @@ export default function ProjectIntakeForm() {
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                       </select>
-                      <select
-                        className="bg-transparent border-b border-white/10 py-1 text-gray-400 text-xs"
-                        value={char.age}
-                        onChange={(e) =>
-                          updateCharacter(index, "age", e.target.value)
-                        }
+
+                      <button
+                        type="button"
+                        onClick={() => setAgeModalIdx(index)}
+                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
                       >
-                        <option value="">Age...</option>
-                        {dropdowns.ageRanges.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
-                          </option>
-                        ))}
-                      </select>
+                        <span
+                          className={`truncate ${
+                            char.age ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {char.age || "Age..."}
+                        </span>
+                        <ChevronRightIcon
+                          size={12}
+                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
+                        />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAccentModalIdx(index)}
+                        className="col-span-2 bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
+                      >
+                        <span
+                          className={`truncate ${
+                            char.accent ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {char.accent || "Specific Accent..."}
+                        </span>
+                        <ChevronRightIcon
+                          size={12}
+                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
+                        />
+                      </button>
                     </div>
+
                     <div className="mb-6">
-                      <label className="text-[9px] uppercase text-gray-600 font-bold block mb-2">
-                        Voice Types
+                      <label className="text-[9px] uppercase text-gray-600 font-bold block mb-2 tracking-widest">
+                        Vocal Qualities (Max 3)
                       </label>
                       <button
                         type="button"
@@ -585,16 +603,17 @@ export default function ProjectIntakeForm() {
                             ))
                           ) : (
                             <span className="text-gray-600 italic">
-                              Select...
+                              Select qualities...
                             </span>
                           )}
                         </div>
                         <Layers size={14} className="text-gray-600" />
                       </button>
                     </div>
+
                     <button
                       type="button"
-                      className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between ${
+                      className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between transition-all ${
                         !char.gender
                           ? "opacity-30 cursor-not-allowed"
                           : "hover:bg-white/10"
@@ -607,12 +626,13 @@ export default function ProjectIntakeForm() {
                       }}
                     >
                       {char.preferredActorId ? (
-                        <span className="text-white text-xs font-bold">
-                          Talent Selected
+                        <span className="text-white text-xs font-bold flex items-center gap-2">
+                          <Star size={12} className="fill-white" /> Talent
+                          Preference Noted
                         </span>
                       ) : (
                         <span className="text-gray-400 italic text-xs flex items-center gap-2">
-                          <Star size={14} /> Scout Talent...
+                          <Star size={14} /> Scout Casting...
                         </span>
                       )}
                       <ChevronRightIcon size={16} />
@@ -623,99 +643,120 @@ export default function ProjectIntakeForm() {
             </section>
           )}
 
+          {/* TIMELINE */}
           <section
             className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative z-[50]"
             style={{ borderColor: `${activeColor}30` }}
           >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
               <h2 className="text-xl font-bold flex items-center gap-3 text-white">
-                <Calendar size={20} style={{ color: activeColor }} /> Production
+                <Calendar size={20} style={{ color: activeColor }} /> Preferred
                 Timeline
               </h2>
               <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
                 <AlertTriangle size={14} className="text-yellow-500" />
                 <span className="text-[9px] uppercase tracking-tighter text-gray-400 leading-tight">
                   Casting Window: Options must be{" "}
-                  <span className="text-white font-bold">30 days apart</span>{" "}
-                  for optimal talent availability.
+                  <span className="text-white font-bold">30 days apart</span>.
                 </span>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[0, 1, 2].map((idx) => (
-                <div key={idx} className="relative">
-                  <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block tracking-widest">
-                    Option 0{idx + 1}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenCalendarIdx(openCalendarIdx === idx ? null : idx)
-                    }
-                    className="w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center text-white hover:border-white/30 transition-all"
-                  >
-                    {dates[idx] ? (
-                      <span className="font-mono">{dates[idx]}</span>
-                    ) : (
-                      <span className="text-gray-600">Select Date...</span>
-                    )}{" "}
-                    <Calendar size={16} />
-                  </button>
-                  {openCalendarIdx === idx && (
-                    <div className="absolute bottom-full left-0 z-[100] mb-3 w-full bg-[#0d0d1a] border border-white/20 rounded-2xl p-4 shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl">
-                      <ThemedCalendar
-                        activeColor={activeColor}
-                        minDate={
-                          idx === 0 ? new Date() : getMinDate(dates[idx - 1])
-                        }
-                        onSelect={(d) => {
-                          const n = [...dates];
-                          n[idx] = d;
-                          setDates(n);
-                          setOpenCalendarIdx(null);
-                        }}
-                        selectedDate={dates[idx]}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[0, 1].map((idx) => {
+                // 🔒 LOCKING LOGIC: If idx=1 (Option 2), verify Date 1 exists.
+                const isLocked = idx > 0 && !dates[idx - 1];
+
+                return (
+                  <div key={idx} className="relative">
+                    <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block tracking-widest">
+                      Option 0{idx + 1}
+                    </label>
+                    <button
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() =>
+                        setOpenCalendarIdx(openCalendarIdx === idx ? null : idx)
+                      }
+                      className={`w-full bg-[#0a0a15] p-4 rounded-xl border border-white/10 text-left text-xs flex justify-between items-center text-white transition-all ${
+                        isLocked
+                          ? "opacity-30 cursor-not-allowed pointer-events-none"
+                          : "hover:border-white/30"
+                      }`}
+                    >
+                      {dates[idx] ? (
+                        <span className="font-mono">{dates[idx]}</span>
+                      ) : (
+                        <span className="text-gray-600">
+                          {isLocked
+                            ? "Select Option 01 First..."
+                            : "Select Start Date..."}
+                        </span>
+                      )}
+                      <Calendar size={16} />
+                    </button>
+                    {!isLocked && openCalendarIdx === idx && (
+                      <div className="absolute bottom-full left-0 z-[100] mb-3 w-full bg-[#0d0d1a] border border-white/20 rounded-2xl p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 backdrop-blur-xl">
+                        <ThemedCalendar
+                          activeColor={activeColor}
+                          minDate={
+                            idx === 0 ? new Date() : getMinDate(dates[idx - 1])
+                          }
+                          onSelect={(d) => {
+                            const n = [...dates];
+                            n[idx] = d;
+                            setDates(n);
+                            setOpenCalendarIdx(null);
+                          }}
+                          selectedDate={dates[idx]}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
-          {/* 🟢 OPT-IN CHECKBOX */}
-          <div
-            className="flex items-center gap-3 px-2 cursor-pointer group"
-            onClick={() => setOptIn(!optIn)}
-          >
+          {/* SUBMIT */}
+          <div className="space-y-6">
             <div
-              className={`w-5 h-5 rounded border flex items-center justify-center transition-all duration-300 ${
-                optIn
-                  ? "bg-white border-white"
-                  : "bg-transparent border-white/30 group-hover:border-white/50"
-              }`}
+              className="flex items-center gap-3 px-2 cursor-pointer group"
+              onClick={() => setOptIn(!optIn)}
             >
-              {optIn && <Check size={14} className="text-black stroke-[3]" />}
+              <div
+                className={`w-5 h-5 rounded border flex items-center justify-center transition-all duration-300 ${
+                  optIn
+                    ? "bg-white border-white"
+                    : "bg-transparent border-white/30 group-hover:border-white/50"
+                }`}
+              >
+                {optIn && <Check size={14} className="text-black stroke-[3]" />}
+              </div>
+              <span className="text-xs text-gray-400 select-none">
+                Join the{" "}
+                <span className="text-white font-medium">
+                  Production Insider
+                </span>{" "}
+                newsletter.
+              </span>
             </div>
-            <span className="text-xs text-gray-400 select-none">
-              Join the{" "}
-              <span className="text-white font-medium">
-                Production Waitlist
-              </span>{" "}
-              for exclusive casting updates & industry intel.
-            </span>
+            <button
+              type="submit"
+              disabled={isSubmitting || !formData.base_format}
+              className="w-full md:max-w-md mx-auto block py-3.5 rounded-full text-black font-bold uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.01] shadow-2xl disabled:opacity-30"
+              style={{ backgroundColor: activeColor }}
+            >
+              {isSubmitting
+                ? "Transmitting Manifest..."
+                : "Initialize Production Engine"}
+            </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full py-5 rounded-full text-black font-bold uppercase tracking-widest text-sm transition-all hover:scale-[1.01]"
-            style={{ backgroundColor: activeColor }}
-          >
-            {isSubmitting ? "Transmitting..." : "Initialize Production"}
-          </button>
         </form>
 
+        {/* --- MODALS (NO WRAPPER DIVS FOR SORTING) --- */}
+
+        {/* 1. GENRES */}
         <PopupSelection
           isOpen={isGenreModalOpen}
           onClose={() => setIsGenreModalOpen(false)}
@@ -724,72 +765,152 @@ export default function ProjectIntakeForm() {
           currentCount={formData.genres.length}
           maxCount={3}
         >
-          <div className="flex flex-wrap gap-2">
-            {dropdowns.genres.map((g) => {
-              const isSelected = formData.genres.includes(g);
-              return (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => toggleGenre(g)}
-                  className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
-                    isSelected
-                      ? "text-black font-bold border-transparent shadow-lg"
-                      : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
-                  }`}
-                  style={{
-                    backgroundColor: isSelected ? activeColor : undefined,
-                  }}
-                >
-                  {g}
-                </button>
-              );
-            })}
-          </div>
+          {dropdowns.genres.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() =>
+                setFormData((p) => ({
+                  ...p,
+                  genres: p.genres.includes(g)
+                    ? p.genres.filter((x) => x !== g)
+                    : [...p.genres, g].slice(0, 3),
+                }))
+              }
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
+                formData.genres.includes(g)
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor: formData.genres.includes(g)
+                  ? activeColor
+                  : undefined,
+              }}
+            >
+              {g}
+            </button>
+          ))}
         </PopupSelection>
 
+        {/* 2. VOCAL QUALITIES */}
         <PopupSelection
           isOpen={voiceTypeModalIdx !== null}
           onClose={() => setVoiceTypeModalIdx(null)}
-          title="Voice Specs"
+          title="Vocal Qualities"
           activeColor={activeColor}
           currentCount={
             voiceTypeModalIdx !== null
               ? characters[voiceTypeModalIdx]?.voiceTypes?.length || 0
               : 0
           }
-          maxCount={2}
+          maxCount={3}
         >
-          <div className="flex flex-wrap gap-2">
-            {dropdowns.voiceTypes.map((vt) => {
-              const isSelected =
+          {dropdowns.vocalQualities.map((vq) => (
+            <button
+              key={vq}
+              type="button"
+              onClick={() => toggleCharVoice(voiceTypeModalIdx, vq)}
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
                 voiceTypeModalIdx !== null &&
-                characters[voiceTypeModalIdx]?.voiceTypes?.includes(vt);
-              return (
-                <button
-                  key={vt}
-                  type="button"
-                  onClick={() => toggleCharVoice(voiceTypeModalIdx, vt)}
-                  className={`px-4 py-2 rounded-xl text-xs border transition-all duration-200 ${
-                    isSelected
-                      ? "text-black font-bold border-transparent shadow-lg"
-                      : "border-white/10 text-gray-400 hover:border-white/30 hover:bg-white/5"
-                  }`}
-                  style={{
-                    backgroundColor: isSelected ? activeColor : undefined,
-                  }}
-                >
-                  {vt}
-                </button>
-              );
-            })}
-          </div>
+                characters[voiceTypeModalIdx]?.voiceTypes?.includes(vq)
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor:
+                  voiceTypeModalIdx !== null &&
+                  characters[voiceTypeModalIdx]?.voiceTypes?.includes(vq)
+                    ? activeColor
+                    : undefined,
+              }}
+            >
+              {vq}
+            </button>
+          ))}
         </PopupSelection>
 
+        {/* 3. AGE RANGES */}
+        <PopupSelection
+          isOpen={ageModalIdx !== null}
+          onClose={() => setAgeModalIdx(null)}
+          title="Character Age"
+          activeColor={activeColor}
+          currentCount={
+            ageModalIdx !== null && characters[ageModalIdx]?.age ? 1 : 0
+          }
+          maxCount={1}
+        >
+          {dropdowns.ageRanges.map((age) => (
+            <button
+              key={age}
+              type="button"
+              onClick={() => {
+                updateCharacter(ageModalIdx, "age", age);
+                setAgeModalIdx(null);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
+                ageModalIdx !== null && characters[ageModalIdx].age === age
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor:
+                  ageModalIdx !== null && characters[ageModalIdx].age === age
+                    ? activeColor
+                    : undefined,
+              }}
+            >
+              {age}
+            </button>
+          ))}
+        </PopupSelection>
+
+        {/* 4. ACCENTS */}
+        <PopupSelection
+          isOpen={accentModalIdx !== null}
+          onClose={() => setAccentModalIdx(null)}
+          title="Character Accent"
+          activeColor={activeColor}
+          currentCount={
+            accentModalIdx !== null && characters[accentModalIdx]?.accent
+              ? 1
+              : 0
+          }
+          maxCount={1}
+        >
+          {dropdowns.accents.map((acc) => (
+            <button
+              key={acc}
+              type="button"
+              onClick={() => {
+                updateCharacter(accentModalIdx, "accent", acc);
+                setAccentModalIdx(null);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
+                accentModalIdx !== null &&
+                characters[accentModalIdx].accent === acc
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor:
+                  accentModalIdx !== null &&
+                  characters[accentModalIdx].accent === acc
+                    ? activeColor
+                    : undefined,
+              }}
+            >
+              {acc}
+            </button>
+          ))}
+        </PopupSelection>
+
+        {/* 5. SCOUT */}
         <PopupSelection
           isOpen={isScoutOpen}
           onClose={() => setIsScoutOpen(false)}
-          title="CineSonic Talent Roster"
+          title="CineSonic Talent Scout"
           activeColor={activeColor}
           currentCount={
             scoutTargetIndex !== null &&
@@ -799,8 +920,8 @@ export default function ProjectIntakeForm() {
           }
           maxCount={1}
         >
-          <div className="space-y-3">
-            {scoutTargetIndex !== null && (
+          {scoutTargetIndex !== null && (
+            <div className="space-y-3">
               <ScoutResultsList
                 roster={roster}
                 character={characters[scoutTargetIndex]}
@@ -811,35 +932,16 @@ export default function ProjectIntakeForm() {
                 }}
                 activeColor={activeColor}
               />
-            )}
-          </div>
+            </div>
+          )}
         </PopupSelection>
-
-        <style jsx global>{`
-          .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-          }
-          .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-          }
-        `}</style>
       </div>
     </div>
   );
 }
 
-// --- 🟢 HELPER COMPONENTS ---
-function ScoutResultsList({
-  roster,
-  character,
-  formData,
-  onSelect,
-  activeColor,
-}) {
-  const [playingUrl, setPlayingUrl] = useState(null);
-  const audioRef = useRef(null);
-
+// --- HELPER COMPONENTS ---
+function ScoutResultsList({ roster, character, formData, onSelect }) {
   const matchResults = useMemo(
     () =>
       runCreativeMatch(
@@ -854,101 +956,30 @@ function ScoutResultsList({
       ),
     [character, roster, formData]
   );
-
-  const toggleAudio = (url) => {
-    if (playingUrl === url) {
-      audioRef.current.pause();
-      setPlayingUrl(null);
-    } else {
-      if (audioRef.current) audioRef.current.pause();
-      setPlayingUrl(url);
-      audioRef.current = new Audio(url);
-      audioRef.current.play();
-      audioRef.current.onended = () => setPlayingUrl(null);
-    }
-  };
-
-  const getMatchStyles = (score) => {
-    if (score <= 15)
-      return {
-        bg: "bg-orange-500/10",
-        border: "border-orange-500/30",
-        text: "text-orange-500",
-      };
-    if (score <= 25)
-      return {
-        bg: "bg-yellow-400/10",
-        border: "border-yellow-400/30",
-        text: "text-yellow-400",
-      };
-    if (score <= 50)
-      return {
-        bg: "bg-purple-500/10",
-        border: "border-purple-500/30",
-        text: "text-purple-400",
-      };
-    if (score <= 75)
-      return {
-        bg: "bg-blue-500/10",
-        border: "border-blue-500/30",
-        text: "text-blue-400",
-      };
-    return {
-      bg: "bg-green-500/10",
-      border: "border-green-500/30",
-      text: "text-green-400",
-    };
-  };
-
-  return matchResults.map(({ actor, score }) => {
-    const tier = getMatchStyles(score);
-    return (
-      <div
-        key={actor.id}
-        className="flex items-center gap-4 p-4 rounded-3xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer group"
-        onClick={() => onSelect(actor.id)}
-      >
-        <div className="relative flex-shrink-0">
-          <img
-            src={actor.headshot_url}
-            className="w-16 h-16 rounded-2xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-            alt="Actor"
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <h4 className="text-white font-serif text-lg truncate tracking-wide">
-              {actor.name}
-            </h4>
-            <div
-              className={`px-2 py-0.5 rounded-md border ${tier.bg} ${tier.border} ${tier.text} text-[9px] font-black uppercase tracking-tighter`}
-            >
-              {score}% MATCH
-            </div>
+  return matchResults.map(({ actor, score }) => (
+    <div
+      key={actor.id}
+      className="flex items-center gap-4 p-4 rounded-3xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer group"
+      onClick={() => onSelect(actor.id)}
+    >
+      <img
+        src={actor.headshot_url}
+        className="w-14 h-14 rounded-2xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+        alt="Actor"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <h4 className="text-white font-serif text-lg truncate tracking-wide">
+            {actor.name}
+          </h4>
+          <div className="px-2 py-0.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[9px] font-black uppercase tracking-tighter">
+            {score}% MATCH
           </div>
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest truncate">
-            {actor.voice_type}
-          </p>
         </div>
-        {actor.demo_url && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleAudio(actor.demo_url);
-            }}
-            className="w-12 h-12 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:border-white/30 transition-all"
-          >
-            {playingUrl === actor.demo_url ? (
-              <Pause size={18} className="text-white" />
-            ) : (
-              <Play size={18} className="text-white fill-white ml-1" />
-            )}
-          </button>
-        )}
       </div>
-    );
-  });
+      <ChevronRightIcon size={16} className="text-gray-600" />
+    </div>
+  ));
 }
 
 function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
@@ -968,9 +999,8 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
   const days = Array(startDay)
     .fill(null)
     .concat([...Array(daysInMonth).keys()].map((i) => i + 1));
-
   return (
-    <div className="relative z-[100]">
+    <div className="relative">
       <div className="flex justify-between items-center mb-4 text-white text-[10px] font-bold uppercase tracking-widest">
         <button
           type="button"
@@ -999,28 +1029,23 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
       </div>
       <div className="grid grid-cols-7 gap-1 text-center">
         {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-          <div
-            key={`day-header-${i}`}
-            className="text-[8px] text-gray-500 font-bold mb-2"
-          >
+          <div key={i} className="text-[8px] text-gray-500 font-bold mb-2">
             {d}
           </div>
         ))}
         {days.map((day, i) => {
-          if (!day) return <div key={`empty-${i}`} />;
+          if (!day) return <div key={i} />;
           const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), day);
           const isSelected = selectedDate === d.toISOString().split("T")[0];
-          const isTooEarly =
-            d.getTime() < new Date(minDate).setHours(0, 0, 0, 0);
-
+          const isPast = d.getTime() < new Date(minDate).setHours(0, 0, 0, 0);
           return (
             <button
-              key={`day-${i}`}
+              key={i}
               type="button"
-              disabled={isTooEarly}
+              disabled={isPast}
               onClick={() => onSelect(d.toISOString().split("T")[0])}
               className={`h-7 w-7 rounded-full text-[10px] flex items-center justify-center transition-all ${
-                isTooEarly
+                isPast
                   ? "opacity-10 cursor-not-allowed"
                   : isSelected
                   ? "text-black font-bold scale-110"

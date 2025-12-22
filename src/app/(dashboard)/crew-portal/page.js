@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+// 🟢 1. IMPORT MODAL
+import AccountModal from "../../../components/dashboard/AccountModal";
 import {
   Loader2,
-  Shield,
-  AlertTriangle,
   LayoutDashboard,
   Clapperboard,
   CheckCircle,
@@ -18,15 +19,12 @@ import {
   Inbox,
   Briefcase,
   Palette,
-  Search,
-  Filter,
-  User,
-  Info,
-  RefreshCw,
-  Save,
-  RotateCcw,
-  Trash2,
   Zap,
+  Info,
+  Shield,
+  ShieldAlert,
+  ArrowRight,
+  UserCog, // Button Icon
 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,7 +46,7 @@ import ProjectHeader from "../../../components/dashboard/ProductionHeader";
 // --- UTILS ---
 import { runCreativeMatch } from "../../../utils/dashboard/matchmaker";
 
-// 🟢 1. REFACTORED PALETTE (Visuals Forced to Premium)
+// 🟢 CONFIGURATION
 const COLORS = {
   GOLD: "#d4af37",
   SILVER: "#c0c0c0",
@@ -64,10 +62,10 @@ const getLocalTheme = (formatString) => {
   return COLORS.SILVER;
 };
 
-// --- CONFIGURATION ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 // --- INLINE COMPONENT: SIMPLE TABLE MANAGER ---
 const SimpleTableManager = ({ title, data, type, onBack }) => (
@@ -114,13 +112,19 @@ const SimpleTableManager = ({ title, data, type, onBack }) => (
   </div>
 );
 
-export default function AdminPortal() {
+export default function ProductionPortal() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // VIEW STATE
+  const [view, setView] = useState("dashboard"); // Default to dashboard immediately
+  const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [view, setView] = useState("login");
-  const [loading, setLoading] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(false);
-  const [error, setError] = useState("");
-  const [accessInput, setAccessInput] = useState("");
+  const [denied, setDenied] = useState(false); // New: Denial State
+  const [denialReason, setDenialReason] = useState("");
+
+  // 🟢 2. MODAL STATE
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
 
   // DATA STATE
   const [projects, setProjects] = useState([]);
@@ -138,32 +142,6 @@ export default function AdminPortal() {
   const [matchResults, setMatchResults] = useState({});
   const [castingSelections, setCastingSelections] = useState({});
 
-  useEffect(() => {
-    const savedKey = localStorage.getItem("cinesonic_access_key");
-    if (savedKey && view === "login") autoLogin(savedKey);
-  }, []);
-
-  const autoLogin = async (key) => {
-    setLoading(true);
-    try {
-      const { data: crewArray, error: loginErr } = await supabase.rpc(
-        "secure_crew_login",
-        { secret_key: key.trim() }
-      );
-      if (loginErr || !crewArray || crewArray.length === 0) {
-        localStorage.removeItem("cinesonic_access_key");
-      } else {
-        setAccessInput(key);
-        localStorage.setItem("cinesonic_access_key", key.trim());
-        setView("dashboard");
-        fetchAllData(key.trim());
-      }
-    } catch (err) {
-      localStorage.removeItem("cinesonic_access_key");
-    }
-    setLoading(false);
-  };
-
   const META_STATUSES = [
     "NEW",
     "NEGOTIATING",
@@ -175,6 +153,7 @@ export default function AdminPortal() {
     "CANCELLED",
     "HOLD",
   ];
+
   const TABS = [
     { id: "casting", label: "1. Casting", icon: Mic },
     { id: "schedule", label: "2. Schedule", icon: Calendar },
@@ -183,245 +162,255 @@ export default function AdminPortal() {
     { id: "production", label: "Logistics", icon: LayoutDashboard },
   ];
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const { data: crewArray, error: loginErr } = await supabase.rpc(
-        "secure_crew_login",
-        { secret_key: accessInput.trim() }
-      );
-      if (loginErr) throw loginErr;
-      if (!crewArray || crewArray.length === 0)
-        throw new Error("No matching Active user found for this key.");
-      localStorage.setItem("cinesonic_access_key", accessInput.trim());
-      setView("dashboard");
-      fetchAllData(accessInput.trim());
-    } catch (err) {
-      setError(err.message);
-    }
-    setLoading(false);
-  };
+  // 1. AUTH CHECK & INITIAL LOAD (GATEKEEPER)
+  useEffect(() => {
+    const init = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/dashboard/login"); // Bounce if not authenticated
+        return;
+      }
 
-  const fetchAllData = async (overrideKey = null) => {
-    const activeKey = overrideKey || accessInput;
-    if (!activeKey) return;
+      // Verify Role & Clearance
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, clearance")
+        .eq("id", user.id)
+        .single();
+
+      // ALLOW: Role = 'crew' OR Clearance >= 2 (Production Level) OR specific high-level roles
+      const isCrew = profile?.role === "crew";
+      const isHighLevel = ["admin", "executive", "ownership"].includes(
+        profile?.role
+      );
+      const isCleared = profile?.clearance >= 2;
+
+      if (profile && (isCrew || isHighLevel || isCleared)) {
+        setCurrentUser(user);
+        fetchAllData(); // proceed to load data
+      } else {
+        // ⛔ DENIED
+        setDenialReason(
+          "Access Denied: Production Clearance (Level 2+) Required"
+        );
+        setDenied(true);
+        setIsLoadingData(false);
+      }
+    };
+    init();
+  }, []);
+
+  // 2. DATA FETCHING (RLS VERSION)
+  const fetchAllData = async () => {
     setIsLoadingData(true);
     try {
-      const { data: intakeData } = await supabase.rpc("secure_fetch_intakes", {
-        secret_pass: activeKey,
-      });
-      if (intakeData)
-        // Inside fetchAllData -> intakeData.map
-        // Inside fetchAllData -> intakeData.map
+      // A. INTAKES
+      const { data: intakeData } = await supabase
+        .from("project_intake")
+        .select("*")
+        .neq("status", "Greenlit");
+
+      if (intakeData) {
         setIntakes(
-          intakeData
-            .map((i) => ({
-              id: i.intake_id, // The PRJ-XXXX tag
-              db_id: i.id, // The actual UUID for the SQL .eq() calls
-              title: i.project_title,
-              clientName: i.client_name,
-              clientType: i.client_type,
-              email: i.email,
-              wordCount: i.word_count,
-              style: i.style, // 🟢 Fixed: Now mapping the style spec
-              genres: i.genres,
-              baseFormat: i.base_format,
-              priceTier: i.price_tier,
-              isCinematic: i.is_cinematic,
-              character_details: i.character_details,
-              timeline_prefs: i.timeline_prefs,
-              notes: i.notes,
-            }))
-            .filter((i) => i.status !== "Greenlit")
+          intakeData.map((i) => ({
+            id: i.intake_ref_id || i.id, // Display ID
+            db_id: i.id, // UUID
+            title: i.project_title,
+            clientName: i.client_name,
+            clientType: i.client_type,
+            email: i.client_email,
+            wordCount: i.word_count,
+            style: i.style,
+            genres: i.genres || [],
+            baseFormat: i.base_format,
+            priceTier: i.price_tier,
+            isCinematic: i.is_cinematic,
+            character_details: i.character_details, // Ensure mapping handles new JSONB
+            notes: i.notes,
+            timestamp: i.created_at,
+          }))
         );
-      const { data: projData } = await supabase.rpc("secure_fetch_production", {
-        secret_pass: activeKey,
-      });
-      if (projData)
+      }
+
+      // B. PROJECTS (Active Productions)
+      const { data: projData } = await supabase
+        .from("active_productions")
+        .select("*");
+      if (projData) {
         setProjects(
           projData.map((p) => ({
-            "Project ID": p.project_id,
+            "Project ID": p.project_ref_id,
             Title: p.title,
-            Status: p.status,
-            Format: p.format || "Standard",
-            "Start Date": p.start_date_1,
-            "Start Date 2": p.start_date_2,
-            "Start Date 3": p.start_date_3,
-            "Contract Data": p.contract_data || {},
-            "Project Correspondence": p.project_correspondence || [],
+            Status: p.production_status,
+            Format: p.format || "Standard", // You might need to add this column or infer it
+            // Map legacy fields if they exist in your new schema, otherwise use defaults
+            "Start Date": new Date().toLocaleDateString(),
+            "Contract Data": {},
+            "Project Correspondence": [],
+            db_id: p.id,
           }))
         );
 
+        // Populate "All Roles" from the JSONB manifest in Active Productions
+        // This simulates the old 'casting_manifest' table
+        const roles = [];
+        projData.forEach((p) => {
+          if (p.casting_manifest && Array.isArray(p.casting_manifest)) {
+            p.casting_manifest.forEach((r) => {
+              roles.push({
+                "Project ID": p.project_ref_id,
+                "Role ID": r.role_id,
+                "Character Name": r.name,
+                "Assigned Actor": r.assigned_actor,
+                Status: r.status,
+              });
+            });
+          }
+        });
+        setAllRoles(roles);
+      }
+
+      // C. ROSTER (Public Actor Profiles)
       const { data: actorData } = await supabase
-        .from("actor_db")
-        .select("*")
-        .order("name");
-      if (actorData)
+        .from("actor_roster_public")
+        .select("*");
+      if (actorData) {
         setRoster(
           actorData.map((a) => ({
-            name: a.name,
-            id: a.actor_id,
-            email: a.email,
-            gender: a.gender,
-            age_range: a.age_range,
-            voice: a.voice_type,
-            genres: a.genres,
+            name: a.display_name,
+            id: a.id,
             headshot: a.headshot_url,
-            demo: a.demo_url,
+            demo: a.demo_reel_url,
+            // Add other fields if available in public roster
+            email: "Private", // Private info is in actor_private
+            status: "Active",
           }))
         );
+      }
 
-      const { data: crewData } = await supabase.rpc("secure_fetch_crew", {
-        secret_pass: activeKey,
-      });
-      if (crewData)
+      // D. CREW (Profiles filtered by role)
+      const { data: crewData } = await supabase
+        .from("profiles")
+        .select("full_name, email, role, status")
+        .eq("role", "crew");
+
+      if (crewData) {
         setCrewList(
           crewData.map((c) => ({
-            name: c.name,
-            role: c.role || "Crew",
+            name: c.full_name,
+            role: "Production Staff",
             email: c.email,
-            status: c.status || "Active",
+            status: c.status,
           }))
         );
+      }
 
-      const { data: artistData } = await supabase.rpc("secure_fetch_artists", {
-        secret_pass: activeKey,
-      });
-      if (artistData)
+      // E. ARTISTS (Public Artist Profiles)
+      const { data: artistData } = await supabase
+        .from("artist_roster_public")
+        .select("*");
+      if (artistData) {
         setArtistList(
           artistData.map((a) => ({
-            name: a.name,
-            specialty: a.specialty || "Artist",
-            email: a.email,
-            status: a.status || "Active",
+            name: a.display_name,
+            specialty: "Visual Artist",
+            email: "Private",
+            status: "Active",
           }))
         );
-
-      const { data: roleData } = await supabase.rpc("secure_fetch_casting", {
-        secret_pass: activeKey,
-      });
-      if (roleData)
-        setAllRoles(
-          roleData.map((r) => ({
-            "Project ID": r.project_id,
-            "Role ID": r.role_id,
-            "Character Name": r.role_name,
-            Gender: r.gender,
-            "Age Range": r.age,
-            "Vocal Specs": r.vocal_specs,
-            Status: r.status,
-            "Assigned Actor": r.assigned_actor,
-          }))
-        );
+      }
     } catch (e) {
       console.error("Fetch Error:", e);
     }
     setIsLoadingData(false);
   };
 
+  // 3. ACTIONS
   const handleGreenLight = async (intakeItem) => {
     if (!intakeItem) return;
     setIsSaving(true);
-
     try {
-      // We only need one update call.
-      // The DB Trigger will catch this and handle the production_db insertion.
-      const { error: updateError } = await supabase
-        .from("project_intake_db")
+      // Trigger the backend move
+      const { error } = await supabase
+        .from("project_intake")
         .update({ status: "Greenlit" })
-        .eq("id", intakeItem.db_id); // Use the UUID
+        .eq("id", intakeItem.db_id);
 
-      if (updateError) throw updateError;
+      if (error) throw error;
 
-      alert("SUCCESS: System trigger fired. Production record created.");
+      alert("Project Greenlit. Production Record Initialized.");
       setSelectedIntake(null);
       fetchAllData();
     } catch (err) {
-      alert("TRIGGER FAILURE: " + err.message);
+      alert("Error: " + err.message);
     } finally {
       setIsSaving(false);
     }
   };
 
   const saveProject = async (updates) => {
-    const { error } = await supabase.rpc("secure_save_production", {
-      secret_pass: accessInput, // Your Crew Key
-      p_project_id: selectedProject["Project ID"],
-      p_updates: updates, // { title: "New Title", coordinator: "John" }
-    });
+    // Map back to DB schema
+    if (!selectedProject?.db_id) return;
+
+    const { error } = await supabase
+      .from("active_productions")
+      .update({
+        title: updates.title,
+        production_status: updates.status,
+        // Add mappings
+      })
+      .eq("id", selectedProject.db_id);
+
     if (error) alert(error.message);
+    else fetchAllData();
   };
 
-  const updateField = (field, value) =>
+  const updateField = (field, value) => {
     setSelectedProject((prev) => ({ ...prev, [field]: value }));
+  };
 
-  if (view === "login") {
-    if (loading && localStorage.getItem("cinesonic_access_key")) {
-      return (
-        <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center text-white">
-          <Loader2 className="w-12 h-12 text-[#d4af37] animate-spin mb-4" />
-          <h2 className="text-xl font-serif text-[#d4af37] tracking-widest animate-pulse">
-            RE-ESTABLISHING SECURE UPLINK...
-          </h2>
-        </div>
-      );
-    }
+  // 4. RENDERING
+
+  // 🔴 ACCESS DENIED SCREEN
+  if (!isLoadingData && denied) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 relative bg-[#020010]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a0f5e_0%,_#020010_70%)] opacity-40" />
-        <Link
-          href="/"
-          className="absolute top-8 left-8 z-50 flex items-center gap-2 text-[#d4af37]/60 hover:text-[#d4af37] text-xs uppercase tracking-widest transition-colors"
-        >
-          <ArrowLeft size={14} /> Back to Site
-        </Link>
-        <div className="w-full max-w-[400px] rounded-2xl border border-[#d4af37]/30 bg-[#0a0a0a] p-10 shadow-2xl relative z-10">
-          <div className="text-center mb-8">
-            <Shield className="w-16 h-16 text-[#d4af37] mx-auto mb-6" />
-            <h2 className="text-2xl font-serif text-[#d4af37] mb-2">
-              Admin Portal
-            </h2>
-            <p className="text-xs text-gray-400 uppercase tracking-[0.2em]">
-              Authorized Personnel Only
-            </p>
+      <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center relative overflow-hidden p-6 font-sans">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#d4af37_0%,_transparent_40%)] opacity-10" />
+        <div className="z-10 w-full max-w-md bg-[#0a0a0a] border border-[#d4af37]/30 rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95">
+          <div className="w-16 h-16 mx-auto rounded-full bg-[#d4af37]/10 border border-[#d4af37]/20 flex items-center justify-center mb-6">
+            <ShieldAlert className="text-[#d4af37]" size={32} />
           </div>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <input
-              type="password"
-              value={accessInput}
-              onChange={(e) => setAccessInput(e.target.value)}
-              className="w-full bg-white/5 border border-[#d4af37]/20 text-white py-4 rounded-xl text-center text-lg tracking-[0.2em] outline-none focus:border-[#d4af37] transition-all placeholder:text-gray-600 font-serif"
-              placeholder="ACCESS CODE"
-            />
-            {error && (
-              <div className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-xs text-center flex items-center justify-center gap-2">
-                <AlertTriangle size={14} /> {error}
-              </div>
-            )}
-            <button
-              disabled={loading}
-              className="w-full py-4 bg-[#d4af37] hover:bg-[#b8860b] text-black font-bold uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)] disabled:opacity-50"
-            >
-              {loading ? "Verifying..." : "Enter Vault"}
-            </button>
-          </form>
+          <h2 className="text-2xl font-serif text-white mb-2">
+            RESTRICTED AREA
+          </h2>
+          <p className="text-sm text-gray-400 mb-8 leading-relaxed">
+            {denialReason}
+          </p>
+          <button
+            onClick={() => router.push("/hub")}
+            className="w-full py-4 bg-white text-black rounded-xl font-bold uppercase tracking-widest hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+          >
+            Return to Hub <ArrowRight size={16} />
+          </button>
         </div>
       </div>
     );
   }
 
-  if (isLoadingData)
+  if (isLoadingData) {
     return (
       <div className="min-h-screen bg-[#020010] flex flex-col items-center justify-center text-white z-50">
         <div className="w-16 h-16 border-4 border-white/10 border-t-[#d4af37] rounded-full animate-spin mb-6" />
         <h2 className="text-xl font-serif text-[#d4af37] tracking-widest animate-pulse">
-          Establishing Secure Uplink...
+          Accessing Production Database...
         </h2>
       </div>
     );
+  }
 
+  // SUB-VIEWS
   if (view === "roster")
     return <TalentManager data={roster} onBack={() => setView("dashboard")} />;
   if (view === "crew")
@@ -443,12 +432,14 @@ export default function AdminPortal() {
       />
     );
 
+  // PROJECT WORKSPACE
   if (view === "project") {
     const currentRoles = selectedProject
       ? allRoles.filter(
           (r) => r["Project ID"] === selectedProject["Project ID"]
         )
       : [];
+
     return (
       <div className="flex h-screen bg-[#020010] text-white font-sans overflow-hidden">
         <Sidebar
@@ -458,10 +449,7 @@ export default function AdminPortal() {
             setSelectedProject(p);
             setView("project");
           }}
-          onLogout={() => {
-            localStorage.removeItem("cinesonic_access_key");
-            setView("login");
-          }}
+          onLogout={() => router.push("/hub")}
           onDashboardClick={() => {
             setSelectedProject(null);
             setView("dashboard");
@@ -480,13 +468,14 @@ export default function AdminPortal() {
               setActiveTab={setActiveTab}
               updateField={updateField}
               tabs={TABS}
-              userKey={accessInput}
+              userKey="SESSION_AUTH" // No longer used but kept for prop compat
               onRecycleSuccess={() => {
                 setSelectedProject(null);
                 setView("dashboard");
-                fetchAllData(accessInput);
+                fetchAllData();
               }}
             />
+
             {activeTab === "casting" && (
               <CastingTab
                 project={selectedProject}
@@ -509,7 +498,7 @@ export default function AdminPortal() {
                 roles={currentRoles}
                 roster={roster}
                 castingSelections={castingSelections}
-                onSync={() => fetchAllData(false)}
+                onSync={fetchAllData}
               />
             )}
             {activeTab === "contracts" && (
@@ -541,6 +530,7 @@ export default function AdminPortal() {
     );
   }
 
+  // MAIN DASHBOARD VIEW
   return (
     <div className="flex h-screen bg-[#020010] text-white font-sans overflow-hidden">
       <Sidebar
@@ -550,21 +540,43 @@ export default function AdminPortal() {
           setSelectedProject(p);
           setView("project");
         }}
-        onLogout={() => {
-          localStorage.removeItem("cinesonic_access_key");
-          setView("login");
-        }}
+        onLogout={() => router.push("/hub")}
         onDashboardClick={() => {}}
         filterStatus={filterStatus}
         setFilterStatus={setFilterStatus}
         metaStatuses={META_STATUSES}
       />
       <main className="flex-1 overflow-y-auto custom-scrollbar p-8 relative">
+        {/* TOP NAV / STATS */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-serif text-white">
+            Production <span className="text-[#d4af37]">Dashboard</span>
+          </h1>
+          <div className="flex gap-4">
+            <Link
+              href="/hub"
+              className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs uppercase tracking-widest border border-white/10 px-4 py-2 rounded-lg"
+            >
+              <ArrowLeft size={14} /> Back to Hub
+            </Link>
+
+            {/* 🟢 3. CIRCULAR ACCOUNT BUTTON */}
+            <button
+              onClick={() => setAccountModalOpen(true)}
+              className="w-8 h-8 rounded-full flex items-center justify-center border border-white/10 bg-white/5 hover:border-emerald-500/50 hover:text-emerald-500 text-slate-400 transition-all"
+              title="My Account"
+            >
+              <UserCog size={16} />
+            </button>
+          </div>
+        </div>
+
         <DashboardStats
           data={projects}
           onNavigate={() => setView("roster")}
-          onSync={() => fetchAllData(false)}
+          onSync={fetchAllData}
         />
+
         <div className="flex gap-4 mt-6">
           <button
             onClick={() => setView("crew")}
@@ -579,6 +591,15 @@ export default function AdminPortal() {
             <Palette size={14} /> Manage Artists
           </button>
         </div>
+        <div className="mt-8">
+          {/* I am rendering the modal here for clean context */}
+          <AccountModal
+            isOpen={accountModalOpen}
+            onClose={() => setAccountModalOpen(false)}
+          />
+        </div>
+
+        {/* INTAKE REQUESTS */}
         <div className="mt-12">
           <SectionHeader
             icon={Inbox}
@@ -595,7 +616,9 @@ export default function AdminPortal() {
                 const themeColor = getLocalTheme(intake.clientType);
                 const isCinema =
                   intake.isCinematic ||
-                  intake.clientType.toLowerCase().includes("drama");
+                  (intake.clientType &&
+                    intake.clientType.toLowerCase().includes("drama"));
+
                 return (
                   <div
                     key={intake.id}
@@ -608,6 +631,7 @@ export default function AdminPortal() {
                         : `0 0 15px ${themeColor}10`,
                     }}
                   >
+                    {/* ... (Existing Intake Card JSX) ... */}
                     <div className="flex justify-between items-start mb-4">
                       <span
                         className="text-[10px] px-2 py-0.5 rounded border uppercase tracking-widest font-bold"
@@ -617,10 +641,12 @@ export default function AdminPortal() {
                           borderColor: `${themeColor}40`,
                         }}
                       >
-                        {intake.clientType}
+                        {intake.clientType || "Project"}
                       </span>
                       <span className="text-[10px] text-gray-500 font-mono">
-                        {new Date(intake.timestamp).toLocaleDateString()}
+                        {intake.timestamp
+                          ? new Date(intake.timestamp).toLocaleDateString()
+                          : "N/A"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mb-1">
@@ -644,13 +670,17 @@ export default function AdminPortal() {
           )}
         </div>
       </main>
+
+      {/* GREENLIGHT MODAL */}
       {selectedIntake && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in">
           {(() => {
             const themeColor = getLocalTheme(selectedIntake.clientType);
             const isDrama =
               selectedIntake.isCinematic ||
-              selectedIntake.clientType.toLowerCase().includes("drama");
+              (selectedIntake.clientType &&
+                selectedIntake.clientType.toLowerCase().includes("drama"));
+
             return (
               <div
                 className="bg-[#0c0442] border w-full max-w-4xl rounded-2xl overflow-hidden flex flex-col max-h-[95vh] shadow-2xl relative"
@@ -659,6 +689,7 @@ export default function AdminPortal() {
                   boxShadow: `0 0 60px ${themeColor}20`,
                 }}
               >
+                {/* ... (Existing Modal Content) ... */}
                 <div
                   className="p-6 border-b flex justify-between items-center bg-[#050510]"
                   style={{ borderColor: `${themeColor}30` }}
@@ -720,7 +751,9 @@ export default function AdminPortal() {
                         {Number(selectedIntake.wordCount).toLocaleString()}{" "}
                         Words
                         <br />
-                        {selectedIntake.genres}
+                        {Array.isArray(selectedIntake.genres)
+                          ? selectedIntake.genres.join(", ")
+                          : selectedIntake.genres}
                       </div>
                     </div>
                     <div className="bg-white/5 p-4 rounded-xl border border-white/10">
@@ -732,6 +765,7 @@ export default function AdminPortal() {
                       </div>
                     </div>
                   </div>
+                  {/* ... Character Manifest and Buttons ... */}
                   <div className="mb-8 relative">
                     <div
                       className="absolute -left-1 top-0 bottom-0 w-1 rounded-l-lg"
@@ -742,15 +776,34 @@ export default function AdminPortal() {
                         className="text-[10px] uppercase font-bold mb-4 flex items-center gap-2"
                         style={{ color: themeColor }}
                       >
-                        <LayoutDashboard size={14} /> Character Manifest (To
-                        Explode)
+                        <LayoutDashboard size={14} /> Character Manifest
                       </h4>
+
                       <div className="space-y-2">
-                        {(selectedIntake.character_details || "")
-                          .split("|")
-                          .map((charStr, i) => {
-                            if (!charStr.trim()) return null;
-                            const parts = charStr.split(",");
+                        {(() => {
+                          let chars = [];
+                          if (
+                            typeof selectedIntake.character_details === "string"
+                          ) {
+                            chars = selectedIntake.character_details
+                              .split("|")
+                              .map((s) => {
+                                const p = s.split(",");
+                                return {
+                                  name: p[0],
+                                  desc: p[1],
+                                  gender: p[2],
+                                  age: p[3],
+                                };
+                              });
+                          } else if (
+                            Array.isArray(selectedIntake.character_details)
+                          ) {
+                            chars = selectedIntake.character_details;
+                          }
+
+                          return chars.map((char, i) => {
+                            if (!char?.name) return null;
                             return (
                               <div
                                 key={i}
@@ -764,25 +817,27 @@ export default function AdminPortal() {
                                 </div>
                                 <div className="grid grid-cols-4 w-full gap-4 text-xs">
                                   <span className="font-bold text-white">
-                                    {parts[0]?.trim() || "Unknown"}
+                                    {char.name || "Unknown"}
                                   </span>
                                   <span className="text-gray-400">
-                                    {parts[1]?.trim()}
+                                    {char.desc}
                                   </span>
                                   <span className="text-gray-400">
-                                    {parts[2]?.trim()}
+                                    {char.gender}
                                   </span>
                                   <span className="text-gray-500 italic">
-                                    {parts[3]?.trim()}
+                                    {char.age}
                                   </span>
                                 </div>
                               </div>
                             );
-                          })}
+                          });
+                        })()}
                       </div>
                     </div>
                   </div>
                 </div>
+
                 <div className="p-6 bg-[#0a0a0a] border-t border-white/10 flex justify-end gap-3">
                   <Button
                     onClick={() => setSelectedIntake(null)}

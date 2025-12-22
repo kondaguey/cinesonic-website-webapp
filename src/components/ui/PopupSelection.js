@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
+import { X, Check } from "lucide-react";
 
 export default function PopupSelection({
   isOpen,
@@ -9,10 +10,14 @@ export default function PopupSelection({
   title,
   children,
   activeColor,
-  currentCount, // current selection count
-  maxCount, // max allowed
+  currentCount,
+  maxCount,
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  // 1. HYDRATION & SCROLL LOCK
   useEffect(() => {
+    setMounted(true);
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -23,29 +28,42 @@ export default function PopupSelection({
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // 2. SORTING ENGINE (A-Z)
+  const sortedChildren = useMemo(() => {
+    return React.Children.toArray(children).sort((a, b) => {
+      const getText = (node) => {
+        if (typeof node === "string") return node;
+        if (typeof node.props?.children === "string")
+          return node.props.children;
+        return "";
+      };
+      const textA = getText(a);
+      const textB = getText(b);
+      return textA.localeCompare(textB);
+    });
+  }, [children]);
 
-  const hasCounter =
-    typeof currentCount === "number" && typeof maxCount === "number";
+  if (!mounted || !isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[999999] flex justify-center items-start pt-20 md:pt-28 p-4 md:p-8 overflow-hidden">
-      {/* GLASS OVERLAY */}
+  // 3. THE PORTAL
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 font-sans">
+      {/* COMPACT GLASS BACKDROP */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[40px] animate-in fade-in duration-700"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
         onClick={onClose}
       />
 
-      {/* MODAL CONTAINER */}
-      <div className="relative w-full h-auto max-h-[70vh] md:max-w-4xl bg-[#0a0a15]/80 border border-white/20 md:rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.8)] flex flex-col animate-in zoom-in-95 slide-in-from-top-10 duration-500 overflow-hidden backdrop-blur-xl">
-        {/* SLIM HEADER */}
-        <div className="px-6 py-4 md:px-10 md:py-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-baseline gap-3">
-            <h3 className="text-lg md:text-xl font-serif text-white tracking-widest uppercase italic">
+      {/* THE SLATE (Skinnier, Centered) */}
+      <div className="relative w-full max-w-lg max-h-[70vh] bg-[#0a0a15] border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ring-1 ring-white/10">
+        {/* HEADER */}
+        <div className="flex-none px-6 py-4 border-b border-white/10 bg-white/[0.03] flex items-center justify-between">
+          <div className="flex flex-col">
+            <h3 className="text-lg font-serif text-white tracking-widest">
               {title}
             </h3>
-            {hasCounter && (
-              <span className="font-mono text-[10px] text-white/30 tracking-tighter uppercase">
+            {typeof currentCount === "number" && (
+              <span className="text-[10px] text-gray-400 font-mono uppercase tracking-wider mt-0.5">
                 Selection:{" "}
                 <span style={{ color: activeColor }}>{currentCount}</span> /{" "}
                 {maxCount}
@@ -54,40 +72,47 @@ export default function PopupSelection({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-white/30 hover:text-white bg-white/5 rounded-full transition-all"
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-all"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
-          {children}
+        {/* CONTENT (Centered 2-Column Grid) */}
+        <div className="flex-1 overflow-y-auto p-4 bg-[#0a0a15] custom-scrollbar">
+          <div className="grid grid-cols-2 gap-2 text-center">
+            {sortedChildren}
+          </div>
         </div>
 
-        {/* SLIM FOOTER WITH SMALL CENTERED BUTTON */}
-        <div className="p-4 md:p-5 bg-white/[0.01] border-t border-white/10 flex justify-center">
+        {/* COMPACT FOOTER */}
+        <div className="flex-none p-4 border-t border-white/10 bg-white/[0.02] flex justify-center">
           <button
             onClick={onClose}
-            className="px-10 py-2.5 rounded-full text-black text-[10px] font-black uppercase tracking-[0.3em] transition-all hover:brightness-110 active:scale-[0.95] shadow-lg"
+            className="w-full py-3 rounded-xl text-black text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.01] flex items-center justify-center gap-2 shadow-lg"
             style={{ backgroundColor: activeColor || "#fff" }}
           >
-            Confirm
+            <Check size={12} strokeWidth={3} /> Confirm
           </button>
         </div>
       </div>
 
       <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-          background: rgba(255, 255, 255, 0.1); 
-          border-radius: 20px; 
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
         }
-        @media (max-height: 700px) {
-          .max-h-[70vh] { max-h-[85vh]; }
-          .pt-20 { pt-10; }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #0a0a15;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }

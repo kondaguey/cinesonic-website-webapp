@@ -1,20 +1,12 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import AccountModal from "../../../components/dashboard/AccountModal";
 import {
-  // Navigation & Structure
   Database,
-  Layout,
-  Users,
-  Grid,
-  List,
-  ChevronRight,
-  ChevronDown,
   Search,
-  Filter,
-  ArrowUpDown,
-  // Roles & Identity
   Shield,
   Briefcase,
   Mic,
@@ -23,39 +15,37 @@ import {
   Crown,
   UserCog,
   User,
-  // Actions & Status
   Save,
-  Trash2,
-  RefreshCw,
   LogOut,
-  Lock,
-  Unlock,
-  Eye,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Copy,
   Mail,
   Terminal,
   Loader2,
-  Key,
-  // Theme & Settings
+  Copy,
   Sun,
   Moon,
-  ToggleLeft,
-  ToggleRight,
-  Radio,
+  LayoutDashboard,
+  ShieldAlert,
+  ArrowRight,
+  Lock,
+  Unlock,
+  GraduationCap,
+  ShoppingBag,
+  UserPlus,
+  Hash,
 } from "lucide-react";
 
-// --- 1. ENGINE CONFIGURATION ---
+import ActorEditor from "../../../components/dashboard/editors/ActorEditor";
+import ArtistEditor from "../../../components/dashboard/editors/ArtistEditor";
+import AuthorEditor from "../../../components/dashboard/editors/AuthorEditor";
+import TeamEditor from "../../../components/dashboard/editors/TeamEditor";
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// --- 2. CONSTANTS & MAPPINGS ---
+// ROLE CONFIGURATION
 const ROLE_CONFIG = {
-  // COMMAND TIER
   ownership: {
     label: "Ownership",
     icon: Crown,
@@ -116,8 +106,6 @@ const ROLE_CONFIG = {
       border: "border-slate-300",
     },
   },
-
-  // TALENT TIER
   actor: {
     label: "Actor",
     icon: Mic,
@@ -163,8 +151,82 @@ const ROLE_CONFIG = {
       border: "border-orange-200",
     },
   },
-
-  // SYSTEM
+  student: {
+    label: "Academy",
+    icon: GraduationCap,
+    clearance: 0,
+    dark: {
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
+    },
+    light: {
+      color: "text-blue-700",
+      bg: "bg-blue-100",
+      border: "border-blue-200",
+    },
+  },
+  customer: {
+    label: "Shop",
+    icon: ShoppingBag,
+    clearance: 0,
+    dark: {
+      color: "text-violet-400",
+      bg: "bg-violet-500/10",
+      border: "border-violet-500/20",
+    },
+    light: {
+      color: "text-violet-700",
+      bg: "bg-violet-100",
+      border: "border-violet-200",
+    },
+  },
+  // LEAD VIRTUAL ROLES
+  lead_newsletter: {
+    label: "Lead: News",
+    icon: Mail,
+    clearance: 0,
+    dark: {
+      color: "text-slate-400",
+      bg: "bg-slate-500/10",
+      border: "border-slate-500/20",
+    },
+    light: {
+      color: "text-slate-600",
+      bg: "bg-slate-100",
+      border: "border-slate-200",
+    },
+  },
+  lead_shop: {
+    label: "Lead: Shop",
+    icon: ShoppingBag,
+    clearance: 0,
+    dark: {
+      color: "text-violet-400",
+      bg: "bg-violet-500/10",
+      border: "border-violet-500/20",
+    },
+    light: {
+      color: "text-violet-700",
+      bg: "bg-violet-100",
+      border: "border-violet-200",
+    },
+  },
+  lead_academy: {
+    label: "Lead: Academy",
+    icon: GraduationCap,
+    clearance: 0,
+    dark: {
+      color: "text-blue-400",
+      bg: "bg-blue-500/10",
+      border: "border-blue-500/20",
+    },
+    light: {
+      color: "text-blue-700",
+      bg: "bg-blue-100",
+      border: "border-blue-200",
+    },
+  },
   public: {
     label: "Public",
     icon: User,
@@ -185,279 +247,391 @@ const ROLE_CONFIG = {
 const TAB_GROUPS = {
   COMMAND: ["ownership", "executive", "admin", "crew"],
   TALENT: ["actor", "artist", "author"],
-  SYSTEM: ["keys"],
+  CUSTOMERS: ["student", "customer"],
 };
 
-// --- 3. MAIN COMPONENT ---
+const TEAM_ROLES = ["crew", "admin", "executive", "ownership"];
+
 export default function MasterControllerTitan() {
-  // --- STATE: THEME (Light/Dark) ---
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const router = useRouter();
 
-  // --- STATE: SESSION ---
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // STATE: Page Status
   const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [denied, setDenied] = useState(false);
+  const [denialReason, setDenialReason] = useState("");
+  const [isSiteOpen, setIsSiteOpen] = useState(true);
+
+  // STATE: Data & UI
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [adminUser, setAdminUser] = useState(null);
-  const [authError, setAuthError] = useState("");
-
-  // --- STATE: DATABASE ---
-  const [dbLoading, setDbLoading] = useState(false);
   const [masterRoster, setMasterRoster] = useState([]);
-  const [siteKeys, setSiteKeys] = useState([]);
+  const [leadsList, setLeadsList] = useState([]); // NEW
 
-  // --- STATE: GLOBAL LOCK ---
-  const [globalLock, setGlobalLock] = useState(false); // SITE LOCK KEY
+  // MODAL STATE
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
 
-  // --- STATE: UI & FILTERING ---
+  // UI State
   const [activeTab, setActiveTab] = useState("all");
   const [subFilter, setSubFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  // --- STATE: EDITOR ---
   const [selectedId, setSelectedId] = useState(null);
-  const [editorMode, setEditorMode] = useState("view");
   const [formData, setFormData] = useState({});
   const [formStatus, setFormStatus] = useState("idle");
+  const [generatedPass, setGeneratedPass] = useState("");
 
-  // --- 4. INITIALIZATION ---
+  const handleToggleOpen = async () => {
+    try {
+      const newOpenStatus = !isSiteOpen;
+      setIsSiteOpen(newOpenStatus);
+      const { error } = await supabase
+        .from("site_settings")
+        .update({ is_open: newOpenStatus })
+        .eq("id", 1);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Toggle Error:", err);
+      alert("Error updating status: " + err.message);
+      setIsSiteOpen(!isSiteOpen);
+    }
+  };
+
   useEffect(() => {
-    initSession();
-  }, []);
+    const initSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) {
+        router.push("/hub");
+        return;
+      }
 
-  const initSession = async () => {
-    setIsSessionLoading(true);
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (session?.user) {
-      // VERIFY GOD MODE
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, clearance, full_name")
+        .select("role, clearance, full_name, id, email")
         .eq("id", session.user.id)
         .single();
 
-      if (profile && profile.clearance >= 3) {
+      const allowedRoles = ["ownership", "executive", "admin"];
+      const isAuthorized =
+        profile &&
+        (profile.clearance >= 3 || allowedRoles.includes(profile.role));
+
+      if (isAuthorized) {
         setAdminUser({ ...session.user, ...profile });
-        setIsAuthenticated(true);
         refreshDatabase();
-        fetchGlobalLock();
+        setIsSessionLoading(false);
       } else {
-        await supabase.auth.signOut();
-        setAuthError("CRITICAL: UNAUTHORIZED ACCESS ATTEMPT LOGGED");
-        setIsAuthenticated(false);
+        setDenialReason("Unauthorized: Command Access Required (Level 3+)");
+        setDenied(true);
+        setIsSessionLoading(false);
       }
-    }
-    setIsSessionLoading(false);
-  };
-
-  const fetchGlobalLock = async () => {
-    // Check 'site_settings' table for 'site_locked' key
-    const { data, error } = await supabase
-      .from("site_settings")
-      .select("value")
-      .eq("key", "site_locked")
-      .single();
-    if (data) setGlobalLock(data.value === "true");
-  };
-
-  const toggleGlobalLock = async () => {
-    const newState = !globalLock;
-    setGlobalLock(newState);
-    // Upsert to ensure it exists
-    await supabase
-      .from("site_settings")
-      .upsert(
-        { key: "site_locked", value: String(newState) },
-        { onConflict: "key" }
-      );
-  };
+    };
+    initSession();
+  }, []);
 
   const refreshDatabase = async () => {
-    // Don't show the huge loading spinner if we are just refreshing in the background
-    // setDbLoading(true); <--- Comment this out to stop the screen flickering
     try {
-      const { data: people, error: peopleErr } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [profilesRes, leadsRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("leads")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
 
-      const { data: keys, error: keyErr } = await supabase
-        .from("site_keys")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (peopleErr) console.error("Profile Fetch Error:", peopleErr);
-      // ONLY update if we actually got data back.
-      // This prevents the "One Card" bug where a failed fetch wipes the list.
-      if (people && people.length > 0) setMasterRoster(people);
-
-      if (keys) setSiteKeys(keys);
+      if (profilesRes.data) setMasterRoster(profilesRes.data);
+      if (leadsRes.data) setLeadsList(leadsRes.data);
     } catch (err) {
       console.error("Sync Error", err);
-    } finally {
-      setDbLoading(false);
     }
   };
 
-  // --- 5. DATA COMPUTATION ---
+  // --- DATA COMPUTATION ---
   const processedList = useMemo(() => {
-    let raw = activeTab === "keys" ? siteKeys : masterRoster;
+    // If on Leads Tab, use leadsList, otherwise use masterRoster
+    const sourceData = activeTab === "leads" ? leadsList : masterRoster;
 
-    return raw.filter((item) => {
-      if (activeTab === "command" && !TAB_GROUPS.COMMAND.includes(item.role))
-        return false;
-      if (activeTab === "talent" && !TAB_GROUPS.TALENT.includes(item.role))
-        return false;
-      if (subFilter !== "all" && item.role !== subFilter) return false;
-      if (searchQuery) {
-        const str = JSON.stringify(item).toLowerCase();
-        if (!str.includes(searchQuery.toLowerCase())) return false;
-      }
-      return true;
-    });
-  }, [masterRoster, siteKeys, activeTab, subFilter, searchQuery]);
+    return sourceData
+      .filter((item) => {
+        // 1. Main Tabs Logic
+        if (activeTab === "command" && !TAB_GROUPS.COMMAND.includes(item.role))
+          return false;
+        if (activeTab === "talent" && !TAB_GROUPS.TALENT.includes(item.role))
+          return false;
+        if (
+          activeTab === "customers" &&
+          !TAB_GROUPS.CUSTOMERS.includes(item.role)
+        )
+          return false;
 
-  // --- 6. ACTIONS ---
+        // 2. Leads Filtering Logic
+        if (activeTab === "leads") {
+          if (
+            subFilter === "newsletter" &&
+            !["general", "newsletter"].includes(item.source)
+          )
+            return false;
+          if (subFilter === "shop" && item.source !== "shop") return false;
+          if (subFilter === "academy" && item.source !== "academy")
+            return false;
+        } else {
+          // Normal subfilter for roles
+          if (subFilter !== "all" && item.role !== subFilter) return false;
+        }
 
-  const handleSelectUser = (user) => {
+        // 3. Search
+        if (searchQuery) {
+          const str = JSON.stringify(item).toLowerCase();
+          if (!str.includes(searchQuery.toLowerCase())) return false;
+        }
+        return true;
+      })
+      .map((item) => {
+        // If it's a lead, map it to look like a profile for the Card component
+        if (activeTab === "leads") {
+          let virtualRole = "lead_newsletter";
+          if (item.source === "shop") virtualRole = "lead_shop";
+          if (item.source === "academy") virtualRole = "lead_academy";
+
+          return {
+            ...item,
+            full_name: item.email.split("@")[0], // Fallback name
+            role: virtualRole,
+            clearance: 0,
+            isLead: true,
+          };
+        }
+        return item;
+      });
+  }, [masterRoster, leadsList, activeTab, subFilter, searchQuery]);
+
+  // --- ACTIONS ---
+  const handleSelectUser = async (user) => {
     setSelectedId(user.id);
-    setFormData({ ...user });
-    setEditorMode("edit");
+    setFormStatus("loading");
+    let mergedData = { ...user };
+
+    // Leads don't have zipper logic
+    if (user.isLead) {
+      setFormData(mergedData);
+      setFormStatus("idle");
+      return;
+    }
+
+    try {
+      if (user.role === "actor") {
+        const [pPub, pPriv] = await Promise.all([
+          supabase
+            .from("actor_roster_public")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+          supabase.from("actor_private").select("*").eq("id", user.id).single(),
+        ]);
+        if (pPub.data) mergedData.public = pPub.data;
+        if (pPriv.data) mergedData.private = pPriv.data;
+      } else if (user.role === "artist") {
+        const [pPub, pPriv] = await Promise.all([
+          supabase
+            .from("artist_roster_public")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+          supabase
+            .from("artist_private")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+        ]);
+        if (pPub.data) mergedData.public = pPub.data;
+        if (pPriv.data) mergedData.private = pPriv.data;
+      } else if (user.role === "author") {
+        const [pPub, pPriv] = await Promise.all([
+          supabase
+            .from("author_roster_public")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+          supabase
+            .from("author_private")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+        ]);
+        if (pPub.data) mergedData.public = pPub.data;
+        if (pPriv.data) mergedData.private = pPriv.data;
+      } else if (TEAM_ROLES.includes(user.role)) {
+        const [pPub, pPriv] = await Promise.all([
+          supabase
+            .from("team_about_public")
+            .select("*")
+            .eq("id", user.id)
+            .single(),
+          supabase.from("team_private").select("*").eq("id", user.id).single(),
+        ]);
+        if (pPub.data) mergedData.public = pPub.data;
+        if (pPriv.data) mergedData.private = pPriv.data;
+      }
+    } catch (err) {
+      console.error("Zipper Fetch Error", err);
+    }
+
+    setFormData(mergedData);
     setFormStatus("idle");
+    setGeneratedPass("");
   };
 
   const handleSave = async () => {
     setFormStatus("saving");
     try {
-      // --- SAFETY CHECK: PREVENT SELF-LOCKOUT ---
-      // If you are editing yourself, and you try to lower your clearance below 3...
-      if (formData.id === adminUser.id && formData.clearance < 3) {
-        alert(
-          "⛔ SYSTEM OVERRIDE: You cannot demote your own account below Admin level while logged in."
-        );
-        setFormStatus("idle");
-        return;
-      }
-
-      // --- 1. OPTIMISTIC UPDATE (Trust this first) ---
-      // We update the master list immediately so the UI feels instant
-      if (activeTab !== "keys") {
-        setMasterRoster((prev) =>
-          prev.map((p) => (p.id === formData.id ? { ...p, ...formData } : p))
-        );
-      }
-
-      // --- 2. DATABASE COMMIT ---
-      if (activeTab === "keys") {
-        const { error } = await supabase.from("site_keys").upsert({
-          id: selectedId,
-          key_code: formData.key_code,
-          assigned_role: formData.assigned_role,
-          is_active: formData.is_active,
-        });
-        if (error) throw error;
-
-        // For keys, we do a simple re-fetch because it's a small table
-        const { data: freshKeys } = await supabase
-          .from("site_keys")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (freshKeys) setSiteKeys(freshKeys);
-      } else {
-        // FOR PROFILES: We update the row...
+      if (formData.isLead) {
         const { error } = await supabase
+          .from("leads")
+          .update({ status: formData.status })
+          .eq("id", formData.id);
+        if (error) throw error;
+      } else {
+        if (formData.id === adminUser.id && formData.clearance < 3) {
+          alert("⛔ SYSTEM OVERRIDE: You cannot demote yourself.");
+          setFormStatus("idle");
+          return;
+        }
+        const { error: profileError } = await supabase
           .from("profiles")
           .update({
             full_name: formData.full_name,
             role: formData.role,
             clearance: formData.clearance,
             status: formData.status,
-            internal_notes: formData.internal_notes,
             updated_at: new Date(),
           })
           .eq("id", formData.id);
 
-        if (error) throw error;
+        if (profileError) throw profileError;
 
-        // --- 3. SURGICAL CONFIRMATION (The Fix) ---
-        // DO NOT reload the whole database. Just check this ONE user to be sure.
-        const { data: confirmedRow } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", formData.id)
-          .single();
-
-        // If the server confirms the data, we lock it in.
-        // If the server data is somehow different, this corrects it without flashing the whole list.
-        if (confirmedRow) {
-          setMasterRoster((prev) =>
-            prev.map((p) => (p.id === formData.id ? confirmedRow : p))
-          );
+        // Update Roster Tables
+        if (formData.role === "actor") {
+          if (formData.public)
+            await supabase
+              .from("actor_roster_public")
+              .upsert({ id: formData.id, ...formData.public });
+          if (formData.private)
+            await supabase
+              .from("actor_private")
+              .upsert({ id: formData.id, ...formData.private });
+        } else if (formData.role === "artist") {
+          if (formData.public)
+            await supabase
+              .from("artist_roster_public")
+              .upsert({ id: formData.id, ...formData.public });
+          if (formData.private)
+            await supabase
+              .from("artist_private")
+              .upsert({ id: formData.id, ...formData.private });
+        } else if (formData.role === "author") {
+          if (formData.public)
+            await supabase
+              .from("author_roster_public")
+              .upsert({ id: formData.id, ...formData.public });
+          if (formData.private)
+            await supabase
+              .from("author_private")
+              .upsert({ id: formData.id, ...formData.private });
+        } else if (TEAM_ROLES.includes(formData.role)) {
+          if (formData.public)
+            await supabase
+              .from("team_about_public")
+              .upsert({ id: formData.id, ...formData.public });
+          if (formData.private)
+            await supabase
+              .from("team_private")
+              .upsert({ id: formData.id, ...formData.private });
         }
       }
 
+      await refreshDatabase();
       setFormStatus("success");
       setTimeout(() => setFormStatus("idle"), 1500);
     } catch (err) {
-      console.error(err);
       alert("SAVE ERROR: " + err.message);
       setFormStatus("error");
-      // Only on CRITICAL failure do we try to reload everything to get back to a known state
-      refreshDatabase();
     }
   };
 
-  const handleGenerateKey = () => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "VIP-";
-    for (let i = 0; i < 6; i++)
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-
-    setSelectedId(null);
-    setFormData({ key_code: code, assigned_role: "investor", is_active: true });
-    setEditorMode("create_key");
+  const handleGenerateTempPassword = () => {
+    const chars = "abcdefghijkmnpqrstuvwxyz23456789!@#$%";
+    let pass = Array(12)
+      .fill(0)
+      .map(() => chars.charAt(Math.floor(Math.random() * chars.length)))
+      .join("");
+    setGeneratedPass(pass);
   };
 
-  // --- STYLES HELPER ---
-  // Dynamic classes based on isDarkMode
+  if (!isSessionLoading && denied) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden p-6 font-sans">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#ef4444_0%,_transparent_40%)] opacity-20" />
+        <div className="z-10 w-full max-w-md bg-[#0a0a0a] border border-red-500/20 rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+            <ShieldAlert className="text-red-500" size={32} />
+          </div>
+          <h2 className="text-2xl font-black tracking-widest text-white mb-2 uppercase">
+            Titan Protocol
+          </h2>
+          <div className="h-px w-full bg-red-900/50 my-4" />
+          <p className="text-sm text-red-400 font-mono mb-8 leading-relaxed uppercase tracking-wider">
+            {denialReason}
+          </p>
+          <button
+            onClick={() => router.push("/hub")}
+            className="w-full py-4 bg-white text-black rounded-xl font-bold uppercase tracking-widest hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+          >
+            Return to Hub <ArrowRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSessionLoading) {
+    return (
+      <div
+        className={`h-screen w-full flex flex-col items-center justify-center gap-6 ${
+          isDarkMode ? "bg-black" : "bg-slate-50"
+        }`}
+      >
+        <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+        <div className="font-mono text-cyan-600 text-xs tracking-[0.3em] animate-pulse">
+          INITIALIZING TITAN PROTOCOL...
+        </div>
+      </div>
+    );
+  }
+
   const theme = {
     bg: isDarkMode ? "bg-[#050505]" : "bg-slate-50",
     panelBg: isDarkMode ? "bg-[#0A0A0A]" : "bg-white",
     text: isDarkMode ? "text-slate-200" : "text-slate-800",
     border: isDarkMode ? "border-white/10" : "border-slate-200",
     inputBg: isDarkMode ? "bg-white/5" : "bg-slate-100",
-    inputBorder: isDarkMode ? "border-white/10" : "border-slate-300",
     cardBg: isDarkMode ? "bg-white/5" : "bg-white",
     cardHover: isDarkMode ? "hover:border-white/20" : "hover:border-cyan-500",
-    accent: "text-cyan-500",
   };
-
-  // --- 7. RENDER ---
-  if (isSessionLoading) return <LoadingScreen isDarkMode={isDarkMode} />;
-  if (!isAuthenticated)
-    return (
-      <LoginScreen
-        onLogin={initSession}
-        error={authError}
-        isDarkMode={isDarkMode}
-      />
-    );
 
   return (
     <div
       className={`h-screen w-full ${theme.bg} ${theme.text} overflow-hidden flex flex-col font-sans transition-colors duration-300`}
     >
-      {/* === HEADER === */}
       <header
         className={`h-16 border-b ${theme.border} ${
           isDarkMode ? "bg-black/50" : "bg-white/80"
         } backdrop-blur-md flex items-center justify-between px-6 shrink-0 z-50`}
       >
         <div className="flex items-center gap-4">
-          <div
-            className={`w-8 h-8 rounded bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-white shadow-lg`}
-          >
+          <div className="w-8 h-8 rounded bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-white shadow-lg">
             <Database size={16} />
           </div>
           <div>
@@ -469,49 +643,42 @@ export default function MasterControllerTitan() {
               Titan<span className="text-cyan-600">OS</span>
             </h1>
             <div className="flex items-center gap-2">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  globalLock ? "bg-red-500 animate-pulse" : "bg-emerald-500"
-                }`}
-              />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span className="text-[10px] font-mono text-slate-500 uppercase">
-                {globalLock ? "SITE LOCKED (DEFCON 1)" : "SYSTEM ONLINE"}
+                SYSTEM ONLINE
               </span>
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-4">
-          {/* GLOBAL SITE LOCK TOGGLE */}
+        <div className="flex items-center gap-3">
+          <div className="h-6 w-px bg-slate-500/20 mx-1" />
           <button
-            onClick={toggleGlobalLock}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${
-              globalLock
-                ? "bg-red-500/10 border-red-500 text-red-500"
-                : `${theme.inputBg} ${theme.border} text-slate-400`
-            }`}
-            title="Toggle Site Lock (Maintenance Mode)"
+            onClick={() => router.push("/hub")}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all border ${theme.border} ${theme.inputBg} hover:border-cyan-500/50 hover:text-cyan-500 text-slate-400`}
           >
-            {globalLock ? <Lock size={14} /> : <Unlock size={14} />}
+            <LayoutDashboard size={14} />
             <span className="text-[10px] font-bold uppercase hidden md:inline">
-              {globalLock ? "LOCKED" : "OPEN"}
+              Command Hub
             </span>
           </button>
-
-          <div className="h-6 w-px bg-slate-500/20 mx-2" />
-
-          {/* THEME TOGGLE */}
+          <div className="h-6 w-px bg-slate-500/20 mx-1" />
+          <button
+            onClick={() => setAccountModalOpen(true)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${theme.border} ${theme.inputBg} hover:border-emerald-500/50 hover:text-emerald-500 text-slate-400`}
+          >
+            <UserCog size={16} />
+          </button>
+          <div className="h-6 w-px bg-slate-500/20 mx-1" />
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className={`p-2 rounded-lg transition-colors ${theme.inputBg} hover:text-cyan-600 text-slate-400`}
           >
             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-
           <button
             onClick={async () => {
               await supabase.auth.signOut();
-              setIsAuthenticated(false);
+              router.push("/hub");
             }}
             className={`p-2 rounded-lg text-slate-400 hover:text-red-500 transition-colors ${theme.inputBg}`}
           >
@@ -520,20 +687,19 @@ export default function MasterControllerTitan() {
         </div>
       </header>
 
-      {/* === MAIN LAYOUT === */}
       <div className="flex-1 flex overflow-hidden">
-        {/* --- LEFT PANEL: EDITOR --- */}
         <aside
-          className={`w-[450px] border-r ${theme.border} ${theme.panelBg} flex flex-col shrink-0 z-40 shadow-2xl relative transition-colors duration-300`}
+          className={`w-[450px] border-r ${theme.border} ${theme.panelBg} flex flex-col shrink-0 z-40 shadow-2xl relative transition-colors duration-300 overflow-y-auto custom-scrollbar`}
         >
+          <AccountModal
+            isOpen={accountModalOpen}
+            onClose={() => setAccountModalOpen(false)}
+          />
           <div className={`p-6 border-b ${theme.border}`}>
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <UserCog size={14} /> Inspector Panel
             </h2>
-
-            {!formData.id &&
-            activeTab !== "keys" &&
-            editorMode !== "create_key" ? (
+            {!formData.id ? (
               <div
                 className={`h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed ${theme.border} rounded-2xl ${theme.inputBg}`}
               >
@@ -541,194 +707,176 @@ export default function MasterControllerTitan() {
                 <p className={`text-sm font-medium ${theme.text}`}>
                   No Record Selected
                 </p>
-                <p className="text-xs text-slate-500 mt-2">
-                  Select a user from the grid to modify permissions.
-                </p>
               </div>
             ) : (
               <div className="space-y-6 animate-in slide-in-from-left-4 duration-300">
-                {/* HEADSHOT & NAME */}
                 <div className="flex items-start gap-4">
                   <div
-                    className={`w-16 h-16 rounded-xl ${theme.inputBg} border ${theme.border} flex items-center justify-center shrink-0 overflow-hidden relative`}
+                    className={`w-16 h-16 rounded-xl ${theme.inputBg} border ${theme.border} flex items-center justify-center shrink-0 overflow-hidden`}
                   >
-                    {formData.headshot_url ? (
-                      <img
-                        src={formData.headshot_url}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-2xl font-black text-slate-400">
-                        {formData.full_name?.charAt(0) || "?"}
-                      </span>
-                    )}
+                    <span className="text-2xl font-black text-slate-400">
+                      {formData.full_name?.charAt(0) || "?"}
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    {activeTab === "keys" ? (
-                      <div>
-                        <label className="text-[10px] font-bold text-cyan-500 uppercase tracking-widest">
-                          Access Key
-                        </label>
-                        <div
-                          className={`text-xl font-mono font-bold ${
-                            isDarkMode ? "text-white" : "text-slate-900"
-                          } tracking-widest`}
-                        >
-                          {formData.key_code}
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <input
-                          value={formData.full_name || ""}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              full_name: e.target.value,
-                            })
-                          }
-                          className={`bg-transparent text-lg font-bold ${
-                            isDarkMode ? "text-white" : "text-slate-900"
-                          } w-full outline-none placeholder:text-slate-500`}
-                          placeholder="FULL NAME"
-                        />
-                        <div className="flex items-center gap-2 mt-1">
-                          <Mail size={12} className="text-slate-500" />
-                          <span className="text-xs font-mono text-slate-500 truncate">
-                            {formData.email}
-                          </span>
-                        </div>
-                      </div>
-                    )}
+                    <input
+                      disabled={formData.isLead}
+                      value={formData.full_name || ""}
+                      onChange={(e) =>
+                        setFormData({ ...formData, full_name: e.target.value })
+                      }
+                      className={`bg-transparent text-lg font-bold ${theme.text} w-full outline-none placeholder:text-slate-500 disabled:opacity-50`}
+                      placeholder="FULL NAME"
+                    />
+                    <div className="flex items-center gap-2 mt-1">
+                      <Mail size={12} className="text-slate-500" />
+                      <span className="text-xs font-mono text-slate-500 truncate">
+                        {formData.email}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* --- CONTROLS --- */}
                 <div
                   className={`p-5 border ${
                     theme.border
-                  } rounded-2xl relative overflow-hidden group ${
+                  } rounded-2xl relative overflow-hidden ${
                     isDarkMode ? "bg-slate-900" : "bg-slate-50"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-4">
                     <Shield size={14} className="text-cyan-500" />
                     <span className="text-[10px] font-black uppercase text-cyan-500 tracking-widest">
-                      Clearance & Role
+                      {formData.isLead ? "Lead Status" : "Permissions"}
                     </span>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
-                    {/* 1. SYSTEM ROLE (Restored) */}
                     <div className="col-span-2">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1.5 block">
-                        System Role
+                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
+                        Type
                       </label>
-                      <select
-                        value={formData.role || "actor"}
-                        onChange={(e) => {
-                          const r = e.target.value;
-                          const config = ROLE_CONFIG[r];
-                          setFormData({
-                            ...formData,
-                            role: r,
-                            clearance: config ? config.clearance : 1,
-                          });
-                        }}
-                        className={`w-full ${theme.inputBg} ${theme.inputBorder} border rounded-lg px-3 py-2.5 text-sm ${theme.text} font-medium outline-none transition-all`}
-                      >
-                        <optgroup label="Command">
-                          {TAB_GROUPS.COMMAND.map((r) => (
-                            <option key={r} value={r}>
-                              {r.toUpperCase()}
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Talent">
-                          {TAB_GROUPS.TALENT.map((r) => (
-                            <option key={r} value={r}>
-                              {r.toUpperCase()}
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
-                    </div>
-
-                    {/* 2. CLEARANCE */}
-                    <div>
-                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1.5 block">
-                        Clearance
-                      </label>
-                      <select
-                        value={formData.clearance || 1}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            clearance: parseInt(e.target.value),
-                          })
+                      <input
+                        disabled
+                        value={
+                          formData.isLead
+                            ? `LEAD: ${formData.source?.toUpperCase()}`
+                            : formData.role?.toUpperCase()
                         }
-                        className={`w-full ${theme.inputBg} ${theme.inputBorder} border rounded-lg px-3 py-2.5 text-sm ${theme.text} font-mono font-bold outline-none`}
-                      >
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <option key={n} value={n}>
-                            LEVEL {n}
-                          </option>
-                        ))}
-                      </select>
+                        className={`w-full ${theme.inputBg} border ${theme.border} rounded-lg px-3 py-2.5 text-sm ${theme.text} font-medium outline-none opacity-60`}
+                      />
                     </div>
-
-                    {/* 3. CONTRACT STATUS (The Correct 4-Option Version) */}
-                    <div>
-                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1.5 block">
-                        Contract Status
+                    {!formData.isLead && (
+                      <div>
+                        <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
+                          Clearance
+                        </label>
+                        <select
+                          value={formData.clearance || 0}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              clearance: parseInt(e.target.value),
+                            })
+                          }
+                          className={`w-full ${theme.inputBg} border ${theme.border} rounded-lg px-3 py-2.5 text-sm font-mono font-bold outline-none ${theme.text}`}
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>
+                              LEVEL {n}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className={formData.isLead ? "col-span-2" : ""}>
+                      <label className="text-[9px] font-bold text-slate-500 uppercase mb-1 block">
+                        Status
                       </label>
                       <select
                         value={formData.status || "active"}
                         onChange={(e) =>
                           setFormData({ ...formData, status: e.target.value })
                         }
-                        className={`w-full ${theme.inputBg} ${
-                          theme.inputBorder
-                        } border rounded-lg px-3 py-2.5 text-sm font-bold outline-none ${
-                          formData.status === "active"
-                            ? "text-emerald-500"
-                            : formData.status === "suspended"
-                            ? "text-amber-500"
-                            : formData.status === "quit"
-                            ? "text-slate-500"
-                            : "text-red-600"
-                        }`}
+                        className={`w-full ${theme.inputBg} border ${theme.border} rounded-lg px-3 py-2.5 text-sm font-bold outline-none text-emerald-500`}
                       >
                         <option value="active">ACTIVE</option>
                         <option value="suspended">SUSPENDED</option>
-                        <option value="quit">QUIT (Voluntary)</option>
-                        <option value="terminated">TERMINATED</option>
+                        <option value="banned">BANNED</option>
+                        {formData.isLead && (
+                          <option value="converted">CONVERTED</option>
+                        )}
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* NOTES */}
-                <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase mb-1.5 block">
-                    Internal Ledger
-                  </label>
-                  <textarea
-                    value={formData.internal_notes || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        internal_notes: e.target.value,
-                      })
-                    }
-                    className={`w-full h-32 ${theme.inputBg} ${theme.inputBorder} border rounded-xl p-3 text-xs ${theme.text} font-mono resize-none outline-none placeholder:text-slate-500`}
-                    placeholder="Secure admin notes..."
-                  />
-                </div>
+                {!formData.isLead && (
+                  <>
+                    {formData.role === "actor" && (
+                      <ActorEditor
+                        formData={formData}
+                        setFormData={setFormData}
+                        theme={theme}
+                      />
+                    )}
+                    {formData.role === "artist" && (
+                      <ArtistEditor
+                        formData={formData}
+                        setFormData={setFormData}
+                        theme={theme}
+                      />
+                    )}
+                    {formData.role === "author" && (
+                      <AuthorEditor
+                        formData={formData}
+                        setFormData={setFormData}
+                        theme={theme}
+                      />
+                    )}
+                    {TEAM_ROLES.includes(formData.role) && (
+                      <TeamEditor
+                        formData={formData}
+                        setFormData={setFormData}
+                        theme={theme}
+                      />
+                    )}
+
+                    <div
+                      className={`p-4 border ${theme.border} rounded-xl bg-orange-500/5 mt-4`}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-[9px] font-bold text-orange-500 uppercase">
+                          Temp Password Generator
+                        </label>
+                        <button
+                          onClick={handleGenerateTempPassword}
+                          className="text-[10px] text-orange-400 hover:text-white underline"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={generatedPass}
+                          placeholder="Click Generate..."
+                          className={`flex-1 bg-white/5 border ${theme.border} rounded px-2 py-1 text-xs font-mono ${theme.text}`}
+                        />
+                        <button
+                          onClick={() =>
+                            navigator.clipboard.writeText(generatedPass)
+                          }
+                          className="p-1.5 bg-orange-500 text-white rounded hover:bg-orange-600"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
-
           <div
             className={`mt-auto p-6 border-t ${theme.border} ${
               isDarkMode ? "bg-black" : "bg-slate-50"
@@ -736,7 +884,7 @@ export default function MasterControllerTitan() {
           >
             <button
               onClick={handleSave}
-              disabled={!formData.id && !formData.key_code}
+              disabled={!formData.id}
               className={`w-full h-12 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all ${
                 isDarkMode
                   ? "bg-white text-black hover:bg-cyan-400"
@@ -753,11 +901,9 @@ export default function MasterControllerTitan() {
           </div>
         </aside>
 
-        {/* --- RIGHT PANEL: THE GRID --- */}
         <main
-          className={`flex-1 ${theme.bg} flex flex-col relative transition-colors duration-300`}
+          className={`flex-1 ${theme.bg} flex flex-col relative overflow-hidden transition-colors duration-300`}
         >
-          {/* Toolbar */}
           <div
             className={`h-16 border-b ${
               theme.border
@@ -774,7 +920,8 @@ export default function MasterControllerTitan() {
                 { id: "all", label: "All Users" },
                 { id: "command", label: "Command" },
                 { id: "talent", label: "Talent" },
-                { id: "keys", label: "Access Keys" },
+                { id: "customers", label: "Customers" },
+                { id: "leads", label: "Leads" }, // NEW TAB
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -797,25 +944,55 @@ export default function MasterControllerTitan() {
               ))}
             </div>
 
-            {/* SUB FILTERS */}
-            {(activeTab === "command" || activeTab === "talent") && (
-              <div className="flex gap-2">
-                {(activeTab === "command"
-                  ? TAB_GROUPS.COMMAND
-                  : TAB_GROUPS.TALENT
-                ).map((role) => (
+            {/* Leads Sub-Filter */}
+            {activeTab === "leads" && (
+              <div
+                className={`flex ${
+                  isDarkMode ? "bg-white/5" : "bg-slate-200"
+                } rounded-lg p-1 animate-in fade-in slide-in-from-left-2 duration-300`}
+              >
+                {[
+                  { id: "all", label: "All Leads" },
+                  { id: "newsletter", label: "Newsletter" },
+                  { id: "shop", label: "Shop" },
+                  { id: "academy", label: "Academy" },
+                ].map((sub) => (
                   <button
-                    key={role}
-                    onClick={() =>
-                      setSubFilter(subFilter === role ? "all" : role)
-                    }
-                    className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border transition-all ${
-                      subFilter === role
-                        ? "bg-cyan-500/10 border-cyan-500 text-cyan-600"
-                        : `bg-transparent ${theme.border} text-slate-500 hover:border-slate-400`
+                    key={sub.id}
+                    onClick={() => setSubFilter(sub.id)}
+                    className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${
+                      subFilter === sub.id
+                        ? "bg-orange-500 text-white shadow-sm"
+                        : "text-slate-500 hover:text-orange-600"
                     }`}
                   >
-                    {role}
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === "customers" && (
+              <div
+                className={`flex ${
+                  isDarkMode ? "bg-white/5" : "bg-slate-200"
+                } rounded-lg p-1 animate-in fade-in slide-in-from-left-2 duration-300`}
+              >
+                {[
+                  { id: "all", label: "Combined" },
+                  { id: "customer", label: "Shop" },
+                  { id: "student", label: "Academy" },
+                ].map((sub) => (
+                  <button
+                    key={sub.id}
+                    onClick={() => setSubFilter(sub.id)}
+                    className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${
+                      subFilter === sub.id
+                        ? "bg-cyan-500 text-white shadow-sm"
+                        : "text-slate-500 hover:text-cyan-600"
+                    }`}
+                  >
+                    {sub.label}
                   </button>
                 ))}
               </div>
@@ -831,49 +1008,24 @@ export default function MasterControllerTitan() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className={`bg-transparent border ${theme.border} rounded-full py-2 pl-9 pr-4 text-xs ${theme.text} placeholder:text-slate-400 outline-none w-48 transition-all focus:w-64`}
-                  placeholder="Search..."
+                  placeholder="Search database..."
                 />
               </div>
-              {activeTab === "keys" && (
-                <button
-                  onClick={handleGenerateKey}
-                  className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase hover:bg-emerald-500 transition-all flex items-center gap-2"
-                >
-                  <Key size={12} /> Generate
-                </button>
-              )}
             </div>
           </div>
-
-          {/* GRID CONTENT */}
           <div className="flex-1 overflow-y-auto p-6">
-            {processedList.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center opacity-30">
-                <Database
-                  size={48}
-                  className={`mb-4 ${
-                    isDarkMode ? "text-slate-700" : "text-slate-300"
-                  }`}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+              {processedList.map((item) => (
+                <Card
+                  key={item.id}
+                  data={item}
+                  isSelected={selectedId === item.id}
+                  onClick={() => handleSelectUser(item)}
+                  theme={theme}
+                  isDarkMode={isDarkMode}
                 />
-                <p className="font-mono uppercase tracking-widest text-sm text-slate-500">
-                  No Records Found
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-                {processedList.map((item) => (
-                  <Card
-                    key={item.id}
-                    data={item}
-                    type={activeTab === "keys" ? "key" : "user"}
-                    isSelected={selectedId === item.id}
-                    onClick={() => handleSelectUser(item)}
-                    theme={theme}
-                    isDarkMode={isDarkMode}
-                  />
-                ))}
-              </div>
-            )}
+              ))}
+            </div>
           </div>
         </main>
       </div>
@@ -881,52 +1033,10 @@ export default function MasterControllerTitan() {
   );
 }
 
-// --- SUB COMPONENTS ---
-
-const Card = ({ data, type, isSelected, onClick, theme, isDarkMode }) => {
-  if (type === "key") {
-    return (
-      <div
-        onClick={onClick}
-        className={`group relative p-4 rounded-xl border cursor-pointer transition-all ${
-          isSelected
-            ? "bg-cyan-500/10 border-cyan-500"
-            : `${theme.cardBg} ${theme.border} ${theme.cardHover}`
-        }`}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <div
-            className={`p-2 rounded-lg ${
-              data.is_active
-                ? "bg-emerald-500/20 text-emerald-600"
-                : "bg-red-500/20 text-red-600"
-            }`}
-          >
-            {data.is_active ? <Unlock size={16} /> : <Lock size={16} />}
-          </div>
-          <span className="text-[10px] font-mono text-slate-400">
-            {new Date(data.created_at).toLocaleDateString()}
-          </span>
-        </div>
-        <div
-          className={`font-mono text-lg font-bold ${theme.text} tracking-widest mb-1`}
-        >
-          {data.key_code}
-        </div>
-        <div className="flex gap-2">
-          <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded">
-            {data.assigned_role}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // User Card
+const Card = ({ data, isSelected, onClick, theme, isDarkMode }) => {
   const roleConfig = ROLE_CONFIG[data.role] || ROLE_CONFIG.public;
   const RoleIcon = roleConfig.icon;
   const style = isDarkMode ? roleConfig.dark : roleConfig.light;
-
   return (
     <div
       onClick={onClick}
@@ -939,35 +1049,27 @@ const Card = ({ data, type, isSelected, onClick, theme, isDarkMode }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-lg ${theme.inputBg} overflow-hidden relative border ${theme.border}`}
+            className={`w-10 h-10 rounded-lg ${theme.inputBg} overflow-hidden relative border ${theme.border} flex items-center justify-center`}
           >
-            {data.headshot_url ? (
-              <img
-                src={data.headshot_url}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <User
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-slate-400"
-                size={20}
-              />
-            )}
+            <span className="text-lg font-black text-slate-500">
+              {data.full_name?.charAt(0)}
+            </span>
           </div>
           <div>
             <h3 className={`text-sm font-bold ${theme.text} line-clamp-1`}>
-              {data.full_name || "Unknown"}
+              {data.full_name || "Unknown User"}
             </h3>
-            <p className="text-[10px] text-slate-500 font-mono">{data.email}</p>
+            <p className="text-[10px] text-slate-500 font-mono truncate w-32">
+              {data.email}
+            </p>
           </div>
         </div>
       </div>
-
       <div className="flex items-center gap-2">
         <div
           className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase border ${style.bg} ${style.color} ${style.border}`}
         >
-          <RoleIcon size={10} />
-          {roleConfig.label}
+          <RoleIcon size={10} /> {roleConfig.label}
         </div>
         <div
           className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${
@@ -976,104 +1078,8 @@ const Card = ({ data, type, isSelected, onClick, theme, isDarkMode }) => {
               : "bg-slate-100 border-slate-200 text-slate-600"
           }`}
         >
-          LVL {data.clearance || 0}
+          {data.isLead ? "LEAD" : `LVL ${data.clearance || 0}`}
         </div>
-      </div>
-    </div>
-  );
-};
-
-const LoadingScreen = ({ isDarkMode }) => (
-  <div
-    className={`h-screen w-full flex flex-col items-center justify-center gap-6 ${
-      isDarkMode ? "bg-black" : "bg-slate-50"
-    }`}
-  >
-    <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
-    <div className="font-mono text-cyan-600 text-xs tracking-[0.3em] animate-pulse">
-      INITIALIZING TITAN PROTOCOL...
-    </div>
-  </div>
-);
-
-const LoginScreen = ({ onLogin, error, isDarkMode }) => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  return (
-    <div
-      className={`h-screen w-full flex items-center justify-center relative overflow-hidden ${
-        isDarkMode ? "bg-[#050505]" : "bg-slate-100"
-      }`}
-    >
-      <div className="w-full max-w-md p-8 rounded-3xl shadow-2xl relative z-10 backdrop-blur-xl border bg-white/5 border-white/10">
-        <div className="mb-8 text-center">
-          <div
-            className={`w-12 h-12 rounded-xl mx-auto flex items-center justify-center mb-4 border ${
-              isDarkMode
-                ? "bg-white/5 border-white/10 text-white"
-                : "bg-slate-200 border-slate-300 text-slate-800"
-            }`}
-          >
-            <Shield size={24} />
-          </div>
-          <h1
-            className={`text-2xl font-black tracking-tighter uppercase ${
-              isDarkMode ? "text-white" : "text-slate-900"
-            }`}
-          >
-            Titan<span className="text-cyan-600">OS</span>
-          </h1>
-          <p className="text-slate-500 text-xs font-mono mt-2 tracking-widest">
-            RESTRICTED ACCESS: LEVEL 3+
-          </p>
-        </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onLogin();
-          }}
-          className="space-y-4"
-        >
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="OPERATOR ID"
-            className={`w-full border rounded-xl p-4 outline-none focus:border-cyan-500 transition-all font-mono text-sm ${
-              isDarkMode
-                ? "bg-white/5 border-white/10 text-white"
-                : "bg-slate-50 border-slate-300 text-slate-900"
-            }`}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="ACCESS CODE"
-            className={`w-full border rounded-xl p-4 outline-none focus:border-cyan-500 transition-all font-mono text-sm ${
-              isDarkMode
-                ? "bg-white/5 border-white/10 text-white"
-                : "bg-slate-50 border-slate-300 text-slate-900"
-            }`}
-          />
-          <button
-            className={`w-full h-12 rounded-xl font-bold uppercase tracking-widest transition-all ${
-              isDarkMode
-                ? "bg-white text-black hover:bg-cyan-400"
-                : "bg-slate-900 text-white hover:bg-cyan-600"
-            }`}
-          >
-            ENTER SYSTEM
-          </button>
-        </form>
-        {error && (
-          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-mono text-center">
-            {error}
-          </div>
-        )}
       </div>
     </div>
   );
