@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "../ui/ThemeContext";
+// 🟢 IMPORT THE MATCHMAKER
+import { runCreativeMatch } from "../../utils/dashboard/matchmaker";
 
 // UI COMPONENTS
 import ProjectSelectionCard from "./ProjectSelectionCard";
@@ -15,8 +17,6 @@ import {
   BookOpen,
   Mic,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   AlertTriangle,
   Star,
   Music,
@@ -32,59 +32,16 @@ import {
   Settings2,
   Clock,
   ChevronRight as ChevronRightIcon,
+  Play,
+  Pause,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
-
-// --- MATCHMAKER ALGO ---
-export function runCreativeMatch(role, roster) {
-  if (!roster || !role) return [];
-  const roleGender = (role["Gender"] || "any").toLowerCase().trim();
-  const roleAge = (role["Age Range"] || "").toLowerCase().trim();
-  const roleSpecs = (role["Vocal Specs"] || "").toLowerCase();
-
-  let requestedActorName = null;
-  if (roleSpecs.includes("client request:")) {
-    const parts = roleSpecs.split("client request:");
-    if (parts[1])
-      requestedActorName = parts[1].replace(/\*\*/g, "").trim().toLowerCase();
-  }
-
-  let candidates = roster.filter((actor) => {
-    const actorGender = (actor.gender || "").toLowerCase().trim();
-    if (["any", "tbd", ""].includes(roleGender)) return true;
-    if (roleGender === "male")
-      return actorGender.includes("male") && !actorGender.includes("female");
-    if (roleGender === "female") return actorGender.includes("female");
-    return actorGender === roleGender;
-  });
-
-  const scoredCandidates = candidates.map((actor) => {
-    if (requestedActorName && actor.name.toLowerCase() === requestedActorName) {
-      return { actor: actor, score: 100, isRequested: true };
-    }
-    let score = 0;
-    const actorAges = (actor.ages || actor.age_range || "").toLowerCase();
-    const actorVoice = (actor.voice || "").toLowerCase();
-    const actorGenres = (actor.genres || "").toLowerCase();
-
-    if (roleAge && actorAges.includes(roleAge)) score += 60;
-    const keywords = roleSpecs.split(/[\s,.-]+/).filter((k) => k.length > 3);
-
-    keywords.forEach((word) => {
-      if (word === "client" || word === "request") return;
-      if (actorVoice.includes(word)) score += 15;
-      if (actorGenres.includes(word)) score += 10;
-    });
-
-    return { actor: actor, score: Math.min(score + 5, 99) };
-  });
-
-  return scoredCandidates.sort((a, b) => b.score - a.score);
-}
 
 export default function ProjectIntakeForm() {
   const { setTheme, activeColor, activeStyles, isCinematic, baseColor } =
@@ -98,11 +55,13 @@ export default function ProjectIntakeForm() {
   // STATE: Modals
   const [isScoutOpen, setIsScoutOpen] = useState(false);
   const [scoutTargetIndex, setScoutTargetIndex] = useState(null);
-  const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
+  const [isGenreModalOpen, setIsGenreModalOpen] = useState(false); // Project level
 
   // WIRED: Modal States for Specs
-  const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
+  const [genderModalIdx, setGenderModalIdx] = useState(null);
   const [ageModalIdx, setAgeModalIdx] = useState(null);
+  const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
+  const [charGenreModalIdx, setCharGenreModalIdx] = useState(null); // 🟢 NEW: Character Specific Genre
   const [accentModalIdx, setAccentModalIdx] = useState(null);
 
   // STATE: DB Data
@@ -111,6 +70,7 @@ export default function ProjectIntakeForm() {
     vocalQualities: [],
     ageRanges: [],
     accents: [],
+    gender: [],
   });
   const [roster, setRoster] = useState([]);
 
@@ -163,6 +123,10 @@ export default function ProjectIntakeForm() {
           accents: listData
             .filter((i) => i.category === "accent")
             .map((i) => i.label),
+          gender:
+            listData
+              .filter((i) => i.category === "gender")
+              .map((i) => i.label) || [],
         });
       }
 
@@ -170,7 +134,7 @@ export default function ProjectIntakeForm() {
       const { data: rosterData } = await supabase
         .from("actor_roster_public")
         .select(
-          "id, display_name, headshot_url, voice_types, genres, age_ranges"
+          "id, display_name, headshot_url, voice_types, genres, age_ranges, gender, demo_reel_url, accents"
         )
         .order("display_name");
 
@@ -180,12 +144,12 @@ export default function ProjectIntakeForm() {
             id: r.id,
             name: r.display_name,
             headshot_url: r.headshot_url,
-            gender: r.display_name.toLowerCase().includes("actor")
-              ? "male"
-              : "any",
-            voice: r.voice_types?.join(" ") || "",
-            genres: r.genres?.join(" ") || "",
+            gender: r.gender || "any",
+            voice: r.voice_types?.join(", ") || "",
+            genres: r.genres?.join(", ") || "",
             age_range: r.age_ranges?.join(" ") || "",
+            accents: r.accents?.join(", ") || "",
+            demoUrl: r.demo_reel_url || null,
           }))
         );
       }
@@ -213,7 +177,6 @@ export default function ProjectIntakeForm() {
   };
 
   const handleWordCountChange = (e) => {
-    // 🛠️ Fix: Strip non-numeric characters to prevent loop
     const raw = e.target.value.replace(/[^0-9]/g, "");
     setFormData({ ...formData, word_count: raw });
   };
@@ -238,6 +201,7 @@ export default function ProjectIntakeForm() {
           gender: "",
           age: "",
           accent: "",
+          genre: "", // 🟢 NEW FIELD
           voiceTypes: [],
           preferredActorId: null,
         }))
@@ -263,7 +227,6 @@ export default function ProjectIntakeForm() {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
-
     try {
       const { error } = await supabase.from("project_intake").insert([
         {
@@ -287,12 +250,12 @@ export default function ProjectIntakeForm() {
             gender: c.gender || "Any",
             age: c.age || "Any",
             accent: c.accent || "General American",
+            genre: c.genre || "Any", // 🟢 PASSED TO DB
             vocal_qualities: c.voiceTypes || [],
             actor_request: c.preferredActorId || null,
           })),
         },
       ]);
-
       if (error) throw error;
       setSubmitStatus("success");
     } catch (err) {
@@ -302,6 +265,7 @@ export default function ProjectIntakeForm() {
       setIsSubmitting(false);
     }
   };
+
   const serviceBase = [
     {
       baseType: "Solo",
@@ -311,8 +275,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Solo Audio Drama",
       standardDesc: "1 Narrator. Classic.",
       dramaDesc: "1 Narrator + SFX.",
-      standardPrice: "$", // 🟢 NEW
-      dramaPrice: "$$$", // 🟢 NEW
+      standardPrice: "$",
+      dramaPrice: "$$$",
     },
     {
       baseType: "Dual",
@@ -322,8 +286,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Dual Audio Drama",
       standardDesc: "2 Narrators (POV).",
       dramaDesc: "POV + Cinematic FX.",
-      standardPrice: "$$", // 🟢 NEW
-      dramaPrice: "$$$$", // 🟢 NEW
+      standardPrice: "$$",
+      dramaPrice: "$$$$",
     },
     {
       baseType: "Duet",
@@ -333,8 +297,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Duet Audio Drama",
       standardDesc: "Real-time Dialogue.",
       dramaDesc: "Dialogue + Score.",
-      standardPrice: "$$$", // 🟢 NEW
-      dramaPrice: "$$$$$", // 🟢 NEW
+      standardPrice: "$$$",
+      dramaPrice: "$$$$$",
     },
     {
       baseType: "Multi",
@@ -344,8 +308,8 @@ export default function ProjectIntakeForm() {
       dramaTitle: "Cinematic Drama",
       standardDesc: "Full Ensemble.",
       dramaDesc: "Movie for Ears.",
-      standardPrice: "$$$$", // 🟢 NEW
-      dramaPrice: "$x6", // 🟢 NEW
+      standardPrice: "$$$$",
+      dramaPrice: "$x6",
     },
   ];
 
@@ -390,7 +354,6 @@ export default function ProjectIntakeForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* SERVICE SELECTION */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {serviceBase.map((opt) => (
               <ProjectSelectionCard
@@ -401,7 +364,6 @@ export default function ProjectIntakeForm() {
                 icon={isCinematic ? opt.dramaIcon : opt.icon}
                 baseType={opt.baseType}
                 isDrama={isCinematic}
-                // 🟢 UI UPDATE: Display price based on mode
                 price={isCinematic ? opt.dramaPrice : opt.standardPrice}
                 isSelected={formData.base_format === opt.baseType}
                 onSelect={handleServiceSelect}
@@ -409,7 +371,6 @@ export default function ProjectIntakeForm() {
             ))}
           </section>
 
-          {/* TITLE INFO */}
           <section
             className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-md space-y-6"
             style={{ borderColor: `${activeColor}30` }}
@@ -507,7 +468,6 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* CHARACTER SPECS */}
           {formData.base_format && (
             <section
               className="glass-panel p-6 md:p-8"
@@ -521,30 +481,39 @@ export default function ProjectIntakeForm() {
                 {characters.map((char, index) => (
                   <div
                     key={index}
-                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative group/card"
+                    className="p-6 border border-white/5 rounded-2xl bg-[#0a0a15] relative group/card flex flex-col gap-4"
                   >
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <input
-                        placeholder="Role Name"
-                        className="col-span-2 bg-transparent border-b border-white/10 py-1 text-white outline-none focus:border-white/40 transition-all"
-                        value={char.name}
-                        onChange={(e) =>
-                          updateCharacter(index, "name", e.target.value)
-                        }
-                      />
+                    {/* 1. NAME */}
+                    <input
+                      placeholder="Role Name"
+                      className="w-full bg-transparent border-b border-white/10 py-1 text-white outline-none focus:border-white/40 transition-all"
+                      value={char.name}
+                      onChange={(e) =>
+                        updateCharacter(index, "name", e.target.value)
+                      }
+                    />
 
-                      <select
-                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-gray-400 text-xs outline-none focus:border-white/30 transition-all cursor-pointer hover:bg-white/5"
-                        value={char.gender}
-                        onChange={(e) =>
-                          updateCharacter(index, "gender", e.target.value)
-                        }
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* 2. GENDER */}
+                      <button
+                        type="button"
+                        onClick={() => setGenderModalIdx(index)}
+                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
                       >
-                        <option value="">Gender...</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                      </select>
+                        <span
+                          className={`truncate ${
+                            char.gender ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {char.gender || "Gender..."}
+                        </span>
+                        <ChevronRightIcon
+                          size={12}
+                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
+                        />
+                      </button>
 
+                      {/* 3. AGE */}
                       <button
                         type="button"
                         onClick={() => setAgeModalIdx(index)}
@@ -562,27 +531,10 @@ export default function ProjectIntakeForm() {
                           className="text-gray-600 group-hover:text-white transition-colors rotate-90"
                         />
                       </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setAccentModalIdx(index)}
-                        className="col-span-2 bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
-                      >
-                        <span
-                          className={`truncate ${
-                            char.accent ? "text-white" : "text-gray-400"
-                          }`}
-                        >
-                          {char.accent || "Specific Accent..."}
-                        </span>
-                        <ChevronRightIcon
-                          size={12}
-                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
-                        />
-                      </button>
                     </div>
 
-                    <div className="mb-6">
+                    {/* 4. VOCAL QUALITIES (Full Width) */}
+                    <div>
                       <label className="text-[9px] uppercase text-gray-600 font-bold block mb-2 tracking-widest">
                         Vocal Qualities (Max 3)
                       </label>
@@ -608,6 +560,46 @@ export default function ProjectIntakeForm() {
                           )}
                         </div>
                         <Layers size={14} className="text-gray-600" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* 5. GENRE (🟢 NEW) */}
+                      <button
+                        type="button"
+                        onClick={() => setCharGenreModalIdx(index)}
+                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
+                      >
+                        <span
+                          className={`truncate ${
+                            char.genre ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {char.genre || "Specific Genre..."}
+                        </span>
+                        <ChevronRightIcon
+                          size={12}
+                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
+                        />
+                      </button>
+
+                      {/* 6. ACCENT */}
+                      <button
+                        type="button"
+                        onClick={() => setAccentModalIdx(index)}
+                        className="bg-[#0d0d1a] border border-white/10 rounded-lg p-2 text-xs text-left flex justify-between items-center transition-all hover:border-white/30 hover:bg-white/5 cursor-pointer active:scale-[0.98] group"
+                      >
+                        <span
+                          className={`truncate ${
+                            char.accent ? "text-white" : "text-gray-400"
+                          }`}
+                        >
+                          {char.accent || "Accent..."}
+                        </span>
+                        <ChevronRightIcon
+                          size={12}
+                          className="text-gray-600 group-hover:text-white transition-colors rotate-90"
+                        />
                       </button>
                     </div>
 
@@ -643,7 +635,6 @@ export default function ProjectIntakeForm() {
             </section>
           )}
 
-          {/* TIMELINE */}
           <section
             className="bg-[#050510]/80 border border-white/10 rounded-3xl p-6 backdrop-blur-md relative z-[50]"
             style={{ borderColor: `${activeColor}30` }}
@@ -661,12 +652,9 @@ export default function ProjectIntakeForm() {
                 </span>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[0, 1].map((idx) => {
-                // 🔒 LOCKING LOGIC: If idx=1 (Option 2), verify Date 1 exists.
                 const isLocked = idx > 0 && !dates[idx - 1];
-
                 return (
                   <div key={idx} className="relative">
                     <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block tracking-widest">
@@ -718,7 +706,6 @@ export default function ProjectIntakeForm() {
             </div>
           </section>
 
-          {/* SUBMIT */}
           <div className="space-y-6">
             <div
               className="flex items-center gap-3 px-2 cursor-pointer group"
@@ -754,9 +741,46 @@ export default function ProjectIntakeForm() {
           </div>
         </form>
 
-        {/* --- MODALS (NO WRAPPER DIVS FOR SORTING) --- */}
+        {/* --- MODALS --- */}
+        <PopupSelection
+          isOpen={genderModalIdx !== null}
+          onClose={() => setGenderModalIdx(null)}
+          title="Character Gender"
+          activeColor={activeColor}
+          currentCount={
+            genderModalIdx !== null && characters[genderModalIdx]?.gender
+              ? 1
+              : 0
+          }
+          maxCount={1}
+        >
+          {dropdowns.gender?.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => {
+                updateCharacter(genderModalIdx, "gender", g);
+                setGenderModalIdx(null);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
+                genderModalIdx !== null &&
+                characters[genderModalIdx].gender === g
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor:
+                  genderModalIdx !== null &&
+                  characters[genderModalIdx].gender === g
+                    ? activeColor
+                    : undefined,
+              }}
+            >
+              {g}
+            </button>
+          ))}
+        </PopupSelection>
 
-        {/* 1. GENRES */}
         <PopupSelection
           isOpen={isGenreModalOpen}
           onClose={() => setIsGenreModalOpen(false)}
@@ -793,7 +817,6 @@ export default function ProjectIntakeForm() {
           ))}
         </PopupSelection>
 
-        {/* 2. VOCAL QUALITIES */}
         <PopupSelection
           isOpen={voiceTypeModalIdx !== null}
           onClose={() => setVoiceTypeModalIdx(null)}
@@ -830,7 +853,6 @@ export default function ProjectIntakeForm() {
           ))}
         </PopupSelection>
 
-        {/* 3. AGE RANGES */}
         <PopupSelection
           isOpen={ageModalIdx !== null}
           onClose={() => setAgeModalIdx(null)}
@@ -866,7 +888,46 @@ export default function ProjectIntakeForm() {
           ))}
         </PopupSelection>
 
-        {/* 4. ACCENTS */}
+        {/* 🟢 NEW CHARACTER GENRE MODAL */}
+        <PopupSelection
+          isOpen={charGenreModalIdx !== null}
+          onClose={() => setCharGenreModalIdx(null)}
+          title="Character Genre Vibe"
+          activeColor={activeColor}
+          currentCount={
+            charGenreModalIdx !== null && characters[charGenreModalIdx]?.genre
+              ? 1
+              : 0
+          }
+          maxCount={1}
+        >
+          {dropdowns.genres.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => {
+                updateCharacter(charGenreModalIdx, "genre", g);
+                setCharGenreModalIdx(null);
+              }}
+              className={`px-4 py-2 rounded-xl text-xs border transition-all ${
+                charGenreModalIdx !== null &&
+                characters[charGenreModalIdx].genre === g
+                  ? "text-black font-bold border-transparent"
+                  : "border-white/10 text-gray-400 hover:bg-white/5"
+              }`}
+              style={{
+                backgroundColor:
+                  charGenreModalIdx !== null &&
+                  characters[charGenreModalIdx].genre === g
+                    ? activeColor
+                    : undefined,
+              }}
+            >
+              {g}
+            </button>
+          ))}
+        </PopupSelection>
+
         <PopupSelection
           isOpen={accentModalIdx !== null}
           onClose={() => setAccentModalIdx(null)}
@@ -906,7 +967,6 @@ export default function ProjectIntakeForm() {
           ))}
         </PopupSelection>
 
-        {/* 5. SCOUT */}
         <PopupSelection
           isOpen={isScoutOpen}
           onClose={() => setIsScoutOpen(false)}
@@ -919,6 +979,7 @@ export default function ProjectIntakeForm() {
               : 0
           }
           maxCount={1}
+          isWide={true}
         >
           {scoutTargetIndex !== null && (
             <div className="space-y-3">
@@ -942,44 +1003,104 @@ export default function ProjectIntakeForm() {
 
 // --- HELPER COMPONENTS ---
 function ScoutResultsList({ roster, character, formData, onSelect }) {
+  const [playingId, setPlayingId] = useState(null);
+  const audioRef = useRef(typeof Audio !== "undefined" ? new Audio() : null);
+
+  const toggleAudio = (e, url, id) => {
+    e.stopPropagation();
+    if (!url) return;
+    if (playingId === id) {
+      audioRef.current.pause();
+      setPlayingId(null);
+    } else {
+      audioRef.current.src = url;
+      audioRef.current.play();
+      setPlayingId(id);
+    }
+  };
+
   const matchResults = useMemo(
     () =>
       runCreativeMatch(
         {
-          Gender: character?.gender || "any",
-          "Age Range": character?.age || "",
-          "Vocal Specs": `${formData.style} ${formData.notes} ${
-            character?.voiceTypes?.join(" ") || ""
-          }`,
+          gender: character?.gender,
+          age: character?.age,
+          voiceTypes: character?.voiceTypes,
+          genre: character?.genre, // 🟢 Passed to Matchmaker
+          accent: character?.accent,
+          specs: `${formData.style} ${formData.notes}`,
         },
         roster
       ),
     [character, roster, formData]
   );
-  return matchResults.map(({ actor, score }) => (
-    <div
-      key={actor.id}
-      className="flex items-center gap-4 p-4 rounded-3xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all cursor-pointer group"
-      onClick={() => onSelect(actor.id)}
-    >
-      <img
-        src={actor.headshot_url}
-        className="w-14 h-14 rounded-2xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-        alt="Actor"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <h4 className="text-white font-serif text-lg truncate tracking-wide">
+
+  return matchResults.map(({ actor, score }) => {
+    let scoreColorClass = "text-red-400 border-red-500/30 bg-red-500/10";
+    if (score >= 80)
+      scoreColorClass =
+        "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";
+    else if (score >= 50)
+      scoreColorClass = "text-amber-400 border-amber-500/30 bg-amber-500/10";
+
+    return (
+      <div
+        key={actor.id}
+        className="flex items-center gap-6 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition-all cursor-pointer group"
+        onClick={() => onSelect(actor.id)}
+      >
+        <button
+          type="button"
+          onClick={(e) => toggleAudio(e, actor.demoUrl, actor.id)}
+          className={`flex-none w-12 h-12 rounded-full flex items-center justify-center border transition-all ${
+            playingId === actor.id
+              ? "bg-white text-black border-white scale-110"
+              : "bg-white/5 text-white border-white/10 hover:border-white hover:scale-105"
+          }`}
+        >
+          {playingId === actor.id ? (
+            <Pause size={18} fill="currentColor" />
+          ) : (
+            <Play size={18} fill="currentColor" className="ml-0.5" />
+          )}
+        </button>
+        <img
+          src={actor.headshot_url}
+          className="w-16 h-16 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500 shadow-lg"
+          alt="Actor"
+        />
+        <div className="flex-1 min-w-0 text-left">
+          <h4 className="text-white font-serif text-xl tracking-wide">
             {actor.name}
           </h4>
-          <div className="px-2 py-0.5 rounded-md border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[9px] font-black uppercase tracking-tighter">
-            {score}% MATCH
+          <div className="flex flex-col gap-0.5 mt-1">
+            <p className="text-xs text-gray-400 truncate">
+              <span className="text-gray-600 uppercase text-[9px] font-bold tracking-wider mr-2">
+                Voice
+              </span>
+              <span className="text-gray-300">{actor.voice || "General"}</span>
+            </p>
+            <p className="text-xs text-gray-400 truncate">
+              <span className="text-gray-600 uppercase text-[9px] font-bold tracking-wider mr-2">
+                Genre
+              </span>
+              <span className="text-gray-300">{actor.genres || "General"}</span>
+            </p>
           </div>
         </div>
+        <div
+          className={`px-3 py-1.5 rounded-lg border ${scoreColorClass} flex flex-col items-center justify-center min-w-[60px]`}
+        >
+          <span className="text-lg font-black tracking-tighter leading-none">
+            {score}%
+          </span>
+          <span className="text-[8px] uppercase font-bold tracking-widest opacity-70">
+            Match
+          </span>
+        </div>
       </div>
-      <ChevronRightIcon size={16} className="text-gray-600" />
-    </div>
-  ));
+    );
+  });
 }
 
 function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
@@ -1011,11 +1132,11 @@ function ThemedCalendar({ activeColor, minDate, onSelect, selectedDate }) {
           }
         >
           <ChevronLeft size={16} />
-        </button>
+        </button>{" "}
         {viewDate.toLocaleString("default", {
           month: "short",
           year: "numeric",
-        })}
+        })}{" "}
         <button
           type="button"
           onClick={() =>
