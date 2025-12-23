@@ -1,3 +1,4 @@
+// src/components/ui/ThemeContext.js
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
@@ -39,6 +40,10 @@ export const getProjectTheme = (formatString) => {
 export function ThemeProvider({ children }) {
   const [themeName, setThemeName] = useState("gold");
   const [isCinematic, setIsCinematic] = useState(false);
+
+  // 🟢 NEW: Light Mode State (Defaults to false/Dark)
+  const [isLightMode, setIsLightMode] = useState(false);
+
   const pathname = usePathname();
 
   // ROUTE LISTENER (Preserves Marketing Site Logic)
@@ -58,15 +63,18 @@ export function ThemeProvider({ children }) {
       setThemeName(colorZones[activeKey]);
       setIsCinematic(false);
     } else if (
-      pathname?.includes("/crewportal") ||
+      pathname?.includes("/crew-portal") ||
       pathname?.includes("/dashboard")
     ) {
-      // Manual control for Dashboard
+      // Manual control for Dashboard - Keep existing state or default
     } else {
       setThemeName("gold");
       setIsCinematic(false);
     }
   }, [pathname]);
+
+  // 🟢 NEW: Toggle Function
+  const toggleLightMode = () => setIsLightMode((prev) => !prev);
 
   // 🟢 4. CALCULATE COLORS (The Bridge)
 
@@ -108,6 +116,10 @@ export function ThemeProvider({ children }) {
     setThemeName,
     isCinematic,
     setIsCinematic,
+
+    // Light Mode (New Addition)
+    isLightMode,
+    toggleLightMode,
 
     // Computed Values (New Dashboard Bridge)
     baseColor, // Always Gold/Pink/Cyan (For Titles/Borders)

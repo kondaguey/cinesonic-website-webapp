@@ -19,6 +19,7 @@ import {
   Lock,
   ChevronRight,
   AlertCircle,
+  Stars,
 } from "lucide-react";
 
 // Initialize Supabase
@@ -117,9 +118,13 @@ export default function HubPage() {
       >
         <Link
           href="/"
-          className="flex items-center gap-2 text-gray-500 hover:text-[#d4af37] text-xs uppercase tracking-widest transition-colors"
+          className="flex items-center gap-2 text-gray-500 hover:text-[#d4af37] text-xs uppercase tracking-widest transition-colors group"
         >
-          <Globe size={14} /> Return to Public Site
+          <Globe
+            size={14}
+            className="group-hover:rotate-90 transition-transform duration-700"
+          />{" "}
+          Return to Public Site
         </Link>
       </motion.div>
 
@@ -155,73 +160,49 @@ export default function HubPage() {
         </div>
 
         <div className="space-y-16">
-          {/* --- TIER 1: TALENT ROSTERS (Top Row) --- */}
+          {/* --- TIER 1: CREATIVE TALENT (Top Row) --- */}
           <div>
             <motion.div
               variants={itemVariants}
               className="flex items-center justify-center gap-4 mb-8 opacity-70"
             >
               <div className="h-px bg-gradient-to-r from-transparent to-[#00f0ff] w-24" />
-              <h3 className="text-[11px] uppercase tracking-[0.4em] font-black text-[#00f0ff] glow-sm text-center">
-                Talent Rosters
+              <h3 className="text-[11px] uppercase tracking-[0.4em] font-black text-[#00f0ff] glow-sm text-center flex items-center gap-2">
+                <Stars size={12} /> Creative Roster <Stars size={12} />
               </h3>
               <div className="h-px bg-gradient-to-l from-transparent to-[#00f0ff] w-24" />
             </motion.div>
 
             <div className="flex flex-wrap justify-center gap-8">
-              {/* ACTOR */}
-              <motion.div
-                variants={itemVariants}
-                whileHover="hover"
+              {/* 🎤 ACTOR PORTAL */}
+              <PortalCard
+                role="actor"
+                label="Actor Portal"
+                subLabel="Talent Login"
+                icon={Mic}
+                color="#00f0ff"
                 onClick={() => handleAccess("actor", "/actor-portal")}
-                className="cursor-pointer w-full md:w-96 group relative bg-[#0a0a0a] border border-white/10 hover:border-[#00f0ff] rounded-3xl p-10 flex flex-col items-center text-center overflow-hidden transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-[#00f0ff]/10 border border-[#00f0ff]/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 relative z-10">
-                  <Mic className="w-8 h-8 text-[#00f0ff]" />
-                </div>
-                <h2 className="text-2xl font-serif text-white mb-2 relative z-10 group-hover:text-[#00f0ff] transition-colors">
-                  Actor Portal
-                </h2>
-                <div className="mt-8 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-600 group-hover:text-white transition-colors relative z-10">
-                  <User size={12} className="text-[#00f0ff]" /> Talent Login
-                </div>
-              </motion.div>
+              />
 
-              {/* ARTIST */}
-              <motion.div
-                variants={itemVariants}
-                whileHover="hover"
+              {/* 🎨 ARTIST PORTAL */}
+              <PortalCard
+                role="artist"
+                label="Artist Portal"
+                subLabel="Creative Login"
+                icon={Palette}
+                color="#ff3399"
                 onClick={() => handleAccess("artist", "/artist-portal")}
-                className="cursor-pointer w-full md:w-96 group relative bg-[#0a0a0a] border border-white/10 hover:border-[#ff3399] rounded-3xl p-10 flex flex-col items-center text-center overflow-hidden transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-[#ff3399]/10 border border-[#ff3399]/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 relative z-10">
-                  <Palette className="w-8 h-8 text-[#ff3399]" />
-                </div>
-                <h2 className="text-2xl font-serif text-white mb-2 relative z-10 group-hover:text-[#ff3399] transition-colors">
-                  Artist Portal
-                </h2>
-                <div className="mt-8 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-600 group-hover:text-white transition-colors relative z-10">
-                  <Music size={12} className="text-[#ff3399]" /> Creative Login
-                </div>
-              </motion.div>
+              />
 
-              {/* AUTHOR */}
-              <motion.div
-                variants={itemVariants}
-                whileHover="hover"
+              {/* 📚 AUTHOR PORTAL */}
+              <PortalCard
+                role="author"
+                label="Author Portal"
+                subLabel="Literary Login"
+                icon={BookOpen}
+                color="#f97316"
                 onClick={() => handleAccess("author", "/author-portal")}
-                className="cursor-pointer w-full md:w-96 group relative bg-[#0a0a0a] border border-white/10 hover:border-orange-500 rounded-3xl p-10 flex flex-col items-center text-center overflow-hidden transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 relative z-10">
-                  <BookOpen className="w-8 h-8 text-orange-500" />
-                </div>
-                <h2 className="text-2xl font-serif text-white mb-2 relative z-10 group-hover:text-orange-500 transition-colors">
-                  Author Portal
-                </h2>
-                <div className="mt-8 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-600 group-hover:text-white transition-colors relative z-10">
-                  <User size={12} className="text-orange-500" /> Literary Login
-                </div>
-              </motion.div>
+              />
             </div>
           </div>
 
@@ -239,37 +220,23 @@ export default function HubPage() {
             </motion.div>
 
             <div className="flex flex-wrap justify-center gap-6">
-              {/* COMMAND CENTER */}
-              <motion.div
-                variants={itemVariants}
-                whileHover={{ scale: 1.05, y: -2 }}
+              {/* 💻 ADMIN */}
+              <SystemCard
+                label="Command Center"
+                icon={Terminal}
+                color="#ef4444"
                 onClick={() =>
                   handleAccess("admin", "/admin/master-controller")
                 }
-                className="cursor-pointer w-full md:w-80 group relative bg-[#0a0a0a] border border-white/5 hover:border-red-900 rounded-2xl p-6 flex flex-col items-center text-center overflow-hidden opacity-80 hover:opacity-100 transition-all"
-              >
-                <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform relative z-10">
-                  <Terminal className="w-5 h-5 text-red-700 group-hover:text-red-500" />
-                </div>
-                <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-1 group-hover:text-red-500 transition-colors">
-                  Command Center
-                </h2>
-              </motion.div>
+              />
 
-              {/* CREW */}
-              <motion.div
-                variants={itemVariants}
-                whileHover={{ scale: 1.05, y: -2 }}
+              {/* 🛡️ CREW */}
+              <SystemCard
+                label="Crew Portal"
+                icon={Shield}
+                color="#d4af37"
                 onClick={() => handleAccess("crew", "/crew-portal")}
-                className="cursor-pointer w-full md:w-80 group relative bg-[#0a0a0a] border border-white/5 hover:border-[#d4af37]/50 rounded-2xl p-6 flex flex-col items-center text-center overflow-hidden opacity-80 hover:opacity-100 transition-all"
-              >
-                <div className="w-10 h-10 rounded-xl bg-[#d4af37]/10 border border-[#d4af37]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform relative z-10">
-                  <Shield className="w-5 h-5 text-[#8a7224] group-hover:text-[#d4af37]" />
-                </div>
-                <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-1 group-hover:text-[#d4af37] transition-colors">
-                  Crew Portal
-                </h2>
-              </motion.div>
+              />
             </div>
           </div>
         </div>
@@ -301,6 +268,75 @@ export default function HubPage() {
   );
 }
 
+// --- SUB-COMPONENT: PORTAL CARD (THE SPECIAL ONES) ---
+function PortalCard({ role, label, subLabel, icon: Icon, color, onClick }) {
+  return (
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ scale: 1.03, y: -5 }}
+      onClick={onClick}
+      className="cursor-pointer w-full md:w-80 group relative bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center overflow-hidden transition-all duration-300"
+      style={{
+        boxShadow: `0 0 0 1px rgba(255,255,255,0.05)`,
+      }}
+    >
+      {/* Hover Glow Effect */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500"
+        style={{
+          background: `radial-gradient(circle at center, ${color}, transparent 70%)`,
+        }}
+      />
+
+      {/* Border Glow on Hover */}
+      <div
+        className="absolute inset-0 rounded-3xl border-2 border-transparent group-hover:border-opacity-50 transition-colors duration-300"
+        style={{ borderColor: color }}
+      />
+
+      <div
+        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 relative z-10 bg-white/5 backdrop-blur-sm"
+        style={{
+          border: `1px solid ${color}40`,
+          boxShadow: `0 0 20px ${color}20`,
+        }}
+      >
+        <Icon className="w-8 h-8" style={{ color: color }} />
+      </div>
+
+      <h2 className="text-2xl font-serif text-white mb-2 relative z-10 transition-colors group-hover:text-white">
+        {label}
+      </h2>
+
+      <div className="mt-6 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 group-hover:text-white transition-colors relative z-10">
+        <User size={12} style={{ color: color }} /> {subLabel}
+      </div>
+    </motion.div>
+  );
+}
+
+// --- SUB-COMPONENT: SYSTEM CARD (THE UTILITY ONES) ---
+function SystemCard({ label, icon: Icon, color, onClick }) {
+  return (
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ scale: 1.05, y: -2 }}
+      onClick={onClick}
+      className="cursor-pointer w-full md:w-64 group relative bg-[#0a0a0a] border border-white/5 hover:border-white/20 rounded-2xl p-6 flex flex-col items-center text-center overflow-hidden opacity-80 hover:opacity-100 transition-all"
+    >
+      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform relative z-10">
+        <Icon
+          className="w-5 h-5 transition-colors group-hover:text-white"
+          style={{ color: color }}
+        />
+      </div>
+      <h2 className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-1 transition-colors group-hover:text-white">
+        {label}
+      </h2>
+    </motion.div>
+  );
+}
+
 // --- LOGIN MODAL COMPONENT (Internal) ---
 function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
   const router = useRouter();
@@ -323,7 +359,6 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
   const config = roleConfig[targetRole] || roleConfig.actor;
   const RoleIcon = config.icon;
 
-  // LOGIN LOGIC
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -354,7 +389,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/90 backdrop-blur-md"
       />
 
       {/* Modal Card */}
@@ -363,25 +398,35 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
         initial="hidden"
         animate="visible"
         exit="exit"
-        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]"
-        style={{ borderColor: config.color }}
+        className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+        style={{ borderColor: `${config.color}40` }}
       >
-        <div className="h-1 w-full" style={{ backgroundColor: config.color }} />
+        {/* Top Glow Bar */}
+        <div
+          className="h-1 w-full"
+          style={{
+            backgroundColor: config.color,
+            boxShadow: `0 0 20px ${config.color}`,
+          }}
+        />
 
         <div className="p-8">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-center gap-3">
+          <div className="flex justify-between items-start mb-8">
+            <div className="flex items-center gap-4">
               <div
-                className="p-2 rounded-lg bg-white/5 border border-white/10"
-                style={{ color: config.color }}
+                className="p-3 rounded-xl bg-white/5 border border-white/10"
+                style={{
+                  color: config.color,
+                  borderColor: `${config.color}30`,
+                }}
               >
-                <RoleIcon size={20} />
+                <RoleIcon size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-serif text-white">
+                <h3 className="text-2xl font-serif text-white">
                   {config.label}
                 </h3>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">
                   Secure Connection Required
                 </p>
               </div>
@@ -394,7 +439,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
             </button>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-5">
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center gap-2 text-red-400 text-xs">
                 <AlertCircle size={14} />
@@ -403,7 +448,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-gray-500">
+              <label className="text-[10px] uppercase tracking-widest text-gray-500 ml-1">
                 Identity (Email)
               </label>
               <div className="relative">
@@ -411,7 +456,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-all focus:ring-1 focus:ring-white/20"
                   placeholder="name@cinesonic.studio"
                   required
                 />
@@ -423,8 +468,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
             </div>
 
             <div className="space-y-1">
-              {/* 👇 SIMPLIFIED LINK TO RECOVERY PAGE 👇 */}
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center ml-1">
                 <label className="text-[10px] uppercase tracking-widest text-gray-500">
                   Passcode
                 </label>
@@ -441,7 +485,7 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-colors"
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white/30 transition-all focus:ring-1 focus:ring-white/20"
                   placeholder="••••••••"
                   required
                 />
@@ -455,8 +499,12 @@ function LoginModal({ isOpen, onClose, targetRole, redirectPath }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-lg font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-6 transition-all hover:brightness-110 active:scale-95"
-              style={{ backgroundColor: config.color, color: "#000" }}
+              className="w-full py-4 rounded-lg font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 mt-8 transition-all hover:brightness-110 active:scale-95 shadow-lg"
+              style={{
+                backgroundColor: config.color,
+                color: "#000",
+                boxShadow: `0 0 20px ${config.color}40`,
+              }}
             >
               {loading ? (
                 <Loader2 size={16} className="animate-spin" />

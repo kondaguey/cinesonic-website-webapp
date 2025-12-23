@@ -1,68 +1,85 @@
-export function checkSchedule(actor, projectStartDate) {
-  if (!actor) return { status: "unknown", reason: "No Actor" };
-
-  // 1. STATUS CHECK (Immediate Fail)
-  const status = (actor.status || "").toLowerCase();
-  if (status.includes("hiatus") || status.includes("inactive")) {
-    return { status: "unavailable", reason: "Status: " + actor.status };
-  }
-
-  // 2. PARSE PROJECT DATE
-  // If no start date is set, we can't calculate conflicts
-  if (!projectStartDate) return { status: "unknown", reason: "Set Start Date" };
+export const checkSchedule = (actorPrivateData, projectStartDate) => {
+  if (!actorPrivateData) return { status: "NEUTRAL", reason: "Unassigned" };
+  if (!projectStartDate) return { status: "UNKNOWN", reason: "No Date" };
 
   const pDate = new Date(projectStartDate);
   if (isNaN(pDate.getTime()))
-    return { status: "unknown", reason: "Invalid Start Date" };
-  pDate.setHours(0, 0, 0, 0); // Normalize time
+    return { status: "UNKNOWN", reason: "Invalid Date" };
+  pDate.setHours(0, 0, 0, 0); // Normalize time to midnight
 
-  // 3. NEXT AVAILABLE CHECK (Column J)
-  // Handles ISO "2026-01-02T..." OR Plain Text "2026-01-02"
-  if (actor.next_avail) {
-    const nextAvailDate = new Date(actor.next_avail);
+  // 1. STATUS CHECK
+  const status = (
+    actorPrivateData.availability_status || "Available"
+  ).toLowerCase();
+  if (
+    status.includes("hiatus") ||
+    status.includes("inactive") ||
+    status.includes("booked")
+  ) {
+    return { status: "CONFLICT", reason: status.toUpperCase() };
+  }
 
-    // Only check if it's a valid date
-    if (!isNaN(nextAvailDate.getTime())) {
-      nextAvailDate.setHours(0, 0, 0, 0);
-
-      // If Project Start < Next Available
-      if (pDate < nextAvailDate) {
+  // 2. NEXT AVAILABLE DATE CHECK
+  if (actorPrivateData.next_available_date) {
+    const nextAvail = new Date(actorPrivateData.next_available_date);
+    if (!isNaN(nextAvail.getTime())) {
+      nextAvail.setHours(0, 0, 0, 0);
+      if (pDate < nextAvail) {
         return {
-          status: "unavailable",
-          reason: `Busy until ${nextAvailDate.toLocaleDateString()}`,
+          status: "CONFLICT",
+          reason: `Busy until ${nextAvail.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          })}`,
         };
       }
     }
   }
 
-  // 4. BOOKOUT CHECK (Column P)
-  // Text format: "2024-01-01 to 2024-01-05"
-  if (actor.bookouts) {
-    const ranges = String(actor.bookouts).split(",");
+  // 3. BOOKOUTS CHECK (JSONB Parsing)
+  // Expects JSONB array: ["YYYY-MM-DD to YYYY-MM-DD", ...] OR objects
+  const bookouts = actorPrivateData.bookouts || [];
 
-    for (let range of ranges) {
-      const parts = range.trim().split(" to ");
+  if (Array.isArray(bookouts)) {
+    for (let entry of bookouts) {
+      let start, end;
 
-      if (parts.length === 2) {
-        const start = new Date(parts[0]);
-        const end = new Date(parts[1]);
+      // Handle String Format: "2023-01-01 to 2023-01-05"
+      if (typeof entry === "string") {
+        const parts = entry.split(/ to | - /i);
+        if (parts.length === 2) {
+          start = new Date(parts[0]);
+          end = new Date(parts[1]);
+        }
+      }
+      // Handle Object Format: { start: "...", end: "..." }
+      else if (typeof entry === "object" && entry.start && entry.end) {
+        start = new Date(entry.start);
+        end = new Date(entry.end);
+      }
 
-        if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-          start.setHours(0, 0, 0, 0);
-          end.setHours(23, 59, 59, 999);
+      if (start && end && !isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999); // End of day
 
-          // If Project Start lands INSIDE the booked range
-          if (pDate >= start && pDate <= end) {
-            return {
-              status: "unavailable",
-              reason: `Booked out (${parts[0]} - ${parts[1]})`,
-            };
-          }
+        // Conflict Logic: Project Start lands inside a Bookout Range
+        if (pDate >= start && pDate <= end) {
+          const cleanStart = start.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
+          const cleanEnd = end.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          });
+          return {
+            status: "CONFLICT",
+            reason: `Booked (${cleanStart} - ${cleanEnd})`,
+          };
         }
       }
     }
   }
 
-  // If we get here, they are free
-  return { status: "available", reason: "Open" };
-}
+  return { status: "CLEAR", reason: "OPEN" };
+};

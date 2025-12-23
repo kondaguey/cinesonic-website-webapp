@@ -270,3 +270,98 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.4); /* Cyan-500 with opacity */
 }
+
+/* src/app/globals.css - Add this to the bottom */
+
+/* =========================================
+   SCOPED LIGHT MODE (DASHBOARD)
+   ========================================= */
+
+/* 1. Base Container Override */
+.light-mode {
+  /* Ensure we override the body's space background */
+  background-image: none !important;
+  background-color: #f3f4f6 !important; /* Light Grey (Paper) */
+  color: #111827 !important; /* Near Black */
+  z-index: 10;
+}
+
+/* 2. Text Overrides */
+.light-mode h1,
+.light-mode h2,
+.light-mode h3,
+.light-mode h4,
+.light-mode .text-white {
+  color: #111827 !important;
+}
+
+.light-mode p,
+.light-mode span,
+.light-mode div {
+  /* Default to inherit so it picks up the dark text */
+  /* We don't force it everywhere to allow specific colored text classes to work */
+}
+
+.light-mode .text-gray-300,
+.light-mode .text-gray-400,
+.light-mode .text-gray-500 {
+  color: #4b5563 !important; /* Medium Grey for subtitles */
+}
+
+/* 3. Component Overrides */
+
+/* Glass Panels -> White Cards */
+.light-mode .bg-\[\#0a0a0a\],
+.light-mode .bg-\[\#0c0442\],
+.light-mode .bg-white\/5,
+.light-mode .bg-black\/40,
+.light-mode .glass-panel {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important; /* Light Grey Border */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Sidebars */
+.light-mode aside,
+.light-mode .w-80 {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e5e7eb !important;
+}
+
+/* Inputs & Form Elements */
+.light-mode input,
+.light-mode select,
+.light-mode textarea {
+  background-color: #f9fafb !important;
+  border-color: #d1d5db !important;
+  color: #111827 !important;
+}
+
+.light-mode input:focus,
+.light-mode select:focus,
+.light-mode textarea:focus {
+  background-color: #ffffff !important;
+  border-color: #d4af37 !important;
+  ring: 2px solid rgba(212, 175, 55, 0.2);
+}
+
+/* Table Rows */
+.light-mode tr:hover td {
+  background-color: #f3f4f6 !important;
+}
+
+/* Buttons (Ghosts become Outlines) */
+.light-mode button.border-white\/10 {
+  border-color: #d1d5db !important;
+  color: #4b5563 !important;
+}
+.light-mode button.border-white\/10:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+/* Accents (Keep Gold/Colors, just darken slightly for white bg) */
+.light-mode .text-\[\#d4af37\] {
+  color: #bfa13a !important; /* Slightly darker gold for contrast on white */
+}

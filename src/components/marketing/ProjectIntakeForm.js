@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useTheme } from "../ui/ThemeContext";
-// 🟢 IMPORT THE MATCHMAKER
+// 🟢 UTILS & UI
 import { runCreativeMatch } from "../../utils/dashboard/matchmaker";
+import ParticleFx from "../ui/ParticleFx";
 
 // UI COMPONENTS
 import ProjectSelectionCard from "./ProjectSelectionCard";
@@ -24,10 +25,8 @@ import {
   Rocket,
   Flame,
   Zap,
-  CheckCircle,
+  CheckCircle, // For Success Toast
   Check,
-  Sparkles,
-  Heart,
   Layers,
   Settings2,
   Clock,
@@ -36,6 +35,13 @@ import {
   Pause,
   ChevronLeft,
   ChevronRight,
+  XCircle,
+  WifiOff,
+  AlertCircle,
+  X,
+  Loader2,
+  Heart,
+  Sparkles, // For Spinner
 } from "lucide-react";
 
 const supabase = createClient(
@@ -50,18 +56,19 @@ export default function ProjectIntakeForm() {
 
   // STATE: Flow Control
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState(null);
+  const [submitStatus, setSubmitStatus] = useState(null); // 'success' | 'error' | null
+  const [errorMessage, setErrorMessage] = useState("");
 
   // STATE: Modals
   const [isScoutOpen, setIsScoutOpen] = useState(false);
   const [scoutTargetIndex, setScoutTargetIndex] = useState(null);
-  const [isGenreModalOpen, setIsGenreModalOpen] = useState(false); // Project level
+  const [isGenreModalOpen, setIsGenreModalOpen] = useState(false);
 
   // WIRED: Modal States for Specs
   const [genderModalIdx, setGenderModalIdx] = useState(null);
   const [ageModalIdx, setAgeModalIdx] = useState(null);
   const [voiceTypeModalIdx, setVoiceTypeModalIdx] = useState(null);
-  const [charGenreModalIdx, setCharGenreModalIdx] = useState(null); // 🟢 NEW: Character Specific Genre
+  const [charGenreModalIdx, setCharGenreModalIdx] = useState(null);
   const [accentModalIdx, setAccentModalIdx] = useState(null);
 
   // STATE: DB Data
@@ -103,7 +110,6 @@ export default function ProjectIntakeForm() {
   // 1. DYNAMIC DATA FETCH
   useEffect(() => {
     async function fetchData() {
-      // Fetch Lists
       const { data: listData } = await supabase
         .from("lists")
         .select("category, label")
@@ -130,7 +136,6 @@ export default function ProjectIntakeForm() {
         });
       }
 
-      // Fetch Roster
       const { data: rosterData } = await supabase
         .from("actor_roster_public")
         .select(
@@ -156,6 +161,20 @@ export default function ProjectIntakeForm() {
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (formData.base_format) {
+      const opt = serviceBase.find((o) => o.baseType === formData.base_format);
+      if (opt) {
+        setFormData((prev) => ({
+          ...prev,
+          // Switch between AB and AD codes dynamically
+          style: isCinematic ? opt.adCode : opt.abCode,
+          price_tier: isCinematic ? opt.dramaPrice : opt.standardPrice,
+        }));
+      }
+    }
+  }, [isCinematic, formData.base_format]);
 
   // 2. FORM HELPERS
   const updateCharacter = (index, field, value) => {
@@ -183,15 +202,24 @@ export default function ProjectIntakeForm() {
 
   const handleServiceSelect = (id, baseType) => {
     const opt = serviceBase.find((o) => o.baseType === baseType);
+
+    // 🟢 STRICT BACKEND MAPPING
+    // If Cinematic -> Use AD Code (e.g. "SoloAD")
+    // If Standard -> Use AB Code (e.g. "SoloAB")
+    const backendStyleCode = isCinematic ? opt.adCode : opt.abCode;
+
     setFormData((prev) => ({
       ...prev,
       client_type: id,
       base_format: baseType,
+      style: backendStyleCode, // <--- SAVES 'SoloAD', etc.
       price_tier: isCinematic ? opt.dramaPrice : opt.standardPrice,
     }));
+
     setTheme(
       { Solo: "gold", Dual: "pink", Duet: "fire", Multi: "cyan" }[baseType]
     );
+
     const slots = baseType === "Solo" ? 1 : baseType === "Multi" ? 4 : 2;
     setCharacters(
       Array(slots)
@@ -201,9 +229,9 @@ export default function ProjectIntakeForm() {
           gender: "",
           age: "",
           accent: "",
-          genre: "", // 🟢 NEW FIELD
+          genre: "",
           voiceTypes: [],
-          preferredActorId: null,
+          preferredActor: null,
         }))
     );
   };
@@ -222,50 +250,88 @@ export default function ProjectIntakeForm() {
     };
   }, [formData.word_count]);
 
-  // 3. SUBMISSION
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setErrorMessage("");
+
+    // 🔴 1. MANUAL VALIDATION
+    const missingFields = [];
+    if (!formData.base_format) missingFields.push("Project Format");
+    if (!formData.client_name) missingFields.push("Client Name");
+    if (!formData.email) missingFields.push("Email");
+    if (!formData.project_title) missingFields.push("Project Title");
+    if (!formData.word_count) missingFields.push("Word Count");
+
+    if (missingFields.length > 0) {
+      setErrorMessage(
+        `Incomplete Manifest: Missing ${missingFields.join(", ")}`
+      );
+      setSubmitStatus("error");
+      setTimeout(() => setSubmitStatus(null), 6000);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      const { error } = await supabase.from("project_intake").insert([
-        {
-          client_name: formData.client_name,
-          client_email: formData.email,
-          client_type: formData.client_type,
-          project_title: formData.project_title,
-          word_count: parseInt(formData.word_count) || 0,
-          style: formData.style,
-          genres: formData.genres,
-          base_format: formData.base_format,
-          price_tier: formData.price_tier,
-          is_cinematic: isCinematic,
-          opt_in: optIn,
-          notes: formData.notes,
-          start_date_1: dates[0] || null,
-          start_date_2: dates[1] || null,
-          status: "NEW",
-          character_details: characters.map((c) => ({
-            name: c.name || "TBD",
-            gender: c.gender || "Any",
-            age: c.age || "Any",
-            accent: c.accent || "General American",
-            genre: c.genre || "Any", // 🟢 PASSED TO DB
-            vocal_qualities: c.voiceTypes || [],
-            actor_request: c.preferredActorId || null,
-          })),
-        },
-      ]);
+      // 2. SANITIZE DATA
+      const payload = {
+        client_name: formData.client_name,
+        client_email: formData.email,
+        client_type: formData.client_type,
+        project_title: formData.project_title,
+        word_count: formData.word_count ? parseInt(formData.word_count) : 0,
+        style: formData.style,
+        genres: formData.genres,
+        base_format: formData.base_format,
+        price_tier: formData.price_tier,
+        is_cinematic: isCinematic,
+        opt_in: optIn,
+        notes: formData.notes || null,
+        start_date_1: dates[0] ? dates[0] : null,
+        start_date_2: dates[1] ? dates[1] : null,
+        status: "NEW",
+        character_details: characters.map((c) => ({
+          name: c.name || "TBD",
+          gender: c.gender || "Any",
+          age: c.age || "Any",
+          accent: c.accent || "General American",
+          genre: c.genre || "Any",
+          vocal_qualities: c.voiceTypes || [],
+          actor_request: c.preferredActor
+            ? {
+                id: c.preferredActor.id,
+                name: c.preferredActor.name,
+                headshot: c.preferredActor.headshot_url,
+              }
+            : null,
+        })),
+      };
+
+      const { error } = await supabase.from("project_intake").insert([payload]);
+
       if (error) throw error;
+
+      // 🟢 SUCCESS: SHOW TOAST AND REDIRECT
       setSubmitStatus("success");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
     } catch (err) {
       console.error("Submission Error:", err);
       setSubmitStatus("error");
-    } finally {
-      setIsSubmitting(false);
+      if (err.message && err.message.includes("fetch")) {
+        setErrorMessage("Connection Lost. Check your internet.");
+      } else {
+        setErrorMessage("Transmission Blocked. Database Refused Connection.");
+      }
+      setTimeout(() => setSubmitStatus(null), 6000);
+      setIsSubmitting(false); // Stop loading spinner if error
     }
   };
 
+  // 🟢 CONFIGURATION (Moved to top)
   const serviceBase = [
     {
       baseType: "Solo",
@@ -273,6 +339,8 @@ export default function ProjectIntakeForm() {
       dramaIcon: Music,
       standardTitle: "Solo Audiobook",
       dramaTitle: "Solo Audio Drama",
+      abCode: "SoloAB", // 🟢 BACKEND CODE
+      adCode: "SoloAD", // 🟢 BACKEND CODE
       standardDesc: "1 Narrator. Classic.",
       dramaDesc: "1 Narrator + SFX.",
       standardPrice: "$",
@@ -284,6 +352,8 @@ export default function ProjectIntakeForm() {
       dramaIcon: Heart,
       standardTitle: "Dual Audiobook",
       dramaTitle: "Dual Audio Drama",
+      abCode: "DualAB",
+      adCode: "DualAD",
       standardDesc: "2 Narrators (POV).",
       dramaDesc: "POV + Cinematic FX.",
       standardPrice: "$$",
@@ -295,6 +365,8 @@ export default function ProjectIntakeForm() {
       dramaIcon: Zap,
       standardTitle: "Duet Audiobook",
       dramaTitle: "Duet Audio Drama",
+      abCode: "DuetAB",
+      adCode: "DuetAD",
       standardDesc: "Real-time Dialogue.",
       dramaDesc: "Dialogue + Score.",
       standardPrice: "$$$",
@@ -306,6 +378,8 @@ export default function ProjectIntakeForm() {
       dramaIcon: Sparkles,
       standardTitle: "Multi-Cast",
       dramaTitle: "Cinematic Drama",
+      abCode: "MultiAB",
+      adCode: "MultiAD",
       standardDesc: "Full Ensemble.",
       dramaDesc: "Movie for Ears.",
       standardPrice: "$$$$",
@@ -313,27 +387,16 @@ export default function ProjectIntakeForm() {
     },
   ];
 
-  if (submitStatus === "success")
-    return (
-      <div className="min-h-screen bg-[#020010] flex items-center justify-center p-6 text-center relative overflow-hidden">
-        <ParticleFx mode="hero" vector="solo" forceTheme="system" />
-        <div className="max-w-md w-full glass-panel p-10 relative z-10 border-green-500/30">
-          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
-          <h2 className="text-3xl font-serif mb-4 text-white">
-            Manifest Logged
-          </h2>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-8 py-3 rounded-full border border-white/20 text-white hover:bg-white/10 transition-all text-xs font-bold uppercase tracking-widest"
-          >
-            New Manifest
-          </button>
-        </div>
-      </div>
-    );
-
   return (
     <div className="min-h-screen relative py-8 md:py-12 transition-colors duration-1000 overflow-hidden">
+      {/* 3D Visuals */}
+      <ParticleFx
+        mode="ambient"
+        vector={
+          formData.base_format ? formData.base_format.toLowerCase() : "none"
+        }
+      />
+
       <div
         className="absolute inset-0 z-0 transition-all duration-1000"
         style={{
@@ -382,38 +445,52 @@ export default function ProjectIntakeForm() {
               <BookOpen size={20} /> Title Core Info
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input
-                required
-                placeholder="Author / Client"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
-                value={formData.client_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, client_name: e.target.value })
-                }
-              />
-              <input
-                required
-                type="email"
-                placeholder="Contact Email"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-              />
-              <input
-                required
-                placeholder="Project Title"
-                className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
-                value={formData.project_title}
-                onChange={(e) =>
-                  setFormData({ ...formData, project_title: e.target.value })
-                }
-              />
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block pl-2">
+                  Author / Client <span className="text-red-500">*</span>
+                </label>
+                <input
+                  placeholder="e.g. Jane Doe"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
+                  value={formData.client_name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, client_name: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block pl-2">
+                  Contact Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. jane@example.com"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block pl-2">
+                  Project Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  placeholder="e.g. The Silent Stars"
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white outline-none focus:border-white/30 transition-all"
+                  value={formData.project_title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, project_title: e.target.value })
+                  }
+                />
+              </div>
               <div className="space-y-2">
+                <label className="text-xs text-gray-500 mb-1 block pl-2">
+                  Total Word Count <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                   <input
-                    required
                     type="text"
                     inputMode="numeric"
                     className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white font-mono outline-none focus:border-white/30 transition-all"
@@ -464,6 +541,32 @@ export default function ProjectIntakeForm() {
                   </div>
                   <Settings2 size={16} className="text-gray-500" />
                 </button>
+              </div>
+              {/* 🟢 PASTE THIS RIGHT AFTER THE GENRE BUTTON DIV */}
+              <div className="md:col-span-2 relative">
+                <label className="text-xs text-gray-500 mb-1 block pl-2">
+                  Production Notes{" "}
+                  <span className="text-gray-600">(Optional)</span>
+                </label>
+                <textarea
+                  maxLength={250}
+                  rows={3}
+                  placeholder="Describe the vibe, musical needs, or specific tone..."
+                  className="w-full bg-[#0a0a15] border border-white/10 rounded-xl py-3 px-6 text-white text-sm outline-none focus:border-white/30 transition-all resize-none placeholder:text-gray-600"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                />
+                <div
+                  className={`absolute right-4 bottom-3 text-[10px] font-mono tracking-widest transition-colors ${
+                    formData.notes.length >= 250
+                      ? "text-red-500"
+                      : "text-gray-600"
+                  }`}
+                >
+                  {formData.notes.length}/250
+                </div>
               </div>
             </div>
           </section>
@@ -564,7 +667,7 @@ export default function ProjectIntakeForm() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      {/* 5. GENRE (🟢 NEW) */}
+                      {/* 5. GENRE */}
                       <button
                         type="button"
                         onClick={() => setCharGenreModalIdx(index)}
@@ -603,12 +706,15 @@ export default function ProjectIntakeForm() {
                       </button>
                     </div>
 
+                    {/* 🟢 VISUAL TALENT SELECTION DISPLAY */}
                     <button
                       type="button"
-                      className={`w-full bg-white/5 border border-white/10 rounded-xl p-3 flex items-center justify-between transition-all ${
-                        !char.gender
-                          ? "opacity-30 cursor-not-allowed"
-                          : "hover:bg-white/10"
+                      className={`w-full border rounded-xl p-3 flex items-center justify-between transition-all group/actor ${
+                        char.preferredActor
+                          ? "bg-white/10 border-white/30" // Active State
+                          : !char.gender
+                          ? "opacity-30 cursor-not-allowed bg-white/5 border-white/10"
+                          : "bg-white/5 border-white/10 hover:bg-white/10"
                       }`}
                       onClick={() => {
                         if (char.gender) {
@@ -617,17 +723,44 @@ export default function ProjectIntakeForm() {
                         }
                       }}
                     >
-                      {char.preferredActorId ? (
-                        <span className="text-white text-xs font-bold flex items-center gap-2">
-                          <Star size={12} className="fill-white" /> Talent
-                          Preference Noted
-                        </span>
+                      {char.preferredActor ? (
+                        // If Actor Selected: Show Face & Name
+                        <div className="flex items-center gap-3 w-full">
+                          <img
+                            src={char.preferredActor.headshot_url}
+                            alt="Selected"
+                            className="w-8 h-8 rounded-full object-cover border border-white/50"
+                          />
+                          <div className="text-left flex-1 min-w-0">
+                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider leading-none mb-0.5">
+                              Requested
+                            </p>
+                            <p className="text-white text-xs font-serif truncate">
+                              {char.preferredActor.name}
+                            </p>
+                          </div>
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateCharacter(index, "preferredActor", null);
+                            }}
+                            className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                          >
+                            <X
+                              size={14}
+                              className="text-gray-400 hover:text-white"
+                            />
+                          </div>
+                        </div>
                       ) : (
-                        <span className="text-gray-400 italic text-xs flex items-center gap-2">
-                          <Star size={14} /> Scout Casting...
-                        </span>
+                        // If No Actor: Show Default Scout Text
+                        <>
+                          <span className="text-gray-400 italic text-xs flex items-center gap-2">
+                            <Star size={14} /> Scout Casting...
+                          </span>
+                          <ChevronRightIcon size={16} />
+                        </>
                       )}
-                      <ChevronRightIcon size={16} />
                     </button>
                   </div>
                 ))}
@@ -646,7 +779,7 @@ export default function ProjectIntakeForm() {
               </h2>
               <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
                 <AlertTriangle size={14} className="text-yellow-500" />
-                <span className="text-[9px] uppercase tracking-tighter text-gray-400 leading-tight">
+                <span className="text-[9px] uppercase tracking-tight text-gray-400 leading-tight">
                   Casting Window: Options must be{" "}
                   <span className="text-white font-bold">30 days apart</span>.
                 </span>
@@ -707,6 +840,32 @@ export default function ProjectIntakeForm() {
           </section>
 
           <div className="space-y-6">
+            {/* 🟢 CONTENT DISCLAIMER */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-xs leading-relaxed text-gray-400">
+              <p className="tracking-normal flex items-start gap-3">
+                <AlertTriangle
+                  size={18}
+                  className="text-amber-500 shrink-0 mt-0.5"
+                />
+                <span>
+                  <strong className="text-gray-200 block mb-1 tracking-wide uppercase text-[10px]">
+                    The Code
+                  </strong>
+                  We don't flinch at stories that depict violence, trauma, or
+                  the darkest corners of the human condition. We want the grit.
+                  However, there is a difference between exploring darkness and
+                  exploiting it. We strictly refuse projects involving the{" "}
+                  <span className="text-white font-medium">
+                    sexualization of minors
+                  </span>{" "}
+                  or the{" "}
+                  <span className="text-white font-medium">
+                    glorification of illegal acts
+                  </span>{" "}
+                  without literary merit.
+                </span>
+              </p>
+            </div>
             <div
               className="flex items-center gap-3 px-2 cursor-pointer group"
               onClick={() => setOptIn(!optIn)}
@@ -728,18 +887,75 @@ export default function ProjectIntakeForm() {
                 newsletter.
               </span>
             </div>
+            {/* 🔴 SUBMIT BUTTON */}
             <button
               type="submit"
-              disabled={isSubmitting || !formData.base_format}
-              className="w-full md:max-w-md mx-auto block py-3.5 rounded-full text-black font-bold uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.01] shadow-2xl disabled:opacity-30"
+              disabled={isSubmitting} // Removing formData.base_format check to allow manual error reporting
+              className="w-full md:max-w-md mx-auto block py-3.5 rounded-full text-black font-bold uppercase tracking-[0.2em] text-xs transition-all hover:scale-[1.01] shadow-2xl disabled:opacity-70 disabled:grayscale flex items-center justify-center gap-2"
               style={{ backgroundColor: activeColor }}
             >
-              {isSubmitting
-                ? "Transmitting Manifest..."
-                : "Initialize Production Engine"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" /> Transmitting...
+                </>
+              ) : (
+                "Initialize Production Engine"
+              )}
             </button>
           </div>
         </form>
+
+        {/* 🟢 NOTIFICATIONS (SUCCESS & ERROR) */}
+
+        {/* SUCCESS TOAST */}
+        {submitStatus === "success" && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 animate-in slide-in-from-bottom-5 fade-in duration-300">
+            <div className="bg-emerald-500/10 backdrop-blur-xl border border-emerald-500/30 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4">
+              <div className="p-2 bg-emerald-500/20 rounded-full flex-shrink-0">
+                <CheckCircle size={20} className="text-emerald-400" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-emerald-100 uppercase tracking-wide mb-1">
+                  Manifest Logged
+                </h4>
+                <p className="text-xs text-emerald-200/80">
+                  Redirecting to home...
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ERROR TOAST */}
+        {submitStatus === "error" && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md px-4 animate-in slide-in-from-bottom-5 fade-in duration-300">
+            <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/30 text-white p-4 rounded-2xl shadow-2xl flex items-start gap-4">
+              <div className="p-2 bg-red-500/20 rounded-full flex-shrink-0">
+                {errorMessage.includes("Connection") ? (
+                  <WifiOff size={20} className="text-red-400" />
+                ) : errorMessage.includes("Missing") ? (
+                  <AlertCircle size={20} className="text-red-400" />
+                ) : (
+                  <XCircle size={20} className="text-red-400" />
+                )}
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-red-100 uppercase tracking-wide mb-1">
+                  Action Required
+                </h4>
+                <p className="text-xs text-red-200/80 leading-relaxed">
+                  {errorMessage || "An unknown error occurred."}
+                </p>
+              </div>
+              <button
+                onClick={() => setSubmitStatus(null)}
+                className="ml-auto text-red-400 hover:text-white transition-colors"
+              >
+                <XCircle size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* --- MODALS --- */}
         <PopupSelection
@@ -888,7 +1104,6 @@ export default function ProjectIntakeForm() {
           ))}
         </PopupSelection>
 
-        {/* 🟢 NEW CHARACTER GENRE MODAL */}
         <PopupSelection
           isOpen={charGenreModalIdx !== null}
           onClose={() => setCharGenreModalIdx(null)}
@@ -974,7 +1189,7 @@ export default function ProjectIntakeForm() {
           activeColor={activeColor}
           currentCount={
             scoutTargetIndex !== null &&
-            characters[scoutTargetIndex]?.preferredActorId
+            characters[scoutTargetIndex]?.preferredActor
               ? 1
               : 0
           }
@@ -987,8 +1202,9 @@ export default function ProjectIntakeForm() {
                 roster={roster}
                 character={characters[scoutTargetIndex]}
                 formData={formData}
-                onSelect={(id) => {
-                  updateCharacter(scoutTargetIndex, "preferredActorId", id);
+                // 🟢 UPDATE: Passing full actor object on select
+                onSelect={(actor) => {
+                  updateCharacter(scoutTargetIndex, "preferredActor", actor);
                   setIsScoutOpen(false);
                 }}
                 activeColor={activeColor}
@@ -1026,7 +1242,7 @@ function ScoutResultsList({ roster, character, formData, onSelect }) {
           gender: character?.gender,
           age: character?.age,
           voiceTypes: character?.voiceTypes,
-          genre: character?.genre, // 🟢 Passed to Matchmaker
+          genre: character?.genre,
           accent: character?.accent,
           specs: `${formData.style} ${formData.notes}`,
         },
@@ -1047,7 +1263,8 @@ function ScoutResultsList({ roster, character, formData, onSelect }) {
       <div
         key={actor.id}
         className="flex items-center gap-6 p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] hover:border-white/10 transition-all cursor-pointer group"
-        onClick={() => onSelect(actor.id)}
+        // 🟢 UPDATE: Returning entire actor object
+        onClick={() => onSelect(actor)}
       >
         <button
           type="button"

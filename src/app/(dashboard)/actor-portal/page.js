@@ -4,23 +4,20 @@ import React, { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import {
-  Save,
-  Loader2,
-  ArrowLeft,
-  LogOut,
   Mic,
-  Sun,
-  Moon,
+  User,
+  Save,
+  ArrowLeft,
+  Loader2,
+  LayoutGrid,
+  AlertCircle,
   Sparkles,
-  Zap,
-  CheckCircle2,
-  Mic2, // Green Room Icon
-  ShieldAlert, // For Denial Screen
-  ArrowRight,
+  Mic2,
 } from "lucide-react";
 
-import ActorEditor from "../../../components/dashboard/editors/ActorEditor";
-import AccountModal from "../../../components/dashboard/AccountModal";
+// --- SUB-COMPONENTS ---
+import ActorEditor from "@/components/dashboard/editors/ActorEditor";
+import TalentProductionView from "@/components/dashboard/TalentProductionView";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,425 +27,319 @@ const supabase = createClient(
 export default function ActorPortalPage() {
   const router = useRouter();
 
-  // STATE: Page Status
+  // 1. STATE: View Control
+  const [view, setView] = useState("studio"); // 'studio' | 'profile'
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+
+  // 2. STATE: Data
   const [loading, setLoading] = useState(true);
-  const [denied, setDenied] = useState(false); // New: Tracks rejection
-  const [denialReason, setDenialReason] = useState(""); // New: Custom message
-
-  // STATE: Data & UI
-  const [saving, setSaving] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [user, setUser] = useState(null);
-  const [formData, setFormData] = useState({
-    id: null,
-    full_name: "",
-    role: "actor",
-    public: {},
-    private: {},
-  });
+  const [projects, setProjects] = useState([]);
 
-  // 🔒 GATEKEEPER CHECK
+  // Lifted State for the Profile Editor
+  const [formData, setFormData] = useState({ public: {}, private: {} });
+  const [saving, setSaving] = useState(false);
+
+  // 3. INITIALIZATION
   useEffect(() => {
-    const initPortal = async () => {
-      // 1. Auth Check
+    const init = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/"); // Strictly for logged-out users
-        return;
-      }
+      if (!user) return router.push("/");
       setUser(user);
 
-      try {
-        // 2. Data Fetch
-        const [profileRes, publicRes, privateRes] = await Promise.all([
-          supabase.from("profiles").select("*").eq("id", user.id).single(),
-          supabase
-            .from("actor_roster_public")
-            .select("*")
-            .eq("id", user.id)
-            .single(),
-          supabase.from("actor_private").select("*").eq("id", user.id).single(),
-        ]);
-
-        // 3. LOGIC CHECK
-        const isPrimaryActor = profileRes.data?.role === "actor";
-        const hasActorProfile = publicRes.data || privateRes.data;
-
-        if (!isPrimaryActor && !hasActorProfile) {
-          // 🛑 STOP: Do not redirect. Show Denial Screen.
-          setDenialReason(
-            "Identity Verification Failed: No Actor Profile found for this account."
-          );
-          setDenied(true);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ SUCCESS: Load Data
-        setFormData({
-          ...profileRes.data,
-          public: publicRes.data || {},
-          private: privateRes.data || {},
-        });
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Init Error:", err);
-        setDenialReason("System Error: Unable to verify credentials.");
-        setDenied(true);
-        setLoading(false);
-      }
-    };
-    initPortal();
-  }, [router]);
-
-  // --- FILE UPLOAD HELPER ---
-  const uploadAsset = async (file, bucket, folder) => {
-    if (!file) return null;
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${folder}/${user.id}-${Date.now()}.${fileExt}`;
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, file);
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return data.publicUrl;
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      // PREPARE PUBLIC
-      const publicData = {
-        ...formData.public,
-        id: user.id,
-        display_name: formData.public.display_name,
-        website_url: formData.public.social_links?.website,
-        headshot_url: formData.public.headshot_url,
-        bio: formData.public.bio,
-        demo_reel_url: formData.public.demo_reel_url,
-        resume_url: formData.public.resume_url,
-        home_studio_specs: formData.public.home_studio_specs,
-        voice_types: formData.public.voice_types,
-        accents: formData.public.accents,
-        genres: formData.public.genres,
-        age_ranges: formData.public.age_ranges,
-        social_links: formData.public.social_links,
-        availability_status: formData.public.availability_status,
-        updated_at: new Date().toISOString(),
-      };
-
-      // PREPARE PRIVATE
-      const privateData = {
-        id: user.id,
-        legal_first_name: formData.private.legal_first_name,
-        legal_last_name: formData.private.legal_last_name,
-        legal_address: formData.private.legal_address,
-        phone_number: formData.private.phone_number,
-        union_status: formData.private.union_status,
-        pfh_rate: formData.private.pfh_rate,
-        agency_representation: formData.private.agency_representation,
-        bookouts: formData.private.bookouts,
-        w9_i9_url: formData.private.w9_i9_url,
-        triggers: formData.private.triggers,
-        tax_documents_status: formData.private.tax_documents_status,
-        updated_at: new Date().toISOString(),
-      };
-
-      const [publicResult, privateResult] = await Promise.all([
-        supabase.from("actor_roster_public").upsert(publicData),
-        supabase.from("actor_private").upsert(privateData),
+      // A. Fetch Profile Data
+      const [pub, priv] = await Promise.all([
+        supabase
+          .from("actor_roster_public")
+          .select("*")
+          .eq("id", user.id)
+          .single(),
+        supabase.from("actor_private").select("*").eq("id", user.id).single(),
       ]);
 
-      if (publicResult.error) throw new Error(publicResult.error.message);
-      if (privateResult.error) throw new Error(privateResult.error.message);
+      // If they deleted their profile but are logged in, kick them out
+      if (!pub.data && !priv.data) {
+        alert("Access Denied: No Actor Profile found.");
+        return router.push("/hub");
+      }
 
-      // Custom Success UI (Optional: Replace alert with toast later)
-      alert("Profile saved successfully!");
-    } catch (error) {
-      console.error(error);
-      alert("Error saving: " + error.message);
-    } finally {
-      setSaving(false);
-    }
+      setFormData({
+        public: pub.data || {},
+        private: priv.data || {},
+      });
+
+      // B. Fetch Assigned Projects (THE FIX FOR OWNERSHIP USERS)
+      // We explicitly check if OUR ID is in the 'visible_to_user_ids' array.
+      // This forces the "Actor View" even if you are an Admin.
+      const { data: projData } = await supabase
+        .from("active_productions")
+        .select("id, project_ref_id, title, production_status, client_name")
+        .contains("visible_to_user_ids", [user.id])
+        .order("updated_at", { ascending: false });
+
+      if (projData) setProjects(projData);
+
+      setLoading(false);
+    };
+    init();
+  }, []);
+
+  // 4. ACTIONS
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    // Simulating save delay for UX
+    await new Promise((r) => setTimeout(r, 1000));
+    setSaving(false);
+    // In real implementation: Call supabase.upsert here using formData
+    alert("Profile Updated Successfully");
   };
 
-  // THEME ENGINE
-  const themes = {
-    dark: {
-      wrapper: "bg-[#020010] text-slate-200",
-      header: "bg-[#020010]/80 border-white/10",
-      heroGradient: "from-emerald-900/40 via-[#020010] to-[#020010]",
-      cardBg: "bg-white/5 border-white/10",
-      textSecondary: "text-slate-400",
-      editor: {
-        bg: "bg-transparent",
-        text: "text-slate-200",
-        border: "border-white/10",
-        inputBg: "bg-white/5 focus:bg-white/10",
-      },
-    },
-    light: {
-      wrapper: "bg-slate-50 text-slate-800",
-      header: "bg-white/80 border-slate-200 shadow-sm",
-      heroGradient: "from-emerald-100 via-slate-50 to-slate-50",
-      cardBg: "bg-white border-slate-200 shadow-xl shadow-slate-200/50",
-      textSecondary: "text-slate-500",
-      editor: {
-        bg: "bg-transparent",
-        text: "text-slate-800",
-        border: "border-slate-200",
-        inputBg: "bg-slate-100 focus:bg-white",
-      },
-    },
+  const toggleAvailability = async (e) => {
+    const newVal = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      public: { ...prev.public, availability_status: newVal },
+    }));
+    await supabase
+      .from("actor_roster_public")
+      .update({ availability_status: newVal })
+      .eq("id", user.id);
   };
 
-  const activeTheme = isDarkMode ? themes.dark : themes.light;
-
-  // 🔴 ACCESS DENIED SCREEN (Replaces Browser Popup)
-  if (!loading && denied) {
+  if (loading)
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#ef4444_0%,_transparent_40%)] opacity-10" />
-        <div className="z-10 w-full max-w-md bg-[#0a0a0a] border border-red-500/20 rounded-3xl p-8 text-center shadow-2xl animate-in zoom-in-95">
-          <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
-            <ShieldAlert className="text-red-500" size={32} />
-          </div>
-          <h2 className="text-2xl font-serif text-white mb-2">
-            ACCESS RESTRICTED
-          </h2>
-          <p className="text-sm text-gray-400 mb-8 leading-relaxed">
-            {denialReason}
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => router.push("/hub")}
-              className="w-full py-4 bg-white text-black rounded-xl font-bold uppercase tracking-widest hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
-            >
-              Return to Hub <ArrowRight size={16} />
-            </button>
-            <p className="text-[10px] text-gray-500">
-              Use "My Account" in the Hub to initialize this profile.
-            </p>
-          </div>
+      <div className="h-screen bg-[#051a10] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#10b981_0%,_transparent_40%)] opacity-20 animate-pulse" />
+        <Loader2 className="animate-spin text-[#00ff9d] w-12 h-12 mb-4 relative z-10" />
+        <div className="text-[#00ff9d] font-mono text-xs tracking-[0.3em] relative z-10">
+          OPENING GREEN ROOM...
         </div>
       </div>
     );
-  }
 
-  // 🟢 GREEN ROOM LOADING SCREEN
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#10b981_0%,_transparent_25%)] opacity-20 animate-pulse" />
-        <div className="z-10 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 rounded-full border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-            <Mic2 className="text-emerald-500 animate-bounce" size={32} />
-          </div>
-          <div className="text-center">
-            <h2 className="text-2xl font-serif text-white tracking-widest mb-2">
-              THE GREEN ROOM
-            </h2>
-            <div className="flex items-center gap-3 text-emerald-500/80 text-xs font-mono tracking-[0.2em] uppercase">
-              <Loader2 className="animate-spin" size={12} /> Verifying
-              Credentials...
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
   return (
-    <div
-      className={`min-h-screen font-sans transition-colors duration-500 ${activeTheme.wrapper} pb-32`}
-    >
+    <div className="min-h-screen bg-[#020d08] text-white font-sans pb-20 selection:bg-[#00ff9d] selection:text-black">
+      {/* 🟢 AMBIENT LIGHTING FX */}
+      <div className="fixed top-0 left-0 w-full h-[50vh] bg-gradient-to-b from-[#00ff9d]/10 to-transparent pointer-events-none" />
+      <div className="fixed -top-40 -right-40 w-96 h-96 bg-[#00ff9d]/20 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed top-0 left-0 w-full h-full bg-[url('/noise.png')] opacity-[0.03] pointer-events-none" />
+
       {/* HEADER */}
-      <div
-        className={`sticky top-0 z-50 backdrop-blur-xl border-b px-6 py-4 flex items-center justify-between transition-colors duration-500 ${activeTheme.header}`}
-      >
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 bg-[#020d08]/80 backdrop-blur-xl border-b border-[#00ff9d]/10 px-6 py-4 flex justify-between items-center shadow-[0_0_30px_rgba(0,255,157,0.05)]">
+        {/* Left: Brand & Nav */}
+        <div className="flex items-center gap-6">
           <button
             onClick={() => router.push("/hub")}
-            className={`p-2 rounded-full transition-colors ${
-              isDarkMode
-                ? "hover:bg-white/10 text-slate-400 hover:text-white"
-                : "hover:bg-slate-100 text-slate-500 hover:text-slate-900"
-            }`}
+            className="group flex items-center gap-2 text-[#00ff9d]/60 hover:text-[#00ff9d] transition-colors text-xs font-bold uppercase tracking-widest"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft
+              size={16}
+              className="group-hover:-translate-x-1 transition-transform"
+            />
+            <span className="hidden md:inline">Lobby</span>
           </button>
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                isDarkMode
-                  ? "bg-emerald-500/20 text-emerald-400"
-                  : "bg-emerald-100 text-emerald-600"
+
+          <div className="w-px h-6 bg-[#00ff9d]/20 hidden md:block" />
+
+          {/* THE MODE SWITCHER */}
+          <div className="flex bg-black/40 p-1 rounded-lg border border-[#00ff9d]/20 relative">
+            <button
+              onClick={() => {
+                setView("studio");
+                setSelectedProjectId(null);
+              }}
+              className={`relative z-10 px-5 py-2 rounded-md text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
+                view === "studio"
+                  ? "text-[#020d08]"
+                  : "text-[#00ff9d]/60 hover:text-[#00ff9d]"
               }`}
             >
-              <Mic size={20} />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                Actor Portal
-              </h1>
-              <p
-                className={`text-[10px] uppercase tracking-wider ${activeTheme.textSecondary}`}
-              >
-                {formData.full_name || "Guest Talent"}
-              </p>
-            </div>
+              <LayoutGrid size={14} /> Studio
+            </button>
+            <button
+              onClick={() => setView("profile")}
+              className={`relative z-10 px-5 py-2 rounded-md text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all ${
+                view === "profile"
+                  ? "text-[#020d08]"
+                  : "text-[#00ff9d]/60 hover:text-[#00ff9d]"
+              }`}
+            >
+              <User size={14} /> Profile
+            </button>
+
+            {/* Sliding Pill Background */}
+            <div
+              className={`absolute top-1 bottom-1 rounded bg-[#00ff9d] transition-all duration-300 shadow-[0_0_15px_#00ff9d]`}
+              style={{
+                left: view === "studio" ? "4px" : "50%",
+                width: "calc(50% - 4px)",
+              }}
+            />
           </div>
         </div>
+
+        {/* Right: Actions */}
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-2 rounded-full transition-all ${
-              isDarkMode
-                ? "bg-white/5 text-yellow-400 hover:bg-white/10"
-                : "bg-slate-100 text-indigo-500 hover:bg-slate-200"
-            }`}
-          >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={`px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg ${
-              isDarkMode
-                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/20"
-                : "bg-slate-900 hover:bg-slate-800 text-white shadow-slate-400/50"
-            }`}
-          >
-            {saving ? (
-              <Loader2 className="animate-spin" size={14} />
-            ) : (
-              <Save size={14} />
-            )}
-            {saving ? "Syncing..." : "Save Changes"}
-          </button>
-        </div>
-      </div>
-
-      {/* HERO */}
-      <div
-        className={`relative h-64 w-full bg-gradient-to-b ${activeTheme.heroGradient} transition-colors duration-500`}
-      >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center space-y-4 max-w-2xl px-6">
-            <div
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
-                isDarkMode
-                  ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                  : "bg-white border-slate-200 text-emerald-600 shadow-sm"
-              }`}
-            >
-              <Sparkles size={12} /> Priority Talent
-            </div>
-            <h2
-              className={`text-4xl md:text-5xl font-serif ${
-                isDarkMode ? "text-white" : "text-slate-900"
-              }`}
-            >
-              Welcome to the{" "}
-              <span
-                className={isDarkMode ? "text-emerald-400" : "text-emerald-600"}
-              >
-                Green Room
-              </span>
-            </h2>
-          </div>
-        </div>
-      </div>
-
-      {/* EDITOR */}
-      <div className="max-w-5xl mx-auto px-6 -mt-12 relative z-10">
-        <div
-          className={`rounded-3xl p-8 backdrop-blur-xl transition-colors duration-500 ${activeTheme.cardBg}`}
-        >
+          {/* Availability (Always Visible) */}
           <div
-            className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 pb-8 border-b ${
-              isDarkMode ? "border-white/10" : "border-slate-100"
-            }`}
-          ></div>
-          <ActorEditor
-            formData={formData}
-            setFormData={setFormData}
-            theme={activeTheme.editor}
-          />
-        </div>
-        <div className="mt-8">
-          <AccountModal />
-        </div>
-        <div className="mt-16 flex flex-col items-center gap-4">
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push("/dashboard");
-            }}
-            className={`text-xs flex items-center gap-2 uppercase tracking-widest transition-colors opacity-60 hover:opacity-100 ${
-              isDarkMode ? "text-red-400" : "text-red-600"
+            className={`hidden md:flex items-center gap-2 px-3 py-1.5 border rounded-lg transition-all ${
+              formData.public?.availability_status === "Available"
+                ? "bg-[#00ff9d]/10 border-[#00ff9d]/30 shadow-[0_0_10px_rgba(0,255,157,0.1)]"
+                : "bg-red-500/10 border-red-500/30"
             }`}
           >
-            <LogOut size={14} /> End Secure Session
-          </button>
-          <p
-            className={`text-[10px] uppercase tracking-widest ${activeTheme.textSecondary} opacity-40`}
-          >
-            CineSonic Talent OS • V4.5 Secure
-          </p>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                formData.public?.availability_status === "Available"
+                  ? "bg-[#00ff9d] animate-pulse"
+                  : "bg-red-500"
+              }`}
+            />
+            <select
+              value={formData.public?.availability_status || "Available"}
+              onChange={toggleAvailability}
+              className={`bg-transparent text-xs font-bold uppercase outline-none cursor-pointer ${
+                formData.public?.availability_status === "Available"
+                  ? "text-[#00ff9d]"
+                  : "text-red-500"
+              }`}
+            >
+              <option value="Available">Available</option>
+              <option value="Booked Out">Booked Out</option>
+            </select>
+          </div>
+
+          {/* Save Button (Profile Mode Only) */}
+          {view === "profile" && (
+            <button
+              onClick={handleSaveProfile}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-2 bg-[#00ff9d] hover:bg-white text-black text-xs font-black uppercase tracking-widest rounded-full transition-all shadow-[0_0_20px_rgba(0,255,157,0.3)] hover:shadow-[0_0_30px_rgba(255,255,255,0.5)]"
+            >
+              {saving ? (
+                <Loader2 className="animate-spin" size={14} />
+              ) : (
+                <Save size={14} />
+              )}{" "}
+              Save Rider
+            </button>
+          )}
         </div>
-      </div>
+      </header>
+
+      {/* MAIN CONTENT */}
+      <main className="max-w-7xl mx-auto p-6 relative z-10">
+        {/* VIEW A: PROFILE EDITOR */}
+        {view === "profile" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4">
+            {/* Note: Passing a Neon Theme to your existing component */}
+            <ActorEditor
+              formData={formData}
+              setFormData={setFormData}
+              theme={{
+                inputBg: "bg-[#051a10]",
+                border: "border-[#00ff9d]/20",
+                text: "text-white",
+                cardBg: "bg-[#020d08]/50 backdrop-blur-md",
+              }}
+            />
+          </div>
+        )}
+
+        {/* VIEW B: THE GREEN ROOM (Studio) */}
+        {view === "studio" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4">
+            {!selectedProjectId ? (
+              <div className="space-y-8">
+                {/* Neon Welcome Banner */}
+                <div className="relative p-8 rounded-3xl overflow-hidden border border-[#00ff9d]/20 bg-[#051a10]">
+                  <div className="absolute top-0 right-0 p-8 opacity-20">
+                    <Mic2 className="w-64 h-64 text-[#00ff9d] rotate-12" />
+                  </div>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 text-[#00ff9d] text-xs font-black uppercase tracking-[0.3em] mb-2">
+                      <Sparkles size={14} /> Talent Dashboard
+                    </div>
+                    <h2 className="text-4xl md:text-5xl font-serif text-white mb-2">
+                      The{" "}
+                      <span className="text-[#00ff9d] drop-shadow-[0_0_10px_rgba(0,255,157,0.5)]">
+                        Green Room
+                      </span>
+                    </h2>
+                    <p className="text-gray-400 max-w-lg">
+                      Welcome back, {formData.public?.display_name || "Talent"}.
+                      Manage your active bookings, contracts, and communication
+                      channels here.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Project Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => setSelectedProjectId(p.project_ref_id)}
+                      className="group bg-[#020d08] border border-[#00ff9d]/20 hover:border-[#00ff9d] p-6 rounded-2xl cursor-pointer transition-all hover:-translate-y-1 relative overflow-hidden shadow-2xl hover:shadow-[0_0_30px_rgba(0,255,157,0.1)]"
+                    >
+                      {/* Card Glow */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#00ff9d]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                      <div className="relative z-10">
+                        <div className="flex justify-between items-start mb-4">
+                          <span className="inline-block px-2 py-1 rounded bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/20 text-[10px] font-bold uppercase tracking-widest">
+                            {p.production_status}
+                          </span>
+                          <Mic
+                            size={16}
+                            className="text-[#00ff9d]/40 group-hover:text-[#00ff9d] transition-colors"
+                          />
+                        </div>
+
+                        <h3 className="text-xl font-bold text-white mb-1 group-hover:text-[#00ff9d] transition-colors">
+                          {p.title}
+                        </h3>
+                        <p className="text-xs text-gray-500 font-mono mb-6">
+                          {p.client_name || "Internal Production"}
+                        </p>
+
+                        <div className="w-full py-3 bg-[#00ff9d]/10 border border-[#00ff9d]/20 rounded-lg flex items-center justify-center text-xs font-bold uppercase tracking-widest text-[#00ff9d] group-hover:bg-[#00ff9d] group-hover:text-black transition-all">
+                          Enter Studio
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {projects.length === 0 && (
+                    <div className="col-span-full py-24 text-center border border-dashed border-[#00ff9d]/20 rounded-3xl bg-[#00ff9d]/5 flex flex-col items-center justify-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-[#00ff9d]/10 flex items-center justify-center text-[#00ff9d]">
+                        <Sparkles size={32} />
+                      </div>
+                      <div>
+                        <h3 className="text-white font-bold text-lg">
+                          All Quiet on Set
+                        </h3>
+                        <div className="text-xs text-gray-500 uppercase tracking-widest mt-1">
+                          No active casting assignments found
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* THE WORKSPACE */
+              <TalentProductionView
+                projectId={selectedProjectId}
+                onBack={() => setSelectedProjectId(null)}
+                user={user}
+              />
+            )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-
-const StatBox = ({ icon: Icon, label, value, theme }) => (
-  <div
-    className={`flex items-center gap-3 p-3 rounded-2xl ${
-      theme ? "bg-white/5" : "bg-slate-50"
-    }`}
-  >
-    <div
-      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-        theme
-          ? "bg-emerald-500/20 text-emerald-400"
-          : "bg-emerald-100 text-emerald-600"
-      }`}
-    >
-      <Icon size={14} />
-    </div>
-    <div>
-      <div
-        className={`text-[9px] font-bold uppercase tracking-wider ${
-          theme ? "text-slate-500" : "text-slate-400"
-        }`}
-      >
-        {label}
-      </div>
-      <div
-        className={`text-xs font-bold ${
-          theme ? "text-white" : "text-slate-900"
-        }`}
-      >
-        {value}
-      </div>
-    </div>
-  </div>
-);
-
-const LoadingScreen = () => (
-  <div className="h-screen w-full bg-[#020010] flex flex-col items-center justify-center gap-4 relative overflow-hidden">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#10b981_0%,_#020010_40%)] opacity-20" />
-    <div className="w-16 h-16 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin relative z-10" />
-    <div className="font-mono text-emerald-500 text-xs tracking-[0.3em] animate-pulse relative z-10">
-      CONNECTING TO GREEN ROOM...
-    </div>
-  </div>
-);

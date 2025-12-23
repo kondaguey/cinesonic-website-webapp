@@ -1,6 +1,6 @@
 import { Cinzel, Lato } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/src/components/ui/ThemeContext";
+import { ThemeProvider } from "@/components/ui/ThemeContext";
 
 const cinzel = Cinzel({
   subsets: ["latin"],

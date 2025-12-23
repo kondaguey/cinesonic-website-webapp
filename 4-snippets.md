@@ -82,7 +82,7 @@ table_name, ordinal_position;
 -- F. TABLE DATA INSPECTOR: See the actual content of the Dictionary
 -- This is critical for verifying your Genres, Voice Types, and Styles.
 
-SELECT \* FROM public.[table name] ORDER BY category, sort_order;
+SELECT \* FROM public.lists LIMIT ALL;
 
 -- G. SPECIFIC CATEGORY CHECK: If you want to isolate just Genres or Ages
 -- SELECT _ FROM public.lists WHERE category = 'genre';

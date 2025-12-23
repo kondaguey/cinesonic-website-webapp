@@ -1,253 +1,221 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import {
-  Mail,
+  LayoutDashboard,
+  Mic,
   Calendar,
-  FileText,
-  CheckCircle,
-  User,
   Users,
+  FileSignature,
+  Activity,
+  MessageSquare,
+  CheckCircle,
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
-// --- ATOMS ---
-import Button from "../ui/Button";
-import SectionHeader from "../ui/SectionHeader";
-import Badge from "../ui/Badge";
+// --- CHILD COMPONENTS ---
+import ProjectHeader from "@/components/dashboard/ProductionHeader";
 
-// --- LOCAL SUB-COMPONENTS ---
-const CrewCard = ({ label, name, email, onUpdate, onEmail }) => {
-  const hasEmail = Boolean(email);
+// --- TABS ---
+import OverviewTab from "@/components/dashboard/tabs/Overview";
+import CastingManager from "@/components/dashboard/tabs/CastingManager";
+import TalentScheduler from "@/components/dashboard/tabs/TalentScheduler";
+import CrewScheduler from "@/components/dashboard/tabs/CrewScheduler";
+import ContractsManager from "@/components/dashboard/tabs/ContractsManager";
+import WorkflowTracker from "@/components/dashboard/tabs/WorkflowTracker";
+import CommunicationHub from "@/components/dashboard/tabs/CommunicationHub";
+import OffboardingTab from "@/components/dashboard/tabs/Offboarding";
 
-  return (
-    <div className="bg-white/5 p-4 rounded-xl border border-white/10 hover:border-white/20 transition-all flex flex-col gap-3">
-      <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">
-        {label}
-      </label>
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
-      <input
-        type="text"
-        value={name || ""}
-        onChange={(e) => onUpdate(e.target.value)}
-        className="w-full bg-transparent border-b border-white/20 pb-2 text-white text-sm font-bold focus:border-[#d4af37] outline-none placeholder-gray-600 transition-colors"
-        placeholder="Unassigned"
-      />
+export default function ProjectView({ projectId, onBack }) {
+  const [project, setProject] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [lastSave, setLastSave] = useState(Date.now());
 
-      {/* 🟢 EXPLICIT BUTTON */}
-      <button
-        onClick={onEmail}
-        disabled={!hasEmail}
-        className={`w-full py-2 h-auto text-[10px] rounded flex items-center justify-center font-bold uppercase tracking-wider transition-all duration-200 border
-          ${
-            hasEmail
-              ? "bg-[#d4af37]/10 text-[#d4af37] border-[#d4af37]/30 hover:bg-[#d4af37] hover:text-black"
-              : "bg-transparent text-gray-500 border-white/10 cursor-not-allowed opacity-50"
-          }
-        `}
-      >
-        <Mail className="w-3 h-3 mr-2" />
-        {hasEmail ? "Email" : "No Email"}
-      </button>
-    </div>
-  );
-};
+  // 1. MASTER FETCH
+  const fetchProject = useCallback(async () => {
+    if (!projectId) {
+      setLoading(false);
+      return;
+    }
+    // Don't set loading=true here to avoid flickering on re-fetches
+    try {
+      const { data, error } = await supabase
+        .from("active_productions")
+        .select("*")
+        .eq("project_ref_id", projectId)
+        .single();
 
-const TalentCard = ({ name, email, onEmail }) => {
-  const hasEmail = Boolean(email);
-  if (!name) {
+      if (error) throw error;
+      setProject(data);
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+
+  // Initial Load
+  useEffect(() => {
+    fetchProject();
+  }, [fetchProject]);
+
+  // 🟢 2. REALTIME LISTENER (The New Magic)
+  useEffect(() => {
+    if (!projectId) return;
+
+    // Create the channel
+    const channel = supabase
+      .channel(`project_watch_${projectId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "active_productions",
+          filter: `project_ref_id=eq.${projectId}`, // Only listen to THIS project
+        },
+        (payload) => {
+          // payload.new contains the updated row from the DB
+          console.log("⚡ Realtime Update Received!", payload.new);
+          setProject(payload.new); // Instant Update on Screen
+          setLastSave(Date.now()); // Update status indicator
+        }
+      )
+      .subscribe();
+
+    // Cleanup when component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId]);
+
+  // 3. MASTER UPDATE
+  const handleUpdate = async (updates) => {
+    // Optimistic Update (Instant feedback for the user who clicked)
+    setProject((prev) => ({ ...prev, ...updates }));
+
+    // DB Update (Triggers the Realtime event for everyone else)
+    const { error } = await supabase
+      .from("active_productions")
+      .update({ ...updates, updated_at: new Date() })
+      .eq("project_ref_id", projectId);
+
+    if (error) console.error("Save Error:", error);
+    else setLastSave(Date.now());
+  };
+
+  if (loading)
     return (
-      <div className="border border-white/5 border-dashed rounded-xl p-6 flex items-center justify-center text-gray-600 text-xs italic min-h-[140px]">
-        Slot Empty
+      <div className="h-full flex items-center justify-center text-[#d4af37] animate-pulse">
+        <Loader2 className="animate-spin mr-2" /> Connecting to Live Data...
       </div>
     );
-  }
 
-  return (
-    <div className="bg-white/5 border border-[#d4af37]/30 p-4 rounded-xl flex flex-col gap-4 hover:bg-[#d4af37]/5 transition group min-h-[140px]">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-[#d4af37]/20 flex items-center justify-center text-[#d4af37] font-bold shrink-0 text-sm">
-          {name.charAt(0)}
-        </div>
-        <div className="overflow-hidden">
-          <div className="flex items-center gap-1 mb-1">
-            <CheckCircle className="w-3 h-3 text-green-400" />
-            <span className="text-[9px] text-green-400 uppercase font-bold tracking-wider">
-              Confirmed
-            </span>
-          </div>
-          <div className="font-bold text-white text-sm truncate leading-tight">
-            {name}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-auto pt-3 border-t border-white/5">
-        {/* 🟢 EXPLICIT BUTTON */}
+  if (!project)
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-gray-500">
+        <AlertCircle size={48} className="mb-4 text-red-500 opacity-50" />
+        <h2 className="text-xl font-serif text-white">Project Not Found</h2>
         <button
-          onClick={onEmail}
-          disabled={!hasEmail}
-          className={`w-full py-2 h-auto text-[10px] rounded flex items-center justify-center font-bold uppercase tracking-wider transition-all duration-200 border
-            ${
-              hasEmail
-                ? "bg-transparent text-[#d4af37] border-[#d4af37]/30 hover:bg-[#d4af37] hover:text-black"
-                : "bg-transparent text-gray-500 border-white/10 cursor-not-allowed opacity-50"
-            }
-          `}
+          onClick={onBack}
+          className="mt-6 px-6 py-2 bg-white/5 border border-white/10 rounded-lg text-xs uppercase font-bold tracking-widest hover:bg-white/10 transition-colors"
         >
-          <Mail className="w-3 h-3 mr-2" />
-          {hasEmail ? "Email Talent" : "No Email"}
+          Return to Dashboard
         </button>
       </div>
-    </div>
-  );
-};
+    );
 
-const ProductionView = ({ project, updateField, roster }) => {
-  if (!project) return null;
-
-  const handleEmailIndividual = (email, subject = "") => {
-    if (!email) return alert("No email address found for this person.");
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(
-      subject
-    )}`;
-  };
-
-  const handleEmailAll = () => {
-    let emails = [];
-    [
-      "Coordinator Email",
-      "Script Prep Email",
-      "Engineer Email",
-      "Proofer Email",
-      "Talent A Email",
-      "Talent B Email",
-      "Talent C Email",
-      "Talent D Email",
-    ].forEach((k) => {
-      if (project[k]) emails.push(project[k]);
-    });
-    if (emails.length === 0) return alert("No emails found in this project.");
-    const subject = `PRODUCTION KICKOFF: ${project["Title"]} (${project["Project ID"]})`;
-    window.location.href = `mailto:?bcc=${emails.join(
-      ","
-    )}&subject=${encodeURIComponent(subject)}`;
-  };
-
-  // 🟢 HELPER: Safe Date Parsing
-  const getIsoDate = (dateVal) => {
-    if (!dateVal) return "";
-    if (typeof dateVal === "string" && dateVal.match(/^\d{4}-\d{2}-\d{2}$/))
-      return dateVal;
-    try {
-      const d = new Date(dateVal);
-      if (isNaN(d.getTime())) return "";
-      return d.toISOString().split("T")[0];
-    } catch (e) {
-      return "";
-    }
-  };
+  // TABS CONFIG
+  const TABS = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "casting", label: "Casting", icon: Mic },
+    { id: "talent_sched", label: "Talent Sched", icon: Calendar },
+    { id: "crew_sched", label: "Crew Sched", icon: Users },
+    { id: "contracts", label: "Contracts", icon: FileSignature },
+    { id: "workflow", label: "Tracker", icon: Activity },
+    { id: "comms", label: "Comms", icon: MessageSquare },
+    { id: "offboard", label: "Offboard", icon: CheckCircle },
+  ];
 
   return (
-    <div className="space-y-8 animate-fade-in pb-20">
-      {/* 1. LOGISTICS CARD */}
-      <div className="bg-[#0c0442] border border-white/10 rounded-xl p-8 shadow-lg relative overflow-hidden group">
-        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition pointer-events-none">
-          <FileText className="w-64 h-64 text-[#d4af37]" />
-        </div>
-
-        <div className="relative z-10">
-          <SectionHeader
-            icon={Calendar}
-            title="Production Logistics"
-            color="text-[#d4af37]"
-          />
-
-          {/* DATES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 mt-6">
-            <div>
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block font-bold">
-                Official Start Date
-              </label>
-              <input
-                type="date"
-                value={getIsoDate(project["Confirmed Start"])}
-                onChange={(e) => updateField("Confirmed Start", e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:border-[#d4af37] outline-none transition-colors [color-scheme:dark]"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block font-bold">
-                Official End Date
-              </label>
-              <input
-                type="date"
-                value={getIsoDate(project["Confirmed End"])}
-                onChange={(e) => updateField("Confirmed End", e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:border-[#d4af37] outline-none transition-colors [color-scheme:dark]"
-              />
-            </div>
-          </div>
-
-          {/* CREW GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { label: "Coordinator", key: "Coordinator" },
-              { label: "Script Prep", key: "Script Prep" },
-              { label: "Engineer", key: "Engineer" },
-              { label: "Proofer", key: "Proofer" },
-            ].map((role) => (
-              <CrewCard
-                key={role.key}
-                label={role.label}
-                name={project[role.key]}
-                email={project[`${role.key} Email`]}
-                onUpdate={(val) => updateField(role.key, val)}
-                onEmail={() =>
-                  handleEmailIndividual(
-                    project[`${role.key} Email`],
-                    `Question for ${role.label}`
-                  )
-                }
-              />
-            ))}
-          </div>
-        </div>
+    <div className="flex flex-col h-full space-y-6">
+      {/* HEADER */}
+      <div className="flex flex-col gap-4">
+        <button
+          onClick={onBack}
+          className="flex items-center text-xs text-gray-500 hover:text-white uppercase tracking-widest w-fit group transition-colors"
+        >
+          <ArrowLeft
+            size={14}
+            className="mr-2 group-hover:-translate-x-1 transition-transform"
+          />{" "}
+          Back to Hub
+        </button>
+        <ProjectHeader
+          project={project}
+          onProjectUpdate={fetchProject}
+          lastSynced={lastSave}
+        />
       </div>
 
-      {/* 2. LOCKED ROSTER */}
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-xl p-8">
-        <header className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-          <div className="flex items-center gap-3">
-            <User className="w-6 h-6 text-[#d4af37]" />
-            <h3 className="text-xl font-bold text-white font-serif">
-              Locked Talent Roster
-            </h3>
-          </div>
-
-          {/* 🟢 EXPLICIT BUTTON */}
+      {/* NAVIGATION BAR */}
+      <div className="flex gap-2 border-b border-white/10 overflow-x-auto pb-1 custom-scrollbar">
+        {TABS.map((tab) => (
           <button
-            onClick={handleEmailAll}
-            className="w-auto px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center bg-[#d4af37] text-black hover:bg-[#b8860b] shadow-lg hover:shadow-[#d4af37]/20 transition-all border border-[#d4af37]"
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-all whitespace-nowrap ${
+              activeTab === tab.id
+                ? "border-[#d4af37] text-[#d4af37] bg-[#d4af37]/5"
+                : "border-transparent text-gray-500 hover:text-white hover:bg-white/5"
+            }`}
           >
-            <Users className="w-4 h-4 mr-2" /> Email Full Team (Kickoff)
+            <tab.icon size={14} /> {tab.label}
           </button>
-        </header>
+        ))}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {["Talent A", "Talent B", "Talent C", "Talent D"].map((key) => (
-            <TalentCard
-              key={key}
-              name={project[key]}
-              email={project[`${key} Email`]}
-              onEmail={() =>
-                handleEmailIndividual(
-                  project[`${key} Email`],
-                  `Production Update: ${project["Title"]}`
-                )
-              }
-            />
-          ))}
-        </div>
+      {/* TAB CONTENT AREA */}
+      <div className="flex-1 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20 custom-scrollbar">
+        {activeTab === "overview" && <OverviewTab project={project} />}
+
+        {activeTab === "casting" && (
+          <CastingManager project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "talent_sched" && (
+          <TalentScheduler project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "crew_sched" && (
+          <CrewScheduler project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "contracts" && (
+          <ContractsManager project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "workflow" && (
+          <WorkflowTracker project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "comms" && (
+          <CommunicationHub project={project} onUpdate={handleUpdate} />
+        )}
+
+        {activeTab === "offboard" && (
+          <OffboardingTab project={project} onUpdate={handleUpdate} />
+        )}
       </div>
     </div>
   );
-};
-export default ProductionView;
+}

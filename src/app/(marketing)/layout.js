@@ -2,8 +2,8 @@
 
 import React from "react";
 // 🟢 ADJUST PATHS AS NEEDED based on your structure
-import Navbar from "@/src/components/marketing/Navbar";
-import Footer from "@/src/components/marketing/Footer";
+import Navbar from "@/components/marketing/Navbar";
+import Footer from "@/components/marketing/Footer";
 
 export default function MarketingLayout({ children }) {
   return (
